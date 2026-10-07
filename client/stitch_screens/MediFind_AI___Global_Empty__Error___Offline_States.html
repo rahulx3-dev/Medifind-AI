@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#c1ebe1","on-surface-variant":"#414846","inverse-on-surface":"#e3f5ee","surface-container-highest":"#d5e6e0","on-primary":"#ffffff","tertiary-fixed":"#ffdad4","on-primary-fixed":"#00201b","inverse-surface":"#24332f","surface-container":"#e0f2eb","surface-container-high":"#dbece5","on-tertiary-container":"#ff8875","on-error-container":"#93000a","primary-fixed-dim":"#a6cfc5","secondary":"#2e685d","tertiary":"#5a0100","surface-container-lowest":"#ffffff","on-tertiary-fixed-variant":"#8a1c10","on-background":"#0f1e1b","on-tertiary-fixed":"#410100","on-secondary-fixed":"#00201b","secondary-fixed-dim":"#97d2c4","surface-variant":"#d5e6e0","secondary-container":"#b0ecdd","primary-container":"#1e453e","background":"#ecfdf7","surface-dim":"#cdded7","on-surface":"#0f1e1b","on-primary-container":"#8ab2a9","error-container":"#ffdad6","on-secondary-container":"#336c61","on-secondary":"#ffffff","surface":"#ecfdf7","primary":"#032f28","secondary-fixed":"#b3eee0","inverse-primary":"#a6cfc5","error":"#ba1a1a","on-secondary-fixed-variant":"#105045","tertiary-container":"#7e1208","on-primary-fixed-variant":"#274d46","surface-tint":"#3f655e","surface-bright":"#ecfdf7","outline":"#717976","tertiary-fixed-dim":"#ffb4a8","surface-container-low":"#e6f8f1","outline-variant":"#c0c8c5","on-tertiary":"#ffffff","on-error":"#ffffff"},borderRadius:{DEFAULT:"1rem",lg:"2rem",xl:"3rem",full:"9999px"},spacing:{"space-md":"1rem","space-lg":"1.5rem","gutter-mobile":"0.75rem","space-xl":"2rem","margin-mobile":"1rem","space-sm":"0.5rem",margin:"2rem","space-xs":"0.25rem",gutter:"1rem"},fontFamily:{"headline-lg-mobile":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],display:["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"title-md":["Plus Jakarta Sans"],"title-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"]},fontSize:{"headline-lg-mobile":["26px",{lineHeight:"34px",letterSpacing:"-0.01em",fontWeight:"700"}],"label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.02em",fontWeight:"500"}],display:["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"700"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.01em",fontWeight:"600"}],"label-md":["12px",{lineHeight:"16px",letterSpacing:"0.02em",fontWeight:"600"}],"headline-md":["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],"headline-sm":["20px",{lineHeight:"28px",fontWeight:"600"}],"headline-lg":["32px",{lineHeight:"40px",letterSpacing:"-0.015em",fontWeight:"700"}],"body-md":["14px",{lineHeight:"20px",fontWeight:"400"}],"title-md":["16px",{lineHeight:"24px",fontWeight:"600"}],"title-lg":["18px",{lineHeight:"26px",fontWeight:"600"}],"body-sm":["12px",{lineHeight:"18px",fontWeight:"400"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(30,69,62,0.06)]"><div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-sm"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-primary-fixed"><span class="material-symbols-outlined text-[22px]">local_hospital</span></div><div class="flex flex-col"><span class="font-title-md text-title-md text-primary tracking-tight">MediFind AI</span><span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Ops • System Core Architecture</span></div></div><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary font-semibold">US-West-2 Live Telemetry • HIPAA Compliant</span></div></div><nav class="hidden md:flex items-center gap-space-xs p-space-xs bg-surface-container-low rounded-full" data-active-classes="bg-primary-container text-on-primary font-label-md rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.15)]"><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="loading-skeletons" href="#">Loading &amp; Skeletons</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="empty-error-states" href="#">Empty &amp; Error States</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="feedback-dialogs" href="#">Feedback &amp; Dialogs</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="component-specs" href="#">Component Specs</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex flex-col text-right"><span class="font-label-md text-label-md text-primary font-semibold">Dr. Eleanor Vance</span><span class="font-label-sm text-label-sm text-on-surface-variant">Lead Architect</span></div><div class="relative flex items-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-2 ring-surface"></span></div></div></div></header><main class="w-full pt-20 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<div class="w-full max-w-7xl mx-auto px-margin py-space-xl flex flex-col gap-space-xl">
+<!-- Top Governance & Blueprint Header -->
+<div class="relative overflow-hidden rounded-xl bg-surface-container-low p-space-xl shadow-sm">
+<div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-secondary/5 blur-3xl pointer-events-none"></div>
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-lg relative z-10">
+<div class="flex flex-col gap-space-xs max-w-3xl">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="px-space-sm py-0.5 rounded-full bg-secondary/10 text-secondary font-label-sm text-label-sm uppercase tracking-wider font-semibold">Architecture Standard</span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant tracking-wide">Module ID: SPEC-UX-704</span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Class II Medical Software Resilience</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Global System States: Empty, Search, Network &amp; Offline Governance</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+            Standardized failure handling, non-destructive fallback mechanisms, and zero-compromise safety protocols operating across Patient, Pharmacist, Clinical Assistant, and Admin roles.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm bg-surface-container-highest px-space-md py-space-sm rounded-full self-start lg:self-auto">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-md text-label-md text-on-surface font-medium">Compliance Sync: Active</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">ISO 13485:2016</span>
+</div>
+</div>
+<!-- Quick Index Pill Bar -->
+<div class="flex flex-wrap items-center gap-space-xs pt-space-lg mt-space-lg border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-semibold uppercase tracking-wider mr-space-xs">State Instances:</span>
+<a class="px-space-sm py-space-xs rounded-full bg-surface-container-lowest font-label-sm text-label-sm text-secondary hover:bg-secondary hover:text-on-secondary transition-all" href="#state-search">01. Search Null State</a>
+<a class="px-space-sm py-space-xs rounded-full bg-surface-container-lowest font-label-sm text-label-sm text-secondary hover:bg-secondary hover:text-on-secondary transition-all" href="#state-empty-orders">02. Transactional Null</a>
+<a class="px-space-sm py-space-xs rounded-full bg-surface-container-lowest font-label-sm text-label-sm text-secondary hover:bg-secondary hover:text-on-secondary transition-all" href="#state-network-error">03. Node Fault Error</a>
+<a class="px-space-sm py-space-xs rounded-full bg-surface-container-lowest font-label-sm text-label-sm text-secondary hover:bg-secondary hover:text-on-secondary transition-all" href="#state-offline">04. Offline Protection Matrix</a>
+<a class="px-space-sm py-space-xs rounded-full bg-surface-container-lowest font-label-sm text-label-sm text-secondary hover:bg-secondary hover:text-on-secondary transition-all" href="#state-session">05. Regulatory Timeout</a>
+</div>
+</div>
+<!-- Section 1 & 2: Asymmetric Grid for Search Empty + Transactional Empty -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- Search & Filter Empty State (7 Cols) -->
+<section class="lg:col-span-7 flex flex-col bg-surface-container-lowest rounded-xl p-space-lg shadow-sm justify-between" id="state-search">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-bold text-secondary">01</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Active Prescription Search Engine</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-space-xs py-0.5 rounded">Telemetry Code 204</span>
+</div>
+<!-- Active Query Context Container -->
+<div class="p-space-sm bg-surface-container-low rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-xs overflow-hidden">
+<span class="material-symbols-outlined text-secondary text-[18px]">search</span>
+<span class="font-label-md text-label-md text-on-surface font-medium truncate">Query: <strong class="text-primary font-bold">"Ciprofloxacin 1000mg"</strong></span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm shrink-0">
+<span class="px-space-xs py-0.5 rounded bg-surface-container-high text-secondary font-semibold">In-Stock Nearby</span>
+<span>•</span>
+<span>Radius: 5.0 km</span>
+</div>
+</div>
+<!-- Empathetic Null Card Body -->
+<div class="py-space-md flex flex-col sm:flex-row items-start gap-space-md">
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[28px]">medication</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<h3 class="font-title-lg text-title-lg text-primary tracking-tight">No accredited dispensaries report this stock</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                No verified pharmacies currently report available inventory for <span class="font-semibold text-on-surface">Ciprofloxacin 1000mg</span> within your selected 5.0 km perimeter. Formulations of this dosage require active cold-chain batch validation.
+              </p>
+</div>
+</div>
+<!-- Clinical Suggestions Bento -->
+<div class="bg-surface-container-low rounded-lg p-space-md flex flex-col gap-space-sm">
+<span class="font-label-sm text-label-sm font-semibold text-secondary uppercase tracking-wider">Clinical Pathways &amp; Next Steps</span>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<button class="flex flex-col items-start p-space-sm rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-high transition-colors text-left group">
+<span class="material-symbols-outlined text-secondary text-[20px] mb-space-xs">sync_alt</span>
+<span class="font-label-md text-label-md text-primary font-semibold group-hover:text-secondary">Alternate 500mg</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">2x 500mg split dose (14 verified in-stock)</span>
+</button>
+<button class="flex flex-col items-start p-space-sm rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-high transition-colors text-left group">
+<span class="material-symbols-outlined text-secondary text-[20px] mb-space-xs">distance</span>
+<span class="font-label-md text-label-md text-primary font-semibold group-hover:text-secondary">Widen Radius</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Expand perimeter to 15.0 km regional hub</span>
+</button>
+<button class="flex flex-col items-start p-space-sm rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-high transition-colors text-left group">
+<span class="material-symbols-outlined text-secondary text-[20px] mb-space-xs">notifications_active</span>
+<span class="font-label-md text-label-md text-primary font-semibold group-hover:text-secondary">Stock Ping Alert</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Notify when accredited stock replenishes</span>
+</button>
+</div>
+</div>
+</div>
+<div class="pt-space-md mt-space-md border-t border-surface-container flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<button class="w-full sm:w-auto px-space-lg py-space-sm rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center justify-center gap-space-xs shadow-sm">
+<span class="material-symbols-outlined text-[18px]">restart_alt</span>
+<span>Clear Search &amp; Reset Filters</span>
+</button>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Pharmacopeia Synced: 2 mins ago</span>
+</div>
+</section>
+<!-- Transactional Empty State: Patient Orders / Pharmacist Queue (5 Cols) -->
+<section class="lg:col-span-5 flex flex-col bg-surface-container-lowest rounded-xl p-space-lg shadow-sm justify-between" id="state-empty-orders">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-bold text-secondary">02</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Patient &amp; Queue Telemetry</span>
+</div>
+<span class="px-space-xs py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm font-semibold">Zero Prescriptions</span>
+</div>
+<!-- Illustrated Centerpiece Well -->
+<div class="rounded-xl bg-surface-container-low p-space-lg flex flex-col items-center text-center gap-space-sm relative overflow-hidden">
+<div class="w-16 h-16 rounded-full bg-secondary-container/40 text-secondary flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-[32px]">inventory_2</span>
+</div>
+<div class="flex flex-col gap-space-xs max-w-sm">
+<h3 class="font-headline-sm text-headline-sm text-primary tracking-tight">No active reservations yet</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                You don't have any active or completed prescription reservations yet. Upload a prescription or search accredited local pharmacies to begin.
+              </p>
+</div>
+<!-- Contextual Workflow Indicators -->
+<div class="w-full flex items-center justify-center gap-space-md pt-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> e-Prescriptions</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Telehealth Intake</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> OTC Delivery</span>
+</div>
+</div>
+</div>
+<div class="pt-space-md mt-space-md flex flex-col gap-space-xs">
+<button class="w-full py-space-sm rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-all flex items-center justify-center gap-space-xs shadow-sm">
+<span>Browse Medicines &amp; Catalogue</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+<button class="w-full py-space-sm rounded-full bg-surface-container-high text-primary font-label-md text-label-md hover:bg-surface-container-highest transition-all flex items-center justify-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px]">document_scanner</span>
+<span>Upload Paper Prescription</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Section 3: Network Node Fault State (Full Width Resilience Block) -->
+<section class="w-full bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md relative overflow-hidden" id="state-network-error">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-error"></div>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pl-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-bold text-secondary">03</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Resilience Fallback: Real-time Telemetry Interruption</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+<span class="font-label-sm text-label-sm font-bold text-error">NODE UNREACHABLE (HTTP 504 GATEWAY TIMEOUT)</span>
+</div>
+</div>
+<div class="pl-space-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-lg bg-surface-container-low rounded-xl p-space-lg">
+<div class="flex items-start gap-space-md max-w-2xl">
+<div class="w-12 h-12 rounded-full bg-error-container text-error flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[24px]">cloud_off</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<h3 class="font-title-lg text-title-lg text-primary">Unable to retrieve latest dispensary telemetry</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              Our secure connection to the King County pharmacy node timed out. Clinical ledger integrity was preserved, and no uncommitted prescription adjustments were committed to the regional database.
+            </p>
+<div class="flex flex-wrap items-center gap-space-sm pt-space-xs">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono bg-surface-container px-space-xs py-0.5 rounded">
+                Ref: ERR_DISP_NODE_TIMEOUT
+              </span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono bg-surface-container px-space-xs py-0.5 rounded">
+                SHA: 7f8a9e99b2c01
+              </span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Timestamp: 2025-05-18T14:32:09.112Z</span>
+</div>
+</div>
+</div>
+<div class="flex flex-row lg:flex-col sm:flex-row w-full lg:w-auto items-center gap-space-sm shrink-0">
+<button class="w-full sm:w-auto px-space-lg py-space-sm rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-all flex items-center justify-center gap-space-xs shadow-sm">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+<span>Try Again ↻</span>
+</button>
+<a class="w-full sm:w-auto px-space-lg py-space-sm rounded-full bg-surface-container-highest text-secondary font-label-md text-label-md hover:bg-surface-container-high transition-all flex items-center justify-center gap-space-xs" href="#">
+<span class="material-symbols-outlined text-[18px]">monitoring</span>
+<span>Check System Status</span>
+</a>
+</div>
+</div>
+</section>
+<!-- Section 4: Global Offline State Matrix (Clinical Governance Guardrail) -->
+<section class="w-full bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-lg" id="state-offline">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-bold text-secondary">04</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Strict Clinical Offline Matrix</span>
+</div>
+<div class="flex items-center gap-space-xs px-space-sm py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed">
+<span class="material-symbols-outlined text-[16px]">wifi_off</span>
+<span class="font-label-sm text-label-sm font-bold">Protected Local Cache Active</span>
+</div>
+</div>
+<!-- Banner Explanation -->
+<div class="rounded-xl bg-surface-container-high p-space-md flex flex-col md:flex-row items-start md:items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">security</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<h4 class="font-title-md text-title-md text-primary font-bold">You're offline — Protected Local Cache Mode</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">
+            MediFind displays previously verified cached data, but transactions requiring live server confirmation cannot be completed offline. To prevent lethal double-dispensation or unvalidated contraindications, transaction simulation is disabled.
+          </p>
+</div>
+</div>
+<!-- Crucial Operational Distinction Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
+<!-- SAFE COLUMN: AVAILABLE OFFLINE -->
+<div class="flex flex-col rounded-xl bg-surface-container-low p-space-lg gap-space-md relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[22px]">check_circle</span>
+<h5 class="font-title-md text-title-md text-primary font-bold">Available Offline</h5>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-semibold bg-surface-container px-space-xs py-0.5 rounded">Read-Only Cache</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Cryptographically signed local snapshots stored in secure client IndexedDB storage.
+          </p>
+<ul class="flex flex-col gap-space-xs">
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">location_on</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Verified Pharmacy Physical Addresses</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Geographic directory &amp; emergency dispatch contact cards.</span>
+</div>
+</li>
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">prescriptions</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Saved Prescription Metadata &amp; Sig Instructions</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Local dosage guidance, patient notes, and regimen timelines.</span>
+</div>
+</li>
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">receipt_long</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Historical Order Invoices &amp; Dispensation Receipts</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Past settled logs with immutable timestamp certificates.</span>
+</div>
+</li>
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">ac_unit</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Cold-Chain Storage &amp; Stability Guidelines</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Full USP pharmacopeia drug monographs stored locally.</span>
+</div>
+</li>
+</ul>
+</div>
+<!-- STRICTLY BLOCKED COLUMN -->
+<div class="flex flex-col rounded-xl bg-surface-container-low p-space-lg gap-space-md relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary-container text-[22px]">block</span>
+<h5 class="font-title-md text-title-md text-primary font-bold">Strictly Blocked Offline</h5>
+</div>
+<span class="font-label-sm text-label-sm text-error font-semibold bg-error-container/40 px-space-xs py-0.5 rounded">Zero Queue Policy</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Non-queueable operations. Clinical actions are intentionally disabled until live server handshake.
+          </p>
+<ul class="flex flex-col gap-space-xs">
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5">cancel</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">New Reservations &amp; Prescription Orders</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Prevented to eliminate phantom allocations across physical sites.</span>
+</div>
+</li>
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5">document_scanner</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Prescription Optical Verification (AI-OCR)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Model inference runs on encrypted HIPAA cloud nodes only.</span>
+</div>
+</li>
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5">door_open</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Emergency Night-Hatch Authorization</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Requires real-time pharmacologist biometric confirmation.</span>
+</div>
+</li>
+<li class="flex items-start gap-space-sm p-space-sm rounded-lg bg-surface-container-lowest">
+<span class="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5">pin</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Counter PIN Handover Verification &amp; Copay Checkout</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Live token invalidation required to finalize narcotic distribution.</span>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<!-- Architectural Note -->
+<div class="flex items-center gap-space-xs p-space-sm bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-secondary text-[20px]">info</span>
+<span class="font-body-sm text-body-sm">
+<strong>Life-Safety Mandate:</strong> In accordance with FDA Software as a Medical Device (SaMD) guidance, MediFind will never queue drug dispensation orders in a pending state without confirmed telemetry to avoid double-administration.
+        </span>
+</div>
+</section>
+<!-- Section 5: Regulatory Session-Expired Modal / Locked Card -->
+<section class="w-full bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md" id="state-session">
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center font-label-sm text-label-sm font-bold text-secondary">05</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Regulatory Session Enforcement</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">21 CFR Part 11 Compliant</span>
+</div>
+<!-- Authentication Lockup Panel -->
+<div class="max-w-2xl mx-auto w-full bg-surface-container-low rounded-xl p-space-xl flex flex-col items-center text-center gap-space-md shadow-sm">
+<div class="relative">
+<div class="w-16 h-16 rounded-full bg-primary-container text-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-[32px]">lock_clock</span>
+</div>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[12px]">
+<span class="material-symbols-outlined text-[14px]">shield</span>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-primary tracking-tight">Clinical Session Timed Out</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mx-auto">
+            For your patient privacy and in compliance with HIPAA Safe Harbor and FDA 21 CFR Part 11, your secure session timed out after 15 minutes of inactivity.
+          </p>
+</div>
+<!-- Non-Sensitive Account Token Badge -->
+<div class="flex items-center gap-space-sm px-space-md py-space-xs rounded-full bg-surface-container-lowest shadow-sm">
+<div class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[14px]">account_circle</span>
+</div>
+<span class="font-label-md text-label-md text-primary font-semibold">Dr. Eleanor Vance</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">(Role: Lead Architect #ADM-101)</span>
+</div>
+<div class="flex flex-col sm:flex-row items-center gap-space-sm w-full max-w-md pt-space-xs">
+<button class="w-full sm:flex-1 py-space-sm rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-all flex items-center justify-center gap-space-xs shadow-sm">
+<span class="material-symbols-outlined text-[18px]">passkey</span>
+<span>Sign In with SSO / Bio</span>
+</button>
+<button class="w-full sm:w-auto px-space-lg py-space-sm rounded-full bg-surface-container-high text-primary font-label-md text-label-md hover:bg-surface-container-highest transition-all">
+            Switch User
+          </button>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+<span>Zero patient tokens or session identifiers are persisted in browser memory.</span>
+</div>
+</div>
+</section>
+</div>
+</div></main><footer class="w-full bg-surface-container-low mt-space-xl shadow-[0_-1px_6px_rgba(30,69,62,0.03)]"><div class="max-w-7xl mx-auto px-margin py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex flex-col items-center md:items-start gap-space-xs"><div class="flex items-center gap-space-sm"><span class="font-title-md text-title-md text-primary">MediFind AI Design System</span><span class="px-space-sm py-0.5 rounded-full bg-surface-container-highest font-label-sm text-label-sm text-secondary font-medium">v4.2.0-clinical</span></div><p class="font-body-sm text-body-sm text-on-surface-variant text-center md:text-left">Architectural blueprint and unified patterns for clinical diagnostic companions, pharmacology workflows, and health equity models.</p></div><div class="flex flex-wrap items-center justify-center gap-space-md"><div class="flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span><span class="font-label-sm text-label-sm text-on-surface">HIPAA Certified</span></div><div class="flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px] text-secondary">shield</span><span class="font-label-sm text-label-sm text-on-surface">SOC2 Type II</span></div><div class="flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px] text-secondary">lock</span><span class="font-label-sm text-label-sm text-on-surface">FDA 21 CFR Part 11</span></div></div></div><div class="max-w-7xl mx-auto px-margin py-space-md flex flex-col sm:flex-row items-center justify-between gap-space-sm"><span class="font-body-sm text-body-sm text-on-surface-variant">© 2025 MediFind AI Health Systems Inc. All clinical rights reserved.</span><div class="flex items-center gap-space-lg"><span class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">Security Protocol</span><span class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">Pharmacopeia Standard</span><span class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">Audit Logs</span></div></div></footer></body></html>

@@ -1,0 +1,702 @@
+[
+  {
+    "id": "cat-001",
+    "brandName": "Crocin 650",
+    "genericName": "Paracetamol",
+    "dosageForm": "Tablet",
+    "strength": "650mg",
+    "category": "Antipyretic / Analgesic",
+    "alternativeGenerics": "[\"Dolo 650\",\"Calpol 650\",\"Pacimol 650\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.401Z",
+      "seedDataIndex": 0
+    }
+  },
+  {
+    "id": "cat-002",
+    "brandName": "Dolo 650",
+    "genericName": "Paracetamol",
+    "dosageForm": "Tablet",
+    "strength": "650mg",
+    "category": "Antipyretic / Analgesic",
+    "alternativeGenerics": "[\"Crocin 650\",\"Calpol 650\",\"Sumo L 650\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 1
+    }
+  },
+  {
+    "id": "cat-003",
+    "brandName": "Brufen 400",
+    "genericName": "Ibuprofen",
+    "dosageForm": "Tablet",
+    "strength": "400mg",
+    "category": "NSAID / Analgesic",
+    "alternativeGenerics": "[\"Ibugesic 400\",\"Combiflam\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 2
+    }
+  },
+  {
+    "id": "cat-004",
+    "brandName": "Combiflam",
+    "genericName": "Ibuprofen + Paracetamol",
+    "dosageForm": "Tablet",
+    "strength": "400mg + 325mg",
+    "category": "NSAID / Analgesic Combination",
+    "alternativeGenerics": "[\"Flexon\",\"Ibugesic Plus\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 3
+    }
+  },
+  {
+    "id": "cat-005",
+    "brandName": "Voveran SR 100",
+    "genericName": "Diclofenac Sodium",
+    "dosageForm": "Tablet",
+    "strength": "100mg",
+    "category": "NSAID",
+    "alternativeGenerics": "[\"Dynapar SR\",\"Diclogesic\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 4
+    }
+  },
+  {
+    "id": "cat-006",
+    "brandName": "Tramazac 50",
+    "genericName": "Tramadol Hydrochloride",
+    "dosageForm": "Capsule",
+    "strength": "50mg",
+    "category": "Opioid Analgesic",
+    "alternativeGenerics": "[\"Ultracet\",\"Tramatas\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 5
+    }
+  },
+  {
+    "id": "cat-007",
+    "brandName": "Meftal Spas",
+    "genericName": "Mefenamic Acid + Dicyclomine",
+    "dosageForm": "Tablet",
+    "strength": "250mg + 10mg",
+    "category": "Antispasmodic / Analgesic",
+    "alternativeGenerics": "[\"Spasmo-Proxyvon\",\"Colimex\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 6
+    }
+  },
+  {
+    "id": "cat-008",
+    "brandName": "Zerodol-P",
+    "genericName": "Aceclofenac + Paracetamol",
+    "dosageForm": "Tablet",
+    "strength": "100mg + 325mg",
+    "category": "NSAID Combination",
+    "alternativeGenerics": "[\"Hifenac-P\",\"Aceclo Plus\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 7
+    }
+  },
+  {
+    "id": "cat-009",
+    "brandName": "Ultracet",
+    "genericName": "Tramadol + Paracetamol",
+    "dosageForm": "Tablet",
+    "strength": "37.5mg + 325mg",
+    "category": "Analgesic Combination",
+    "alternativeGenerics": "[\"Tramazac Plus\",\"Calpol T\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 8
+    }
+  },
+  {
+    "id": "cat-010",
+    "brandName": "Ketorol DT",
+    "genericName": "Ketorolac Tromethamine",
+    "dosageForm": "Tablet",
+    "strength": "10mg",
+    "category": "NSAID",
+    "alternativeGenerics": "[\"Ketoflam\",\"Toradol\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 9
+    }
+  },
+  {
+    "id": "cat-011",
+    "brandName": "Augmentin 625 Duo",
+    "genericName": "Amoxicillin + Potassium Clavulanate",
+    "dosageForm": "Tablet",
+    "strength": "500mg + 125mg",
+    "category": "Broad Spectrum Antibiotic",
+    "alternativeGenerics": "[\"Moxikind-CV 625\",\"Clavam 625\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 10
+    }
+  },
+  {
+    "id": "cat-012",
+    "brandName": "Azithral 500",
+    "genericName": "Azithromycin",
+    "dosageForm": "Tablet",
+    "strength": "500mg",
+    "category": "Macrolide Antibiotic",
+    "alternativeGenerics": "[\"Azee 500\",\"Zady 500\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 11
+    }
+  },
+  {
+    "id": "cat-013",
+    "brandName": "Cifran 500",
+    "genericName": "Ciprofloxacin",
+    "dosageForm": "Tablet",
+    "strength": "500mg",
+    "category": "Fluoroquinolone Antibiotic",
+    "alternativeGenerics": "[\"Ciplox 500\",\"Ciprobid 500\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 12
+    }
+  },
+  {
+    "id": "cat-014",
+    "brandName": "Taxim-O 200",
+    "genericName": "Cefixime",
+    "dosageForm": "Tablet",
+    "strength": "200mg",
+    "category": "Cephalosporin Antibiotic",
+    "alternativeGenerics": "[\"Mahacef 200\",\"Zifi 200\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 13
+    }
+  },
+  {
+    "id": "cat-015",
+    "brandName": "Monocef 1g",
+    "genericName": "Ceftriaxone",
+    "dosageForm": "Injection",
+    "strength": "1000mg",
+    "category": "Cephalosporin Antibiotic",
+    "alternativeGenerics": "[\"Oframax 1g\",\"Powercef 1g\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 14
+    }
+  },
+  {
+    "id": "cat-016",
+    "brandName": "Flagyl 400",
+    "genericName": "Metronidazole",
+    "dosageForm": "Tablet",
+    "strength": "400mg",
+    "category": "Antiprotozoal / Antibacterial",
+    "alternativeGenerics": "[\"Metrogyl 400\",\"Aristogyl 400\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 15
+    }
+  },
+  {
+    "id": "cat-017",
+    "brandName": "Oflox 200",
+    "genericName": "Ofloxacin",
+    "dosageForm": "Tablet",
+    "strength": "200mg",
+    "category": "Fluoroquinolone Antibiotic",
+    "alternativeGenerics": "[\"Zenflox 200\",\"Tarivid 200\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 16
+    }
+  },
+  {
+    "id": "cat-018",
+    "brandName": "Norflox-TZ",
+    "genericName": "Norfloxacin + Tinidazole",
+    "dosageForm": "Tablet",
+    "strength": "400mg + 600mg",
+    "category": "Antibacterial Combination",
+    "alternativeGenerics": "[\"Nor TZ\",\"Gramogyl\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 17
+    }
+  },
+  {
+    "id": "cat-019",
+    "brandName": "Zifi 200",
+    "genericName": "Cefixime",
+    "dosageForm": "Tablet",
+    "strength": "200mg",
+    "category": "Cephalosporin Antibiotic",
+    "alternativeGenerics": "[\"Taxim-O 200\",\"Mahacef 200\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 18
+    }
+  },
+  {
+    "id": "cat-020",
+    "brandName": "Doxy-1 L-DR Forte",
+    "genericName": "Doxycycline + Lactic Acid Bacillus",
+    "dosageForm": "Capsule",
+    "strength": "100mg",
+    "category": "Tetracycline Antibiotic",
+    "alternativeGenerics": "[\"Microdox-LBX\",\"Doxt-SL\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 19
+    }
+  },
+  {
+    "id": "cat-021",
+    "brandName": "Pan 40",
+    "genericName": "Pantoprazole",
+    "dosageForm": "Tablet",
+    "strength": "40mg",
+    "category": "Proton Pump Inhibitor",
+    "alternativeGenerics": "[\"Pantocid 40\",\"Pantodac 40\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 20
+    }
+  },
+  {
+    "id": "cat-022",
+    "brandName": "Pantocid DSR",
+    "genericName": "Pantoprazole + Domperidone",
+    "dosageForm": "Capsule",
+    "strength": "40mg + 30mg",
+    "category": "PPI + Prokinetic",
+    "alternativeGenerics": "[\"Pan-D\",\"Pantocar-DSR\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 21
+    }
+  },
+  {
+    "id": "cat-023",
+    "brandName": "Omez 20",
+    "genericName": "Omeprazole",
+    "dosageForm": "Capsule",
+    "strength": "20mg",
+    "category": "Proton Pump Inhibitor",
+    "alternativeGenerics": "[\"Ocid 20\",\"Omecip 20\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 22
+    }
+  },
+  {
+    "id": "cat-024",
+    "brandName": "Rantac 150",
+    "genericName": "Ranitidine",
+    "dosageForm": "Tablet",
+    "strength": "150mg",
+    "category": "H2 Receptor Blocker",
+    "alternativeGenerics": "[\"Aciloc 150\",\"Zinetac 150\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 23
+    }
+  },
+  {
+    "id": "cat-025",
+    "brandName": "Emeset 4",
+    "genericName": "Ondansetron",
+    "dosageForm": "Tablet",
+    "strength": "4mg",
+    "category": "Antiemetic",
+    "alternativeGenerics": "[\"Zofran 4\",\"Ondem 4\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 24
+    }
+  },
+  {
+    "id": "cat-026",
+    "brandName": "Digene Gel",
+    "genericName": "Magnesium Hydroxide + Aluminium Hydroxide + Simethicone",
+    "dosageForm": "Syrup",
+    "strength": "200ml",
+    "category": "Antacid & Antiflatulent",
+    "alternativeGenerics": "[\"Gelusil\",\"Mucaine Gel\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 25
+    }
+  },
+  {
+    "id": "cat-027",
+    "brandName": "Cremaffin",
+    "genericName": "Liquid Paraffin + Milk of Magnesia",
+    "dosageForm": "Syrup",
+    "strength": "200ml",
+    "category": "Laxative",
+    "alternativeGenerics": "[\"Looz\",\"Dulcolax\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 26
+    }
+  },
+  {
+    "id": "cat-028",
+    "brandName": "Sporlac-DS",
+    "genericName": "Lactobacillus Sporogenes",
+    "dosageForm": "Tablet",
+    "strength": "120 Million Spores",
+    "category": "Probiotic",
+    "alternativeGenerics": "[\"Darolac\",\"Econorm\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 27
+    }
+  },
+  {
+    "id": "cat-029",
+    "brandName": "Sucrafil O",
+    "genericName": "Sucralfate + Oxetacaine",
+    "dosageForm": "Syrup",
+    "strength": "200ml",
+    "category": "Mucosal Protective Agent",
+    "alternativeGenerics": "[\"Sucramal-O\",\"Pepsigard-O\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 28
+    }
+  },
+  {
+    "id": "cat-030",
+    "brandName": "Rabeprazole 20",
+    "genericName": "Rabeprazole Sodium",
+    "dosageForm": "Tablet",
+    "strength": "20mg",
+    "category": "Proton Pump Inhibitor",
+    "alternativeGenerics": "[\"Rablet 20\",\"Happi 20\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 29
+    }
+  },
+  {
+    "id": "cat-031",
+    "brandName": "Telma 40",
+    "genericName": "Telmisartan",
+    "dosageForm": "Tablet",
+    "strength": "40mg",
+    "category": "Antihypertensive (ARB)",
+    "alternativeGenerics": "[\"Telmikind 40\",\"Telsartan 40\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 30
+    }
+  },
+  {
+    "id": "cat-032",
+    "brandName": "Amlong 5",
+    "genericName": "Amlodipine Besylate",
+    "dosageForm": "Tablet",
+    "strength": "5mg",
+    "category": "Calcium Channel Blocker",
+    "alternativeGenerics": "[\"Stamlo 5\",\"Amlovas 5\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 31
+    }
+  },
+  {
+    "id": "cat-033",
+    "brandName": "Glycomet 500 SR",
+    "genericName": "Metformin Hydrochloride",
+    "dosageForm": "Tablet",
+    "strength": "500mg",
+    "category": "Antidiabetic (Biguanide)",
+    "alternativeGenerics": "[\"Glucophage 500\",\"Cetapin 500\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 32
+    }
+  },
+  {
+    "id": "cat-034",
+    "brandName": "Januvia 100",
+    "genericName": "Sitagliptin",
+    "dosageForm": "Tablet",
+    "strength": "100mg",
+    "category": "Antidiabetic (DPP-4 Inhibitor)",
+    "alternativeGenerics": "[\"Zita 100\",\"Istavel 100\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 33
+    }
+  },
+  {
+    "id": "cat-035",
+    "brandName": "Ecosprin 75",
+    "genericName": "Aspirin (Acetylsalicylic Acid)",
+    "dosageForm": "Tablet",
+    "strength": "75mg",
+    "category": "Antiplatelet Agent",
+    "alternativeGenerics": "[\"Delisprin 75\",\"Loprin 75\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 34
+    }
+  },
+  {
+    "id": "cat-036",
+    "brandName": "Atorva 10",
+    "genericName": "Atorvastatin",
+    "dosageForm": "Tablet",
+    "strength": "10mg",
+    "category": "Lipid Lowering (Statin)",
+    "alternativeGenerics": "[\"Storvas 10\",\"Lipitor 10\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 35
+    }
+  },
+  {
+    "id": "cat-037",
+    "brandName": "Ciplar 10",
+    "genericName": "Propranolol Hydrochloride",
+    "dosageForm": "Tablet",
+    "strength": "10mg",
+    "category": "Beta Blocker",
+    "alternativeGenerics": "[\"Inderal 10\",\"Betacap 10\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 36
+    }
+  },
+  {
+    "id": "cat-038",
+    "brandName": "Thyronorm 50",
+    "genericName": "Thyroxine Sodium",
+    "dosageForm": "Tablet",
+    "strength": "50mcg",
+    "category": "Thyroid Hormone Supplement",
+    "alternativeGenerics": "[\"Eltroxin 50\",\"Thyrox 50\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 37
+    }
+  },
+  {
+    "id": "cat-039",
+    "brandName": "Jardiance 10",
+    "genericName": "Empagliflozin",
+    "dosageForm": "Tablet",
+    "strength": "10mg",
+    "category": "Antidiabetic (SGLT2 Inhibitor)",
+    "alternativeGenerics": "[\"Gibtulio 10\",\"Empaone 10\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 38
+    }
+  },
+  {
+    "id": "cat-040",
+    "brandName": "Concor 5",
+    "genericName": "Bisoprolol Fumarate",
+    "dosageForm": "Tablet",
+    "strength": "5mg",
+    "category": "Cardioselective Beta Blocker",
+    "alternativeGenerics": "[\"Bisoheart 5\",\"Corbis 5\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 39
+    }
+  },
+  {
+    "id": "cat-041",
+    "brandName": "Asthalin Inhaler",
+    "genericName": "Salbutamol (Albuterol)",
+    "dosageForm": "Inhaler",
+    "strength": "100mcg/puff",
+    "category": "Emergency Bronchodilator",
+    "alternativeGenerics": "[\"Ventorlin Inhaler\",\"Derihaler\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 40
+    }
+  },
+  {
+    "id": "cat-042",
+    "brandName": "Sorbitrate 5",
+    "genericName": "Isosorbide Dinitrate",
+    "dosageForm": "Sublingual Tablet",
+    "strength": "5mg",
+    "category": "Emergency Vasodilator",
+    "alternativeGenerics": "[\"Isordil 5\",\"Angispan 5\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 41
+    }
+  },
+  {
+    "id": "cat-043",
+    "brandName": "Epinephrine Auto-Injector",
+    "genericName": "Epinephrine (Adrenaline)",
+    "dosageForm": "Injection",
+    "strength": "0.3mg",
+    "category": "Emergency Anaphylaxis Agent",
+    "alternativeGenerics": "[\"EpiPen\",\"Adrenaclick\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 42
+    }
+  },
+  {
+    "id": "cat-044",
+    "brandName": "Deriphyllin Retard 150",
+    "genericName": "Etofylline + Theophylline",
+    "dosageForm": "Tablet",
+    "strength": "150mg",
+    "category": "Bronchodilator (Xanthine)",
+    "alternativeGenerics": "[\"Phyllocontin\",\"Theo-Asthalin\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 43
+    }
+  },
+  {
+    "id": "cat-045",
+    "brandName": "Budecort 200 Inhaler",
+    "genericName": "Budesonide",
+    "dosageForm": "Inhaler",
+    "strength": "200mcg/puff",
+    "category": "Inhaled Corticosteroid",
+    "alternativeGenerics": "[\"Pulmicort\",\"Budamate\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 44
+    }
+  },
+  {
+    "id": "cat-046",
+    "brandName": "Cetirizine 10",
+    "genericName": "Cetirizine Hydrochloride",
+    "dosageForm": "Tablet",
+    "strength": "10mg",
+    "category": "Antihistamine (2nd Gen)",
+    "alternativeGenerics": "[\"Cetzine 10\",\"Alerid 10\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 45
+    }
+  },
+  {
+    "id": "cat-047",
+    "brandName": "Allegra 120",
+    "genericName": "Fexofenadine Hydrochloride",
+    "dosageForm": "Tablet",
+    "strength": "120mg",
+    "category": "Non-sedating Antihistamine",
+    "alternativeGenerics": "[\"Fexova 120\",\"Histafree 120\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 46
+    }
+  },
+  {
+    "id": "cat-048",
+    "brandName": "Dexona 4",
+    "genericName": "Dexamethasone",
+    "dosageForm": "Tablet",
+    "strength": "4mg",
+    "category": "Systemic Corticosteroid",
+    "alternativeGenerics": "[\"Decdan 4\",\"Demisone 4\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 47
+    }
+  },
+  {
+    "id": "cat-049",
+    "brandName": "Lasix 40",
+    "genericName": "Furosemide",
+    "dosageForm": "Tablet",
+    "strength": "40mg",
+    "category": "Loop Diuretic",
+    "alternativeGenerics": "[\"Frusenex 40\",\"Salurin 40\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 48
+    }
+  },
+  {
+    "id": "cat-050",
+    "brandName": "Atropine Injection",
+    "genericName": "Atropine Sulfate",
+    "dosageForm": "Injection",
+    "strength": "0.6mg/ml",
+    "category": "Emergency Anticholinergic",
+    "alternativeGenerics": "[\"Tropex\",\"Tropine\"]",
+    "_syncMeta": {
+      "sourceFile": "server/prisma/seedData.js",
+      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "seedDataIndex": 49
+    }
+  }
+]

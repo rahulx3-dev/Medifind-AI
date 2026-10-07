@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"tertiary-fixed-dim":"#ffb4a8","surface-container-low":"#e6f8f1","on-primary-fixed":"#00201b","secondary-fixed-dim":"#97d2c4","surface":"#ecfdf7","on-primary":"#ffffff","tertiary-fixed":"#ffdad4","tertiary":"#5a0100","outline":"#717976","on-primary-container":"#8ab2a9","on-surface":"#0f1e1b","on-tertiary-fixed-variant":"#8a1c10","surface-container-high":"#dbece5","on-tertiary":"#ffffff","inverse-primary":"#a6cfc5","outline-variant":"#c0c8c5","on-secondary-container":"#336c61","tertiary-container":"#7e1208","on-surface-variant":"#414846","on-secondary-fixed":"#00201b","inverse-on-surface":"#e3f5ee","on-secondary-fixed-variant":"#105045","surface-container":"#e0f2eb","on-primary-fixed-variant":"#274d46","surface-container-lowest":"#ffffff","secondary":"#2e685d","on-secondary":"#ffffff","surface-container-highest":"#d5e6e0","on-error":"#ffffff","surface-bright":"#ecfdf7","on-tertiary-fixed":"#410100","surface-dim":"#cdded7","background":"#ecfdf7","primary-container":"#1e453e","primary-fixed-dim":"#a6cfc5","primary-fixed":"#c1ebe1","on-tertiary-container":"#ff8875","secondary-container":"#b0ecdd","on-error-container":"#93000a","error":"#ba1a1a","secondary-fixed":"#b3eee0","on-background":"#0f1e1b","error-container":"#ffdad6","inverse-surface":"#24332f","surface-tint":"#3f655e","surface-variant":"#d5e6e0","primary":"#032f28"},"borderRadius":{"DEFAULT":"1rem","lg":"2rem","xl":"3rem","full":"9999px"},"spacing":{"gutter-mobile":"0.75rem","space-md":"1rem","space-sm":"0.5rem","margin-mobile":"1rem","space-xl":"2rem","space-lg":"1.5rem","space-xs":"0.25rem","gutter":"1rem","margin":"2rem"},"fontFamily":{"title-md":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"display":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"title-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"headline-lg-mobile":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"]},"fontSize":{"title-md":["16px",{"lineHeight":"24px","fontWeight":"600"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.015em","fontWeight":"700"}],"display":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"label-lg":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"title-lg":["18px",{"lineHeight":"26px","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg-mobile":["26px",{"lineHeight":"34px","letterSpacing":"-0.01em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"headline-md":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-sm":["20px",{"lineHeight":"28px","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.02em","fontWeight":"500"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(30,69,62,0.05)]"><div class="h-20 max-w-[1280px] mx-auto px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary"><span class="material-symbols-outlined text-[20px]">vital_signs</span></div><div class="flex flex-col"><span class="font-title-lg text-title-lg tracking-tight text-primary leading-none">MediFind AI</span><span class="font-label-sm text-label-sm text-secondary font-medium tracking-wide uppercase mt-space-xs">Clinical Network</span></div></div><nav class="hidden xl:flex items-center gap-space-xs bg-surface-container-low p-1.5 rounded-full" data-active-classes="bg-primary-container text-on-primary rounded-full px-4 py-2 font-medium shadow-[0_2px_8px_-2px_rgba(30,69,62,0.15)]"><a class="px-4 py-2 rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="medicine-catalogue" href="#">Medicine Catalogue</a><a class="px-4 py-2 rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="active-requests" href="#">Active Requests</a><a aria-current="page" class="transition-colors bg-primary-container text-on-primary rounded-full px-4 py-2 font-medium shadow-[0_2px_8px_-2px_rgba(30,69,62,0.15)]" data-path="prescriptions" href="#">Prescriptions</a><a class="px-4 py-2 rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="pharmacy-locator" href="#">Pharmacy Locator</a></nav></div><div class="flex items-center gap-space-md"><div class="relative hidden md:flex items-center"><span class="material-symbols-outlined absolute left-space-md text-[18px] text-outline pointer-events-none">search</span><input class="w-56 lg:w-64 pl-10 pr-space-md py-2 bg-surface-container-lowest text-on-surface font-body-sm text-body-sm placeholder:text-outline rounded-full outline-none focus:ring-2 focus:ring-secondary/30 transition-all" placeholder="Search medications, RX codes..." type="text"/></div><button aria-label="Notifications" class="relative p-2.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-error ring-2 ring-surface"></span></button><div class="flex items-center gap-space-sm pl-space-sm"><img alt="Profile" class="w-8 h-8 rounded-full object-cover shadow-[0_2px_6px_rgba(30,69,62,0.1)]" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><div class="hidden sm:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface leading-snug">Yaryna Chuma</span><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[13px] text-secondary">verified</span><span class="font-label-sm text-label-sm text-secondary font-medium">Verified Patient</span></div></div></div></div></div></header><main class="w-full pt-20 bg-surface min-h-[calc(100vh-140px)]"><div class="flex flex-col w-full">
+<div class="max-w-[1280px] w-full mx-auto px-margin py-space-xl flex flex-col gap-space-xl">
+<!-- Top Progress / Clinical Workflow Breadcrumb -->
+<section class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-md shadow-sm">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Clinical Protocol 4.2</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Session #RX-8842-UK</span>
+</div>
+<p class="font-title-md text-title-md text-primary leading-tight">Patient Safety &amp; Formula Verification</p>
+</div>
+</div>
+<!-- 4 Step Pill Tracker -->
+<ol class="flex items-center gap-space-xs sm:gap-space-sm overflow-x-auto pb-1 lg:pb-0">
+<!-- Step 1 -->
+<li class="flex items-center gap-space-xs text-secondary font-label-md text-label-md shrink-0">
+<span class="w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</span>
+<span>Upload Scan</span>
+<span class="material-symbols-outlined text-outline-variant text-[16px] ml-space-xs">chevron_right</span>
+</li>
+<!-- Step 2 -->
+<li class="flex items-center gap-space-xs text-secondary font-label-md text-label-md shrink-0">
+<span class="w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</span>
+<span>Optical Extraction</span>
+<span class="material-symbols-outlined text-outline-variant text-[16px] ml-space-xs">chevron_right</span>
+</li>
+<!-- Step 3 Active -->
+<li class="flex items-center gap-space-xs bg-primary-container text-on-primary rounded-full px-3 py-1 shadow-sm shrink-0">
+<span class="w-5 h-5 rounded-full bg-on-primary text-primary font-bold text-[11px] flex items-center justify-center">3</span>
+<span class="font-label-md text-label-md">Resolving 1 Uncertain Match</span>
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed animate-pulse"></span>
+</li>
+<!-- Step 4 -->
+<li class="flex items-center gap-space-xs text-outline font-label-md text-label-md shrink-0 opacity-60">
+<span class="material-symbols-outlined text-outline-variant text-[16px]">chevron_right</span>
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center text-[12px]">4</span>
+<span>Pharmacy Availability</span>
+</li>
+</ol>
+</div>
+</section>
+<!-- Page Title & Guidance Header -->
+<header class="flex flex-col gap-space-xs max-w-4xl">
+<div class="inline-flex items-center gap-space-xs self-start px-3 py-1 rounded-full bg-tertiary-container/15 text-tertiary">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+<span class="font-label-sm text-label-sm font-semibold uppercase tracking-wider">Catalogue Discrepancy Flagged</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Resolve Uncertain Medicine Match</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+        OCR detected handwritten or ambiguous medication text that could not be matched with high confidence to our accredited pharmacy catalogue. Please select the correct medication from the catalogue or search by brand or generic name.
+      </p>
+</header>
+<!-- Upper Context Split: OCR Raw Crop vs Clinical Safeguard Notice -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-stretch">
+<!-- Left Sub-card: Raw OCR Snippet -->
+<article class="lg:col-span-7 bg-surface-container-lowest rounded-lg p-space-lg shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="flex items-start justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Source Document Line Capture</span>
+<h2 class="font-title-lg text-title-lg text-on-surface">Original Prescription Text Segment</h2>
+</div>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-tertiary-container/10 text-tertiary font-label-md text-label-md">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+            Low Confidence (64.2% Readability)
+          </span>
+</div>
+<!-- Simulated Document Extract Box with Cursive Specimen -->
+<div class="bg-surface-container-low rounded-DEFAULT p-space-md flex flex-col sm:flex-row gap-space-md items-center shadow-inner">
+<!-- Visual crop representation -->
+<div class="w-full sm:w-48 h-24 rounded bg-surface-container-lowest p-space-xs relative overflow-hidden shrink-0 flex items-center justify-center shadow-sm">
+<img class="w-full h-full object-cover rounded filter contrast-125" data-alt="Macro optical close-up photograph of a medical prescription with cursive handwriting in dark teal ink on textured clinical paper, showing blurred lines and physician signature context with soft medical desk lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcfpysP_E86xeEMMP8n_MraQcKVP0XnA9AimWIb_DLZCyx7X5xqtS38A51o8aYG_BbuqbGNAu9olRd2KaxIZX3TG_8vbuAVK7wIAOLNPga8iRDTwkz7grcKlcUcbHitvpGSBv4n6Cntln3g-uRuxjWZUEHRcpUIxh0kOmbh3xpzQJ-ctzwyyvcfHxfw8ixOGnIOIkU1bLwH_XbKRJtdhLD_gGFv101yxlFcMrIzuDdTjDAEjZF1fSxYQ"/>
+<div class="absolute inset-0 bg-primary/10 mix-blend-multiply pointer-events-none"></div>
+<div class="absolute bottom-1 right-1.5 bg-on-surface/75 text-surface text-[10px] px-1 rounded font-mono">Crop #2A</div>
+</div>
+<div class="flex flex-col gap-space-xs w-full min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Detected Raw OCR String:</span>
+<span class="font-label-sm text-label-sm text-tertiary font-bold">Needs Manual Mapping</span>
+</div>
+<div class="bg-surface-container-lowest px-3 py-2 rounded font-mono text-[13px] text-tertiary font-semibold tracking-tight shadow-sm select-all">
+              “Ventoln Evohlr 100mcg inh? / Salbutamol?”
+            </div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+<span class="font-semibold text-on-surface">Context:</span> Dr. Julian Vance • Line 2: 1-2 puffs q4h PRN wheezing #1 inhaler
+            </p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-xs">
+<button class="inline-flex items-center gap-space-xs font-label-md text-label-md text-secondary hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">zoom_in</span>
+<span>View in Full Prescription Document</span>
+</button>
+<span class="font-label-sm text-label-sm text-outline">Verified Authenticity Hash: #d4a9-8f</span>
+</div>
+</article>
+<!-- Right Sub-card: Clinical Safety Protocol -->
+<article class="lg:col-span-5 bg-gradient-to-br from-primary-container to-primary text-on-primary rounded-lg p-space-lg shadow-md flex flex-col justify-between gap-space-md relative overflow-hidden">
+<!-- Ambient decorative seal -->
+<div class="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-secondary-container/10 pointer-events-none blur-2xl"></div>
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-on-primary/10 flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[22px]">health_and_safety</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-secondary-fixed uppercase tracking-wider block font-semibold">Regulatory Safeguard</span>
+<h2 class="font-title-lg text-title-lg text-on-primary leading-tight">Clinical Safety Notice</h2>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-primary-container leading-relaxed">
+            To ensure patient safety, unverified free-text medication names cannot be dispatched to dispensaries. You must select an official accredited catalogue entry to check pharmacy availability and ensure drug interaction safety checks can run.
+          </p>
+<div class="bg-primary/40 rounded-DEFAULT p-space-sm flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary-fixed text-[20px] shrink-0">rule</span>
+<p class="font-body-sm text-body-sm text-on-primary">
+              Dispensing algorithm enforces British Approved Name (BAN) &amp; WHO INN standards.
+            </p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-sm font-label-sm text-label-sm text-secondary-fixed-dim">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">shield</span> GPhC Standards Compliant</span>
+<span>Ref: MED-MAPPING-2024</span>
+</div>
+</article>
+</section>
+<!-- Catalogue Search & Match Interface (Dominant Central Section) -->
+<section class="flex flex-col gap-space-lg">
+<!-- Section Header & Real-time Filter Bar -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-secondary font-semibold uppercase">
+<span>Catalogue Resolution Hub</span>
+<span>•</span>
+<span>3 Suggestions Available</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-primary">Top Catalogue Matches for “Ventolin 100mcg”</h2>
+</div>
+<!-- Filter Pill Chips -->
+<div class="flex items-center gap-space-xs flex-wrap">
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-primary-container text-on-primary shadow-sm flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">check</span>
+<span>Respiratory (All)</span>
+</button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors shadow-sm" type="button">
+            Inhalers Only
+          </button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors shadow-sm" type="button">
+            Nebuliser Solutions
+          </button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors shadow-sm" type="button">
+            Oral Formulations
+          </button>
+</div>
+</div>
+<!-- Live Search Capsule Input -->
+<div class="w-full bg-surface-container-lowest rounded-full p-2 pl-6 pr-2 shadow-sm flex items-center justify-between gap-space-md focus-within:ring-2 focus-within:ring-secondary/40 transition-all">
+<div class="flex items-center gap-space-sm flex-1">
+<span class="material-symbols-outlined text-secondary text-[22px]">search</span>
+<input class="w-full bg-transparent text-on-surface font-title-md text-title-md outline-none placeholder:text-outline" id="catalogue-search-input" placeholder="Search active compound, branded trade name, or dosage..." type="text" value="Ventolin 100mcg"/>
+</div>
+<div class="flex items-center gap-space-xs shrink-0">
+<button aria-label="Clear query" class="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors" id="clear-search-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+<button class="bg-primary text-on-primary px-5 py-2.5 rounded-full font-label-md text-label-md flex items-center gap-1.5 shadow-sm hover:bg-primary-container transition-all" type="button">
+<span>Re-query Database</span>
+<span class="material-symbols-outlined text-[16px]">sync</span>
+</button>
+</div>
+</div>
+<!-- Match Options Grid: 3 Distinct Candidate Cards -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg items-stretch" id="candidate-cards-container">
+<!-- OPTION 1: Best Match (Default Selected) -->
+<div class="candidate-card bg-surface-container-lowest rounded-lg p-space-lg shadow-md flex flex-col justify-between gap-space-lg cursor-pointer transition-all relative transform -translate-y-1 bg-gradient-to-b from-surface-container-lowest to-surface-container-low/40" data-candidate="1">
+<!-- Top Badges / Recommended Tag -->
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm uppercase tracking-wider font-semibold shadow-sm">
+<span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+                Best Match (99.4% Match Score)
+              </span>
+<span class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center check-radio-icon">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+</div>
+<!-- Product Visual Container -->
+<div class="w-full h-44 rounded-DEFAULT bg-surface-container-low flex items-center justify-center p-space-md relative overflow-hidden">
+<img class="h-full object-contain filter drop-shadow-md" data-alt="Commercial clinical packshot of a Ventolin Evohaler 100 microgram blue asthma inhaler container with mouthpiece cap on a soft mint green podium with studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXfSvBJteDdQl1aPpK8D9hqENgKRGT6N8OC1DQV20JH9GDSitAodNb_tmXbj4A0deJDesbPoQL-akqHInDD8vu2UfGfL-inXjkgEalDquMGTIYY8BObxpUwD09Tu50guCP9J-EtGJRUzaoKvjDiZmy1wgc7vXk693PgQvQColVadPWCSkTb4slJcv0iOyraOR9l8CNk1aCqELMXTdgdhwJf_KLJdWeSA-53oSwuofVTO-qPKEs5YJiKA"/>
+<span class="absolute top-2 right-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full font-label-sm text-label-sm text-secondary font-semibold">
+                CFC-Free
+              </span>
+</div>
+<!-- Drug Info Specification -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-secondary font-medium">ATC R03AC02 • NHS dm+d Accredited</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-semibold">200 Actuations</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Ventolin Evohaler 100mcg</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Salbutamol Sulfate • Aerosol Inhalation • Pressurized Metered Dose Inhaler (pMDI)
+              </p>
+</div>
+<!-- Clinical Attributes List -->
+<div class="flex flex-col gap-space-xs bg-surface-container-low/60 rounded-DEFAULT p-space-sm text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center justify-between">
+<span>Manufacturer:</span>
+<strong class="text-on-surface">GlaxoSmithKline (GSK)</strong>
+</div>
+<div class="flex items-center justify-between">
+<span>Prescription Status:</span>
+<span class="inline-flex items-center gap-1 text-primary font-semibold">
+<span class="material-symbols-outlined text-[14px]">maps_ugc</span> POM (Prescription Only)
+                </span>
+</div>
+<div class="flex items-center justify-between">
+<span>Catalogue Code:</span>
+<span class="font-mono text-[11px] text-outline">PIP: 104-5822</span>
+</div>
+</div>
+</div>
+<!-- Selection Action Button -->
+<button class="action-select-btn w-full py-3.5 px-space-md rounded-full bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-space-xs shadow hover:bg-primary-container transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">task_alt</span>
+<span>Select This Medicine (Match)</span>
+</button>
+</div>
+<!-- OPTION 2: Bioequivalent Alternative (Breath-Actuated) -->
+<div class="candidate-card bg-surface-container-lowest rounded-lg p-space-lg shadow-sm flex flex-col justify-between gap-space-lg cursor-pointer transition-all hover:shadow-md" data-candidate="2">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider font-semibold">
+                Generic Equivalent • 88.1%
+              </span>
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-outline flex items-center justify-center check-radio-icon">
+<span class="material-symbols-outlined text-[14px] hidden">check</span>
+</span>
+</div>
+<!-- Product Visual Container -->
+<div class="w-full h-44 rounded-DEFAULT bg-surface-container-low flex items-center justify-center p-space-md relative overflow-hidden">
+<img class="h-full object-contain filter drop-shadow-sm opacity-90" data-alt="Pharmaceutical clean view of Salamol Easi-Breathe CFC-Free inhaler device in crisp white and blue colorway against a soft sage background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXt64GhF-VW6rsfvwVUpx2impODV0JaKZ3qM6j0nKqqcNVMNVD7efbfqcgbcHmp9JgWerGeC7XO15gqRP9-BZ9Wfqhr1o-RN1tRrQWeL8w-eGKEN8TM6m59iAJSTj1VN21YAdvL1UrVtZBoT1BxrcrcdYmncRviPCunelg9qlQsPuok6I7lw02786sWg6rZn1XoOOB3eILfNh_EHIAcezfONWQG3GyvHCKPharDqd5xgLLmTp9X8BVTA"/>
+<span class="absolute top-2 right-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full font-label-sm text-label-sm text-on-surface-variant">
+                Breath-Actuated
+              </span>
+</div>
+<!-- Drug Info -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-secondary font-medium">ATC R03AC02 • Bioequivalent</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-semibold">200 Doses</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Salamol Easi-Breathe 100mcg</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Salbutamol Sulfate • Breath Actuated Metered Inhaler • CFC-Free
+              </p>
+</div>
+<!-- Attributes -->
+<div class="flex flex-col gap-space-xs bg-surface-container-low/60 rounded-DEFAULT p-space-sm text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center justify-between">
+<span>Manufacturer:</span>
+<strong class="text-on-surface">IVAX Pharmaceuticals / Teva</strong>
+</div>
+<div class="flex items-center justify-between">
+<span>Prescription Status:</span>
+<span class="inline-flex items-center gap-1 text-on-surface font-semibold">
+<span class="material-symbols-outlined text-[14px]">maps_ugc</span> POM
+                </span>
+</div>
+<div class="flex items-center justify-between">
+<span>Catalogue Code:</span>
+<span class="font-mono text-[11px] text-outline">PIP: 231-9044</span>
+</div>
+</div>
+</div>
+<!-- Selection Action Button -->
+<button class="action-select-btn w-full py-3.5 px-space-md rounded-full bg-surface-container-high text-on-surface font-label-lg text-label-lg flex items-center justify-center gap-space-xs hover:bg-surface-container-highest transition-all" type="button">
+<span>Select This Alternative</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+<!-- OPTION 3: Nebuliser Solution Alternative -->
+<div class="candidate-card bg-surface-container-lowest rounded-lg p-space-lg shadow-sm flex flex-col justify-between gap-space-lg cursor-pointer transition-all hover:shadow-md" data-candidate="3">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider font-semibold">
+                Alternative Form • 62.0%
+              </span>
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-outline flex items-center justify-center check-radio-icon">
+<span class="material-symbols-outlined text-[14px] hidden">check</span>
+</span>
+</div>
+<!-- Product Visual Container -->
+<div class="w-full h-44 rounded-DEFAULT bg-surface-container-low flex items-center justify-center p-space-md relative overflow-hidden">
+<img class="h-full object-contain filter drop-shadow-sm opacity-90" data-alt="Medical box packaging for Ventolin Nebules containing single-dose plastic ampoules of respiratory solution for nebulisation arranged neatly on a pale mint background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzIHAGXWH-PTAJ9JKv2IXnwYFz04JIYvC-_FZ8Lra-9s0hzhOUaYisBXLBOKIb_jLbZQoaUZCE7ECzoPjBPRlM0Xk1QU8pCkBBmBpJMLKPLfudcciVYSDRCMDDo6b01m3j3Ee00PeZ3qkFMIwwuc8HT4Yg6r4VENaiaKfnMnHz2J3SeVhDKiU_qRPEinZ49S6UnxNlr9w8SkMuS_iz9AzDYr1GlygwbFK66fpBWe5TpwOSoaPD-UThFQ"/>
+<span class="absolute top-2 right-2 bg-surface-container-lowest/90 px-2 py-0.5 rounded-full font-label-sm text-label-sm text-on-surface-variant">
+                Solution
+              </span>
+</div>
+<!-- Drug Info -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-secondary font-medium">ATC R03AC02 • High Dosage</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-semibold">20 Ampoules</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Ventolin Nebules 2.5mg/2.5ml</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Salbutamol Sulfate • Sterile Respiratory Solution for Nebuliser
+              </p>
+</div>
+<!-- Attributes -->
+<div class="flex flex-col gap-space-xs bg-surface-container-low/60 rounded-DEFAULT p-space-sm text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center justify-between">
+<span>Manufacturer:</span>
+<strong class="text-on-surface">GlaxoSmithKline (GSK)</strong>
+</div>
+<div class="flex items-center justify-between">
+<span>Prescription Status:</span>
+<span class="inline-flex items-center gap-1 text-on-surface font-semibold">
+<span class="material-symbols-outlined text-[14px]">maps_ugc</span> POM
+                </span>
+</div>
+<div class="flex items-center justify-between">
+<span>Catalogue Code:</span>
+<span class="font-mono text-[11px] text-outline">PIP: 014-9921</span>
+</div>
+</div>
+</div>
+<!-- Selection Action Button -->
+<button class="action-select-btn w-full py-3.5 px-space-md rounded-full bg-surface-container-high text-on-surface font-label-lg text-label-lg flex items-center justify-center gap-space-xs hover:bg-surface-container-highest transition-all" type="button">
+<span>Select This Alternative</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Did Not Find Hint & Accordion Helper -->
+<div class="w-full bg-surface-container-low rounded-DEFAULT p-space-md flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">help_center</span>
+</div>
+<div>
+<h4 class="font-title-md text-title-md text-on-surface">Is this prescription for a different brand or compound?</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              You can search all licensed UK &amp; EU pharmacies by chemical formula, active strength, or upload an updated clinical order.
+            </p>
+</div>
+</div>
+<button class="shrink-0 px-5 py-2.5 rounded-full bg-surface-container-lowest text-secondary font-label-md text-label-md hover:bg-surface-container-high transition-colors shadow-sm inline-flex items-center gap-1.5 self-start md:self-auto" type="button">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Manual Formula Search</span>
+</button>
+</div>
+</section>
+<!-- Bottom Persistent Action Dock -->
+<footer class="w-full bg-surface-container-lowest rounded-lg p-space-md lg:p-space-lg shadow-md flex flex-col lg:flex-row items-center justify-between gap-space-md mt-space-sm">
+<!-- Left Secondary Danger Action -->
+<div class="flex items-center gap-space-sm w-full lg:w-auto">
+<button class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-error hover:bg-error-container/40 font-label-md text-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+<span>Remove This Medicine Candidate from Request</span>
+</button>
+</div>
+<!-- Center Link / Add Another -->
+<div class="flex items-center justify-center">
+<button class="inline-flex items-center gap-space-xs font-label-md text-label-md text-secondary hover:text-primary transition-colors py-2 px-3 rounded-full hover:bg-surface-container-low" type="button">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>Can't find it? + Add Another Medicine Manually</span>
+</button>
+</div>
+<!-- Right Primary Confirmation CTAs -->
+<div class="flex items-center gap-space-sm w-full lg:w-auto justify-end">
+<button class="px-5 py-3 rounded-full bg-surface-container-high text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest font-label-lg text-label-lg transition-colors" type="button">
+          Cancel / Return to Overview
+        </button>
+<button class="px-7 py-3 rounded-full bg-primary text-on-primary hover:bg-primary-container font-label-lg text-label-lg flex items-center gap-space-xs shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all" id="confirm-selection-btn" type="button">
+<span>Confirm Selection &amp; Return to Verification</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</footer>
+</div>
+</div>
+<script>
+  // Simple interactive selection logic for the candidate cards
+  document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll('.candidate-card');
+    const searchInput = document.getElementById('catalogue-search-input');
+    const clearBtn = document.getElementById('clear-search-btn');
+    const confirmBtn = document.getElementById('confirm-selection-btn');
+
+    let activeSelection = "1";
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        const candidateId = card.getAttribute('data-candidate');
+        activeSelection = candidateId;
+
+        cards.forEach(c => {
+          c.classList.remove('bg-gradient-to-b', 'from-surface-container-lowest', 'to-surface-container-low/40', '-translate-y-1', 'shadow-md');
+          c.classList.add('shadow-sm');
+          
+          const icon = c.querySelector('.check-radio-icon');
+          icon.classList.remove('bg-primary', 'text-on-primary');
+          icon.classList.add('bg-surface-container-high', 'text-outline');
+          const checkSpan = icon.querySelector('span');
+          if (checkSpan) checkSpan.classList.add('hidden');
+
+          const btn = c.querySelector('.action-select-btn');
+          btn.classList.remove('bg-primary', 'text-on-primary', 'shadow');
+          btn.classList.add('bg-surface-container-high', 'text-on-surface');
+          btn.innerHTML = `<span>Select This Alternative</span><span class="material-symbols-outlined text-[18px]">arrow_forward</span>`;
+        });
+
+        // Activate current
+        card.classList.add('bg-gradient-to-b', 'from-surface-container-lowest', 'to-surface-container-low/40', '-translate-y-1', 'shadow-md');
+        card.classList.remove('shadow-sm');
+        
+        const activeIcon = card.querySelector('.check-radio-icon');
+        activeIcon.classList.remove('bg-surface-container-high', 'text-outline');
+        activeIcon.classList.add('bg-primary', 'text-on-primary');
+        const activeCheck = activeIcon.querySelector('span');
+        if (activeCheck) activeCheck.classList.remove('hidden');
+
+        const activeBtn = card.querySelector('.action-select-btn');
+        activeBtn.classList.remove('bg-surface-container-high', 'text-on-surface');
+        activeBtn.classList.add('bg-primary', 'text-on-primary', 'shadow');
+        activeBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">task_alt</span><span>Select This Medicine (Match)</span>`;
+      });
+    });
+
+    if (clearBtn && searchInput) {
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchInput.focus();
+      });
+    }
+
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        const titles = {
+          "1": "Ventolin Evohaler 100mcg",
+          "2": "Salamol Easi-Breathe CFC-Free Inhaler 100mcg",
+          "3": "Ventolin Nebules 2.5mg/2.5ml"
+        };
+        const selectedTitle = titles[activeSelection] || "Ventolin Evohaler 100mcg";
+        confirmBtn.innerHTML = `<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span><span>Updating Verification...</span>`;
+        setTimeout(() => {
+          confirmBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span><span>Selection Mapped!</span>`;
+        }, 700);
+      });
+    }
+  });
+</script></main><footer class="w-full bg-surface-container-low mt-space-xl"><div class="max-w-[1280px] mx-auto px-margin py-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex flex-wrap items-center gap-space-lg"><div class="flex items-center gap-space-xs font-label-md text-label-md text-secondary"><span class="material-symbols-outlined text-[18px]">encrypted</span><span>256-Bit SSL Encryption</span></div><div class="flex items-center gap-space-xs font-label-md text-label-md text-secondary"><span class="material-symbols-outlined text-[18px]">health_and_safety</span><span>HIPAA Compliant</span></div><div class="flex items-center gap-space-xs font-label-md text-label-md text-secondary"><span class="material-symbols-outlined text-[18px]">verified_user</span><span>FDA Data Synchronized</span></div></div><div class="flex items-center gap-space-md font-body-sm text-body-sm"><a class="hover:text-primary transition-colors" data-path="privacy-policy" href="#">Privacy Policy</a><span class="text-outline-variant">•</span><a class="hover:text-primary transition-colors" data-path="terms-of-service" href="#">Terms of Service</a><span class="text-outline-variant">•</span><span>© 2024 MediFind AI Inc.</span></div></div></footer></body></html>

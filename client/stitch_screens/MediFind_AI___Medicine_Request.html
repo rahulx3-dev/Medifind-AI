@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary": "#2e685d", "tertiary": "#5a0100", "surface-container-low": "#e6f8f1", "on-tertiary": "#ffffff", "on-tertiary-container": "#ff8875", "surface-dim": "#cdded7", "on-surface-variant": "#414846", "inverse-on-surface": "#e3f5ee", "error": "#ba1a1a", "on-surface": "#0f1e1b", "surface-variant": "#d5e6e0", "surface-container-high": "#dbece5", "on-secondary-fixed": "#00201b", "background": "#ecfdf7", "on-secondary-container": "#336c61", "error-container": "#ffdad6", "tertiary-fixed-dim": "#ffb4a8", "outline": "#717976", "secondary-fixed-dim": "#97d2c4", "primary": "#032f28", "secondary-container": "#b0ecdd", "surface-bright": "#ecfdf7", "surface-container": "#e0f2eb", "tertiary-container": "#7e1208", "surface-tint": "#3f655e", "on-background": "#0f1e1b", "primary-fixed": "#c1ebe1", "secondary-fixed": "#b3eee0", "tertiary-fixed": "#ffdad4", "on-error-container": "#93000a", "on-primary-fixed-variant": "#274d46", "on-tertiary-fixed-variant": "#8a1c10", "on-primary-fixed": "#00201b", "inverse-surface": "#24332f", "surface-container-highest": "#d5e6e0", "surface": "#ecfdf7", "outline-variant": "#c0c8c5", "on-secondary-fixed-variant": "#105045", "on-primary-container": "#8ab2a9", "inverse-primary": "#a6cfc5", "primary-container": "#1e453e", "on-secondary": "#ffffff", "on-error": "#ffffff", "surface-container-lowest": "#ffffff", "primary-fixed-dim": "#a6cfc5", "on-tertiary-fixed": "#410100", "on-primary": "#ffffff" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-xl": "2rem", "space-md": "1rem", "gutter-mobile": "0.75rem", "gutter": "1rem", "space-xs": "0.25rem", "margin-mobile": "1rem", "space-sm": "0.5rem", "margin": "2rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "title-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"] }, "fontSize": { "headline-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }], "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }], "display": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-lg": ["18px", { "lineHeight": "26px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }] } } } };</script></head><body class="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-b border-surface-container-high/60"><div class="h-20 max-w-[1240px] mx-auto px-margin flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-xl"><a class="flex items-center gap-2.5 focus:outline-none" href="#"><img alt="MediFind AI Logo" class="h-10 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3nDqifxs_MbIaWJvHl6s-tDWO6skJeOkh9htCCt_mGM2nqSpVFX3MMFVoNf9gFPsg_4LXkr87m0aQIhkscLgg15bVmKlHuXxSIjSGqdogjUgms8lc2BZUL2McqLnViwZ21PPfd-MyViBbApUosr-iMv2ejM7tfK1XBhVMD-DlPt-niXb7Lw3YpUTJ8wgkKpAnwXxNe2PXc0O-_FxP55PyTgf92OFxuOR3sJq41z4u2iRuDX96M1_9MLt-pfmgmtYPKLw"/></a><nav class="hidden lg:flex items-center gap-space-xs p-1 bg-surface-container rounded-full"><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-path="medicine-catalogue" href="#">Medicine Catalogue</a><a aria-current="page" class="px-space-md py-space-xs rounded-full font-label-md transition-all bg-primary text-on-primary shadow-sm" data-path="active-request" href="#">Active Request</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-path="prescriptions" href="#">Prescriptions</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-path="pharmacy-locator" href="#">Pharmacy Locator</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden md:flex items-center gap-space-sm px-space-md py-space-xs bg-surface-container-lowest rounded-full border border-surface-container-high shadow-xs"><span class="material-symbols-outlined text-outline text-[18px]">search</span><span class="font-body-sm text-body-sm text-on-surface-variant pr-space-md">Search generic, brand or NDC...</span><kbd class="font-label-sm text-label-sm px-1.5 py-0.5 bg-surface-container text-on-surface-variant rounded">⌘K</kbd></div><div class="flex items-center gap-space-sm pl-space-xs pr-space-md py-1 bg-surface-container-lowest rounded-full border border-surface-container-high shadow-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><div class="flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface leading-tight">Yaryna Chuma</span><span class="font-label-sm text-label-sm text-secondary leading-none">Verified Patient</span></div></div></div></div></header><main class="w-full pt-28 pb-16 bg-background flex-1"><div class="max-w-[1240px] mx-auto px-margin">
+<!-- Header Section with Clean Title & Subtitle -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md pb-space-md mb-space-lg border-b border-surface-container-high/60">
+<div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-medium">Availability Query • Step 1 of 2</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Active Medicine Request</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5 max-w-2xl">
+          Review queued medications before querying real-time stock and prices across accredited licensed pharmacies.
+        </p>
+</div>
+<div class="flex items-center gap-space-xs shrink-0">
+<a class="px-space-md py-2 rounded-full border border-surface-container-high bg-surface-container-lowest hover:bg-surface-container font-label-md text-label-md text-primary transition-colors flex items-center gap-1.5 shadow-sm" href="#">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>+ Add More Medicines</span>
+</a>
+</div>
+</div>
+<!-- MAIN CONTENT TWO-COLUMN GRID -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start" id="populated-view">
+<!-- Left Column: Requested Medicines List (8 Cols) -->
+<div class="lg:col-span-8 flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center gap-2">
+<h2 class="font-title-lg text-title-lg text-primary font-semibold">Requested Medicines</h2>
+<span class="px-2.5 py-0.5 rounded-full bg-surface-container font-label-sm text-label-sm text-on-surface-variant font-medium" id="item-count-badge">3 items</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1.5 bg-surface-container-low px-3 py-1 rounded-full border border-surface-container-high">
+<span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span> Verified Dispensary Network
+</span>
+</div>
+<!-- Medicine Item 1: Amoxicillin -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md border border-surface-container-high transition-all hover:border-outline-variant shadow-sm flex flex-col gap-3" id="item-amoxicillin">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-md flex-1">
+<div class="w-12 h-12 rounded-DEFAULT bg-surface-container-low flex items-center justify-center shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[24px]">medication</span>
+</div>
+<div class="space-y-0.5">
+<div class="flex items-center gap-space-sm flex-wrap">
+<h3 class="font-title-md text-title-md text-primary font-semibold">Amoxicillin 500mg</h3>
+<span class="px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-sm text-label-sm font-medium">Prescription Required</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Oral Capsule • Pack of 20 • Generic Amoxicillin Trihydrate</p>
+</div>
+</div>
+<div class="flex items-center justify-between sm:justify-end gap-space-md pt-space-xs sm:pt-0 border-t sm:border-t-0 border-surface-container-low shrink-0">
+<!-- Stepper -->
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant mr-1">Qty:</span>
+<div class="flex items-center bg-surface-container-low rounded-full p-0.5 border border-surface-container-high">
+<button aria-label="Decrease quantity" class="w-7 h-7 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary flex items-center justify-center transition-colors shadow-xs" onclick="adjustQuantity('qty-1', -1)">
+<span class="material-symbols-outlined text-[16px]">remove</span>
+</button>
+<span class="font-label-md text-label-md text-primary w-8 text-center" id="qty-1">2</span>
+<button aria-label="Increase quantity" class="w-7 h-7 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary flex items-center justify-center transition-colors shadow-xs" onclick="adjustQuantity('qty-1', 1)">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+</div>
+</div>
+<!-- Remove Action -->
+<button aria-label="Remove Amoxicillin" class="w-8 h-8 rounded-full text-outline hover:text-error hover:bg-error-container/30 transition-colors flex items-center justify-center" onclick="removeItem('item-amoxicillin')" title="Remove">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low/70 flex items-center gap-2 text-on-surface-variant text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-secondary">storefront</span>
+<span>Will check live stock across 18 community pharmacies within 5 km</span>
+</div>
+</div>
+<!-- Medicine Item 2: Ventolin Evohaler -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md border border-surface-container-high transition-all hover:border-outline-variant shadow-sm flex flex-col gap-3" id="item-ventolin">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-md flex-1">
+<div class="w-12 h-12 rounded-DEFAULT bg-surface-container-low flex items-center justify-center shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[24px]">air</span>
+</div>
+<div class="space-y-0.5">
+<div class="flex items-center gap-space-sm flex-wrap">
+<h3 class="font-title-md text-title-md text-primary font-semibold">Ventolin Evohaler 100mcg</h3>
+<span class="px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-sm text-label-sm font-medium">Prescription Required</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Inhalation Aerosol • 200 Actuations • Salbutamol Sulfate</p>
+</div>
+</div>
+<div class="flex items-center justify-between sm:justify-end gap-space-md pt-space-xs sm:pt-0 border-t sm:border-t-0 border-surface-container-low shrink-0">
+<!-- Stepper -->
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant mr-1">Qty:</span>
+<div class="flex items-center bg-surface-container-low rounded-full p-0.5 border border-surface-container-high">
+<button aria-label="Decrease quantity" class="w-7 h-7 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary flex items-center justify-center transition-colors shadow-xs" onclick="adjustQuantity('qty-2', -1)">
+<span class="material-symbols-outlined text-[16px]">remove</span>
+</button>
+<span class="font-label-md text-label-md text-primary w-8 text-center" id="qty-2">1</span>
+<button aria-label="Increase quantity" class="w-7 h-7 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary flex items-center justify-center transition-colors shadow-xs" onclick="adjustQuantity('qty-2', 1)">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+</div>
+</div>
+<!-- Remove Action -->
+<button aria-label="Remove Ventolin Evohaler" class="w-8 h-8 rounded-full text-outline hover:text-error hover:bg-error-container/30 transition-colors flex items-center justify-center" onclick="removeItem('item-ventolin')" title="Remove">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low/70 flex items-center gap-2 text-on-surface-variant text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-secondary">bolt</span>
+<span>Urgent therapeutic category • Priority dispatch tagging eligible</span>
+</div>
+</div>
+<!-- Medicine Item 3: Paracetamol Extra -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md border border-surface-container-high transition-all hover:border-outline-variant shadow-sm flex flex-col gap-3" id="item-paracetamol">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-md flex-1">
+<div class="w-12 h-12 rounded-DEFAULT bg-surface-container-low flex items-center justify-center shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[24px]">vaccines</span>
+</div>
+<div class="space-y-0.5">
+<div class="flex items-center gap-space-sm flex-wrap">
+<h3 class="font-title-md text-title-md text-primary font-semibold">Paracetamol Extra 500mg / 65mg</h3>
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-medium">Over-The-Counter (OTC)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Film-Coated Tablets • Pack of 24 • Paracetamol &amp; Caffeine</p>
+</div>
+</div>
+<div class="flex items-center justify-between sm:justify-end gap-space-md pt-space-xs sm:pt-0 border-t sm:border-t-0 border-surface-container-low shrink-0">
+<!-- Stepper -->
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant mr-1">Qty:</span>
+<div class="flex items-center bg-surface-container-low rounded-full p-0.5 border border-surface-container-high">
+<button aria-label="Decrease quantity" class="w-7 h-7 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary flex items-center justify-center transition-colors shadow-xs" onclick="adjustQuantity('qty-3', -1)">
+<span class="material-symbols-outlined text-[16px]">remove</span>
+</button>
+<span class="font-label-md text-label-md text-primary w-8 text-center" id="qty-3">1</span>
+<button aria-label="Increase quantity" class="w-7 h-7 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary flex items-center justify-center transition-colors shadow-xs" onclick="adjustQuantity('qty-3', 1)">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+</div>
+</div>
+<!-- Remove Action -->
+<button aria-label="Remove Paracetamol Extra" class="w-8 h-8 rounded-full text-outline hover:text-error hover:bg-error-container/30 transition-colors flex items-center justify-center" onclick="removeItem('item-paracetamol')" title="Remove">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<div class="pt-2 border-t border-surface-container-low/70 flex items-center gap-2 text-on-surface-variant text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-secondary">info</span>
+<span>Standard retail safety cap checked • Max 2 packs per 24 hours</span>
+</div>
+</div>
+<!-- Uploaded / Linked Prescription Documentation Card -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md border border-surface-container-high transition-all shadow-sm">
+<div class="flex items-center justify-between pb-3 border-b border-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[22px]">assignment</span>
+<h3 class="font-title-md text-title-md text-primary font-semibold">Prescription Documentation</h3>
+</div>
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-medium">1 Document Linked</span>
+</div>
+<div class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-low/70 p-3.5 rounded-DEFAULT border border-surface-container-high/70">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-DEFAULT bg-surface-container-lowest flex items-center justify-center text-error shadow-xs shrink-0">
+<span class="material-symbols-outlined text-[22px]">picture_as_pdf</span>
+</div>
+<div>
+<div class="font-label-md text-label-md text-primary font-semibold flex items-center gap-1.5">
+<span>RX-2024-08819A_Chuma.pdf</span>
+<span class="material-symbols-outlined text-secondary text-[16px]">verified</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Issued by Dr. Julian Vance • Exp: 28 Dec 2024</p>
+</div>
+</div>
+<button class="px-3.5 py-1.5 rounded-full bg-surface-container-lowest hover:bg-surface-container text-primary border border-surface-container-high font-label-sm text-label-sm font-semibold transition-colors shrink-0 shadow-xs">
+Replace File
+</button>
+</div>
+</div>
+</div>
+<!-- Right Column: Sticky / Request Summary Panel (4 Cols) -->
+<div class="lg:col-span-4 sticky top-28 space-y-space-md">
+<div class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-surface-container-high flex flex-col gap-5">
+<!-- Summary Header -->
+<div class="flex items-center justify-between">
+<h2 class="font-title-lg text-title-lg text-primary font-semibold">Request Summary</h2>
+<span class="px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold" id="summary-badge">3 Medicines • 4 Units</span>
+</div>
+<!-- Notice Box -->
+<div class="bg-surface-container-low/80 rounded-xl p-4 border border-surface-container-high text-body-sm text-on-surface-variant flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5">info</span>
+<p class="leading-relaxed text-[13px]">
+Zero upfront charges. No payment taken now. Real-time availability, pharmacy prices, and reservation holds will be presented in the next step.
+</p>
+</div>
+<!-- Metrics Breakdown -->
+<div class="space-y-3 py-2 border-y border-surface-container-low text-body-sm">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-outline">near_me</span> Search Radius</span>
+<span class="font-semibold text-primary">5.0 km</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-outline">domain</span> Target Pharmacies</span>
+<span class="font-semibold text-primary">18 Licensed Sites</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-outline">timer</span> Est. Verification</span>
+<span class="font-semibold text-secondary">&lt; 15 seconds</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="space-y-3 pt-1">
+<button class="w-full py-3.5 px-6 rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all" onclick="simulateSearch()">
+<span>Check Pharmacy Availability</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<button class="w-full py-3 px-6 rounded-full bg-surface-container text-primary hover:bg-surface-container-high font-label-md text-label-md font-semibold transition-colors flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>+ Add More Medicines (+ Search Catalogue)</span>
+</button>
+<div class="text-center pt-1">
+<button class="text-outline hover:text-error font-label-sm text-label-sm underline transition-colors" onclick="clearAllRequests()">
+Clear Entire Request
+</button>
+</div>
+</div>
+<!-- Trust Assurance Lockup -->
+<div class="pt-3 border-t border-surface-container-low flex items-start gap-2.5">
+<span class="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5">verified_user</span>
+<p class="text-[12px] leading-relaxed text-on-surface-variant">
+<span class="font-semibold text-primary">Patient Safety Assured — Federally Certified Protocol.</span> Prescriptions are verified against FDA and state pharmacy registries before any medicine is marked for collection or home delivery.
+</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty View fallback state -->
+<div class="hidden flex-col items-center justify-center py-20 text-center bg-surface-container-lowest rounded-2xl border border-surface-container-high shadow-sm my-6" id="empty-view">
+<div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-outline mb-4">
+<span class="material-symbols-outlined text-[32px]">medication</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-1">Your Medicine Request is Empty</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mb-6">You currently have no queued prescription or OTC medications. Search the catalogue to check accredited pharmacy availability.</p>
+<a class="px-6 py-3 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-all shadow-sm flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-[18px]">search</span>
+<span>Explore Medicine Catalogue</span>
+</a>
+</div>
+</div></main>
+<!-- Simulation Modal -->
+<div class="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm hidden items-center justify-center p-4" id="query-modal">
+<div class="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-surface-container-high text-center space-y-4">
+<div class="w-14 h-14 mx-auto rounded-full bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px] animate-pulse">radar</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Querying Nearby Pharmacies</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Checking real-time stock levels, pricing, and dispensary holds across 18 accredited network pharmacies within 5.0 km...</p>
+<div class="w-full bg-surface-container rounded-full h-2.5 overflow-hidden">
+<div class="bg-secondary h-2.5 rounded-full transition-all duration-500 ease-out" id="scan-progress" style="width: 10%"></div>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Encrypting connection via NHS/HIPAA-compliant gateway</p>
+</div>
+</div>
+<footer class="w-full bg-surface-container-lowest border-t border-surface-container-high/60 mt-auto"><div class="max-w-[1240px] mx-auto px-margin py-space-md flex flex-col md:flex-row items-center justify-between gap-space-sm text-on-surface-variant text-body-sm"><div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-center md:text-left"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-secondary text-[16px]">verified</span><span class="font-medium">HIPAA &amp; SOC-2 Type II Certified</span></div><span class="hidden sm:inline text-outline-variant">•</span><span>256-bit AES Clinical Data Encryption</span><span class="hidden sm:inline text-outline-variant">•</span><span>FDA Real-Time Medicine Verification</span></div><span class="text-right text-[13px]">© 2024 MediFind AI Inc. Restricted medical prescription platform.</span></div></footer><script>
+  function adjustQuantity(id, delta) {
+    const elem = document.getElementById(id);
+    if (!elem) return;
+    let val = parseInt(elem.textContent, 10);
+    val = Math.max(1, Math.min(10, val + delta));
+    elem.textContent = val;
+    updateSummaryCount();
+  }
+
+  function removeItem(itemId) {
+    const el = document.getElementById(itemId);
+    if (el) {
+      el.remove();
+      updateSummaryCount();
+    }
+    const remaining = document.querySelectorAll('#populated-view [id^="item-"]').length;
+    if (remaining === 0) {
+      showEmptyState();
+    }
+  }
+
+  function clearAllRequests() {
+    if (confirm('Clear all queued medicines from your active request?')) {
+      const items = document.querySelectorAll('#populated-view [id^="item-"]');
+      items.forEach(it => it.remove());
+      showEmptyState();
+    }
+  }
+
+  function showEmptyState() {
+    const popView = document.getElementById('populated-view');
+    const emptyView = document.getElementById('empty-view');
+    popView.classList.add('hidden');
+    emptyView.classList.remove('hidden');
+    emptyView.classList.add('flex');
+    const countBadge = document.getElementById('item-count-badge');
+    if (countBadge) countBadge.textContent = '0 items';
+  }
+
+  function updateSummaryCount() {
+    const items = document.querySelectorAll('#populated-view [id^="item-"]');
+    let totalUnits = 0;
+    items.forEach(it => {
+      const qElem = it.querySelector('[id^="qty-"]');
+      if (qElem) totalUnits += parseInt(qElem.textContent, 10) || 1;
+    });
+
+    const badge = document.getElementById('summary-badge');
+    if (badge) {
+      badge.textContent = `${items.length} Medicines • ${totalUnits} Units`;
+    }
+    const countBadge = document.getElementById('item-count-badge');
+    if (countBadge) {
+      countBadge.textContent = `${items.length} items`;
+    }
+  }
+
+  function simulateSearch() {
+    const modal = document.getElementById('query-modal');
+    const bar = document.getElementById('scan-progress');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    bar.style.width = '25%';
+
+    setTimeout(() => { bar.style.width = '65%'; }, 400);
+    setTimeout(() => { bar.style.width = '100%'; }, 900);
+    setTimeout(() => {
+      closeModal();
+      alert('Pharmacy availability verified: 18 accredited sites matched. Ready for reservation.');
+    }, 1400);
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('query-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+</script>
+</body></html>

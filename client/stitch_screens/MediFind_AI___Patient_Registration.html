@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+
+<html lang="en" style=""><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_blank" name="shell-type"/><title>MediFind AI - Secure Portal</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={"darkMode":"class","theme":{"extend":{"colors":{"on-primary-fixed":"#00201b","outline-variant":"#c0c8c5","primary-fixed":"#c1ebe1","on-secondary":"#ffffff","secondary-container":"#b0ecdd","on-tertiary-fixed-variant":"#8a1c10","on-tertiary":"#ffffff","inverse-on-surface":"#e3f5ee","tertiary-fixed-dim":"#ffb4a8","secondary":"#2e685d","secondary-fixed-dim":"#97d2c4","tertiary-container":"#7e1208","surface-container":"#e0f2eb","surface-variant":"#d5e6e0","outline":"#717976","on-surface":"#0f1e1b","surface":"#ecfdf7","on-primary":"#ffffff","inverse-primary":"#a6cfc5","surface-container-highest":"#d5e6e0","on-error":"#ffffff","on-error-container":"#93000a","on-tertiary-container":"#ff8875","surface-container-low":"#e6f8f1","surface-dim":"#cdded7","primary-fixed-dim":"#a6cfc5","tertiary":"#5a0100","on-tertiary-fixed":"#410100","on-surface-variant":"#414846","on-primary-fixed-variant":"#274d46","surface-tint":"#3f655e","tertiary-fixed":"#ffdad4","on-secondary-fixed-variant":"#105045","primary-container":"#1e453e","on-background":"#0f1e1b","background":"#ecfdf7","surface-bright":"#ecfdf7","surface-container-high":"#dbece5","error":"#ba1a1a","on-primary-container":"#8ab2a9","on-secondary-fixed":"#00201b","primary":"#032f28","surface-container-lowest":"#ffffff","error-container":"#ffdad6","inverse-surface":"#24332f","secondary-fixed":"#b3eee0","on-secondary-container":"#336c61"},"borderRadius":{"DEFAULT":"1rem","lg":"2rem","xl":"3rem","full":"9999px"},"spacing":{"space-md":"1rem","space-xl":"2rem","space-lg":"1.5rem","margin":"2rem","gutter":"1rem","space-xs":"0.25rem","gutter-mobile":"0.75rem","space-sm":"0.5rem","margin-mobile":"1rem"},"fontFamily":{"title-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"display":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],"headline-lg-mobile":["Plus Jakarta Sans"],"title-md":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"]},"fontSize":{"title-lg":["18px",{"lineHeight":"26px","fontWeight":"600"}],"headline-md":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"label-lg":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"headline-sm":["20px",{"lineHeight":"28px","fontWeight":"600"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.015em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"display":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"700"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.02em","fontWeight":"500"}],"headline-lg-mobile":["26px",{"lineHeight":"34px","letterSpacing":"-0.01em","fontWeight":"700"}],"title-md":["16px",{"lineHeight":"24px","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased flex flex-col justify-center min-h-screen relative overflow-x-hidden">
+<!-- STITCH_SHADER_START:ANIMATION_17 class="fixed inset-0 w-full h-full pointer-events-none z-0" -->
+<div class="fixed inset-0 w-full h-full pointer-events-none z-0" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_17" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_17');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+// MediFind AI - Clinical Sage animated healthcare waves shader
+// Smooth undulating luminous curves, subtle molecular particle glow, soothing clinical aesthetic
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    vec2 normMouse = u_mouse / max(u_resolution, vec2(1.0));
+    
+    // Adjust aspect ratio
+    float aspect = u_resolution.x / u_resolution.y;
+    vec2 p = st * 2.0 - 1.0;
+    p.x *= aspect;
+
+    // Subtle mouse parallax
+    p += (normMouse - 0.5) * 0.15;
+
+    float t = u_time * 0.45;
+
+    // Clinical Sage Palette
+    // Primary deep sage: #1e453e -> rgb(0.118, 0.271, 0.243)
+    // Mint / Emerald glow: #4ade80 / #10b981 / #34d399 -> rgb(0.2, 0.78, 0.58)
+    // Soft clinical sage background: #ecfdf7 -> rgb(0.925, 0.992, 0.969)
+    // Surface container: #d8f5ea -> rgb(0.847, 0.961, 0.918)
+    // Pure bright highlight: #ffffff
+    vec3 baseColor = vec3(0.925, 0.988, 0.965);
+    vec3 mintAccent = vec3(0.32, 0.72, 0.60);
+    vec3 deepSage = vec3(0.12, 0.31, 0.27);
+    vec3 softEmerald = vec3(0.55, 0.88, 0.78);
+    vec3 glowWhite = vec3(0.98, 1.0, 0.99);
+
+    // Subtle background gradient
+    vec3 col = mix(baseColor, vec3(0.85, 0.96, 0.92), st.y * 0.7 + st.x * 0.3);
+
+    // Wave 1: Gentle clinical ribbon
+    float wave1 = sin(p.x * 1.2 + t * 0.8) * 0.35 + cos(p.x * 0.7 - t * 0.5) * 0.25;
+    float dist1 = abs(p.y - wave1);
+    float glow1 = 0.045 / (dist1 + 0.08);
+    col = mix(col, mintAccent, clamp(glow1 * 0.45, 0.0, 0.8));
+
+    // Wave 2: Counter-flowing luminous biological flow
+    float wave2 = sin(p.x * 1.8 - t * 0.6 + 1.5) * 0.28 + cos(p.x * 1.1 + t * 0.4) * 0.2;
+    float dist2 = abs(p.y - wave2 + 0.15);
+    float glow2 = 0.035 / (dist2 + 0.07);
+    col = mix(col, softEmerald, clamp(glow2 * 0.5, 0.0, 0.7));
+
+    // Wave 3: Subtle deep sage baseline wave
+    float wave3 = sin(p.x * 0.8 + t * 0.3 - 0.8) * 0.45 + cos(p.x * 1.5 + t * 0.5) * 0.15;
+    float dist3 = abs(p.y - wave3 - 0.25);
+    float glow3 = 0.025 / (dist3 + 0.09);
+    col = mix(col, deepSage, clamp(glow3 * 0.25, 0.0, 0.5));
+
+    // Wave 4: Ultra crisp sharp highlight filament
+    float wave4 = sin(p.x * 2.2 + t * 0.9 + 2.0) * 0.32;
+    float dist4 = abs(p.y - wave4);
+    float thinLine = smoothstep(0.015, 0.002, dist4);
+    col = mix(col, glowWhite, thinLine * 0.75);
+
+    // Ambient floating soft orbs / molecular gradient nodes
+    for (int i = 0; i < 3; i++) {
+        float fi = float(i);
+        vec2 center = vec2(
+            sin(t * 0.35 + fi * 2.1) * 1.0 * aspect * 0.6,
+            cos(t * 0.4 + fi * 1.7) * 0.5
+        );
+        float orbDist = length(p - center);
+        float orbGlow = 0.18 / (orbDist * orbDist * 3.5 + 1.0);
+        col += mintAccent * orbGlow * 0.12;
+    }
+
+    // Gentle vignette to keep attention focused on the center card
+    float vignette = 1.0 - length(st - 0.5) * 0.4;
+    col *= clamp(vignette, 0.8, 1.0);
+
+    gl_FragColor = vec4(col, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_17 -->
+<main class="relative z-10 w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-space-xl"><div class="w-full max-w-lg mx-auto py-space-lg flex flex-col items-center gap-space-md"><div class="w-full bg-white/90 backdrop-blur-md rounded-lg p-space-xl shadow-2xl border border-emerald-100/60 flex flex-col items-center text-center"><div class="flex justify-center mb-space-sm"><img alt="MediFind AI Logo" class="h-20 w-auto max-w-[240px] object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5qM3T8I_P3_c6fm2gStOyVOcV4LquI9dOxwVDTydGSafBGYEN6M67PjwXdxmqNqCgrrxLgWcV_ajrEe0Ci95Vswi6R60xnNXh7m8LI02dl59KZv2-L_H7y8GfVeMxqFIgDgkKNFo30s5x1LxQc3KjuxlpWBapzWVt2M47GYZG6sL5XMHh1jScMN7Et6K5whkZcH_FJer9H6NpYtGKhTayna-j-AUQQO_Nr82zdnu-OALQ1Wkp925CN8zkVQH3Za7KRsI"/></div><div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm font-semibold mb-space-sm shadow-sm"><span class="material-symbols-outlined text-body-sm" style="font-variation-settings: 'FILL' 1;">verified_user</span> Patient Registration</div><h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold mb-space-xs">Create Your Account</h1><p class="font-body-md text-body-md text-on-surface-variant max-w-md mb-space-lg leading-relaxed">Connect directly to accredited community pharmacies and manage verified digital prescriptions.</p><div class="w-full flex flex-col gap-space-md text-left"><button class="w-full py-3 px-space-md rounded-full bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-title-md text-title-md border border-outline-variant/60 flex items-center justify-center gap-space-sm transition-all shadow-sm" type="button"><svg class="w-5 h-5 flex-shrink-0" viewbox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"></path><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"></path></svg><span class="font-label-lg">Continue with Google</span></button><div class="flex items-center gap-space-sm my-space-xs"><div class="h-px flex-1 bg-outline-variant/40"></div><span class="font-label-sm text-label-sm text-outline uppercase tracking-wider font-semibold">Or Register with Email</span><div class="h-px flex-1 bg-outline-variant/40"></div></div><form class="flex flex-col gap-space-md" id="registration-form" onsubmit="event.preventDefault(); triggerSubmit();"><div class="flex flex-col gap-space-xs"><label class="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between" for="fullName"><span class="">Full Legal Name</span><span class="font-label-sm text-label-sm text-outline-variant font-normal">Official I.D.</span></label><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-4 text-outline pointer-events-none">badge</span><input class="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-12 pr-10 py-3 rounded-full focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-all" id="fullName" name="fullName" placeholder="e.g. Eleanor Vance" type="text" value="Yaryna Chuma"/><span class="material-symbols-outlined absolute right-4 text-secondary pointer-events-none">check_circle</span></div></div><div class="flex flex-col gap-space-xs"><label class="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between" for="email"><span class="">Registered Email</span><span class="font-label-sm text-label-sm text-secondary font-semibold">Validated</span></label><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-4 text-outline pointer-events-none">mail</span><input class="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-12 pr-10 py-3 rounded-full focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-all" id="email" name="email" placeholder="patient@domain.com" type="email" value="yaryna.chuma@medifind.care"/><span class="material-symbols-outlined absolute right-4 text-secondary pointer-events-none">verified</span></div></div><div class="flex flex-col gap-space-xs"><label class="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between" for="phone"><span class="">Contact / Mobile Phone</span><span class="font-label-sm text-label-sm text-on-surface-variant">SMS Ready</span></label><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-4 text-outline pointer-events-none">smartphone</span><input class="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-12 pr-10 py-3 rounded-full focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-all" id="phone" name="phone" placeholder="+1 (555) 000-0000" type="tel" value="+1 (555) 389-2041"/><span class="material-symbols-outlined absolute right-4 text-secondary pointer-events-none">check_circle</span></div></div><div class="flex flex-col gap-space-xs"><label class="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between" for="password"><span class="">Security Password</span><span class="font-label-sm text-label-sm text-secondary font-bold">Strong</span></label><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-4 text-outline pointer-events-none">lock</span><input class="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-12 pr-12 py-3 rounded-full focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-all" id="password" name="password" type="password" value="Apothecary#2024Secure!"/><button class="absolute right-4 text-outline hover:text-on-surface transition-colors" onclick="togglePasswordVisibility('password', this)" type="button"><span class="material-symbols-outlined text-headline-sm">visibility</span></button></div></div><div class="flex flex-col gap-space-xs"><label class="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between" for="confirmPassword"><span class="">Confirm Password</span><span class="font-label-sm text-label-sm text-secondary flex items-center gap-1 font-semibold"><span class="material-symbols-outlined text-body-sm">done_all</span> Matches</span></label><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-4 text-outline pointer-events-none">shield_lock</span><input class="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-12 pr-12 py-3 rounded-full focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-all" id="confirmPassword" name="confirmPassword" type="password" value="Apothecary#2024Secure!"/><button class="absolute right-4 text-outline hover:text-on-surface transition-colors" onclick="togglePasswordVisibility('confirmPassword', this)" type="button"><span class="material-symbols-outlined text-headline-sm">visibility</span></button></div></div><div class="flex items-start gap-space-sm pt-space-xs"><div class="flex items-center h-6"><input checked="" class="h-5 w-5 rounded text-primary focus:ring-primary focus:ring-offset-0 bg-surface-container cursor-pointer" id="terms" name="terms" type="checkbox"/></div><label class="font-body-sm text-body-sm text-on-surface-variant cursor-pointer select-none leading-snug" for="terms">I agree to <span class="text-primary font-semibold underline decoration-secondary">healthcare data privacy</span> &amp; prescription verification terms under standard pharmacy regulation.</label></div><div class="pt-space-sm flex flex-col gap-space-sm"><button class="w-full py-4 px-space-lg rounded-full bg-primary-container hover:bg-primary text-on-primary font-title-md text-title-md flex items-center justify-center gap-space-sm shadow-md transition-all duration-200 group" id="submit-button" type="submit"><span class="font-semibold" id="btn-text">Create Account</span><span class="material-symbols-outlined transition-transform duration-200 group-hover:translate-x-1" id="btn-icon">arrow_forward</span></button><div class="text-center pt-space-xs"><span class="font-body-md text-body-md text-on-surface-variant">Already have a patient account? </span><a class="font-label-lg text-label-lg text-primary hover:text-secondary font-bold underline transition-colors" href="#signin">Sign In</a></div></div></form></div></div><div class="flex items-center justify-center gap-2 text-on-surface-variant font-label-sm text-label-sm py-space-xs bg-white/80 backdrop-blur-md rounded-full border border-emerald-100/60 shadow-sm px-4 py-1.5"><span class="material-symbols-outlined text-body-sm text-secondary">lock</span><span class="">HIPAA &amp; SOC-2 Compliant</span><span class="opacity-50">•</span><span class="">256-bit clinical encryption</span></div></div><script class="">function togglePasswordVisibility(fieldId, btn){const input = document.getElementById(fieldId);const icon = btn.querySelector('.material-symbols-outlined');if(input.type === 'password'){input.type = 'text';icon.textContent = 'visibility_off';}else{input.type = 'password';icon.textContent = 'visibility';}}function triggerSubmit(){const btnText = document.getElementById('btn-text');const btnIcon = document.getElementById('btn-icon');if(btnText && btnIcon){btnText.textContent = 'Creating Account...';btnIcon.textContent = 'hourglass_empty';}}</script></main>
+</body></html>

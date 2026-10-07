@@ -1,0 +1,51 @@
+﻿#,Medicine Name,Strength,Dosage Form,Category,Generic Name,max care pharmacy,karuna medicals
+1,Crocin 650,650mg,Tablet,Antipyretic / Analgesic,Paracetamol,OUT_OF_STOCK,OUT_OF_STOCK
+2,Dolo 650,650mg,Tablet,Antipyretic / Analgesic,Paracetamol,AVAILABLE,AVAILABLE
+3,Brufen 400,400mg,Tablet,NSAID / Analgesic,Ibuprofen,AVAILABLE,OUT_OF_STOCK
+4,Combiflam,400mg + 325mg,Tablet,NSAID / Analgesic Combination,Ibuprofen + Paracetamol,AVAILABLE,AVAILABLE
+5,Voveran SR 100,100mg,Tablet,NSAID,Diclofenac Sodium,AVAILABLE,OUT_OF_STOCK
+6,Tramazac 50,50mg,Capsule,Opioid Analgesic,Tramadol Hydrochloride,AVAILABLE,OUT_OF_STOCK
+7,Meftal Spas,250mg + 10mg,Tablet,Antispasmodic / Analgesic,Mefenamic Acid + Dicyclomine,AVAILABLE,AVAILABLE
+8,Zerodol-P,100mg + 325mg,Tablet,NSAID Combination,Aceclofenac + Paracetamol,AVAILABLE,AVAILABLE
+9,Ultracet,37.5mg + 325mg,Tablet,Analgesic Combination,Tramadol + Paracetamol,AVAILABLE,AVAILABLE
+10,Ketorol DT,10mg,Tablet,NSAID,Ketorolac Tromethamine,AVAILABLE,AVAILABLE
+11,Augmentin 625 Duo,500mg + 125mg,Tablet,Broad Spectrum Antibiotic,Amoxicillin + Potassium Clavulanate,AVAILABLE,AVAILABLE
+12,Azithral 500,500mg,Tablet,Macrolide Antibiotic,Azithromycin,AVAILABLE,AVAILABLE
+13,Cifran 500,500mg,Tablet,Fluoroquinolone Antibiotic,Ciprofloxacin,AVAILABLE,OUT_OF_STOCK
+14,Taxim-O 200,200mg,Tablet,Cephalosporin Antibiotic,Cefixime,AVAILABLE,OUT_OF_STOCK
+15,Monocef 1g,1000mg,Injection,Cephalosporin Antibiotic,Ceftriaxone,OUT_OF_STOCK,OUT_OF_STOCK
+16,Flagyl 400,400mg,Tablet,Antiprotozoal / Antibacterial,Metronidazole,AVAILABLE,OUT_OF_STOCK
+17,Oflox 200,200mg,Tablet,Fluoroquinolone Antibiotic,Ofloxacin,AVAILABLE,OUT_OF_STOCK
+18,Norflox-TZ,400mg + 600mg,Tablet,Antibacterial Combination,Norfloxacin + Tinidazole,AVAILABLE,OUT_OF_STOCK
+19,Zifi 200,200mg,Tablet,Cephalosporin Antibiotic,Cefixime,OUT_OF_STOCK,AVAILABLE
+20,Doxy-1 L-DR Forte,100mg,Capsule,Tetracycline Antibiotic,Doxycycline + Lactic Acid Bacillus,AVAILABLE,OUT_OF_STOCK
+21,Pan 40,40mg,Tablet,Proton Pump Inhibitor,Pantoprazole,AVAILABLE,AVAILABLE
+22,Pantocid DSR,40mg + 30mg,Capsule,PPI + Prokinetic,Pantoprazole + Domperidone,AVAILABLE,AVAILABLE
+23,Omez 20,20mg,Capsule,Proton Pump Inhibitor,Omeprazole,AVAILABLE,AVAILABLE
+24,Rantac 150,150mg,Tablet,H2 Receptor Blocker,Ranitidine,AVAILABLE,AVAILABLE
+25,Emeset 4,4mg,Tablet,Antiemetic,Ondansetron,AVAILABLE,AVAILABLE
+26,Digene Gel,200ml,Syrup,Antacid & Antiflatulent,Magnesium Hydroxide + Aluminium Hydroxide + Simethicone,OUT_OF_STOCK,OUT_OF_STOCK
+27,Cremaffin,200ml,Syrup,Laxative,Liquid Paraffin + Milk of Magnesia,AVAILABLE,AVAILABLE
+28,Sporlac-DS,120 Million Spores,Tablet,Probiotic,Lactobacillus Sporogenes,OUT_OF_STOCK,OUT_OF_STOCK
+29,Sucrafil O,200ml,Syrup,Mucosal Protective Agent,Sucralfate + Oxetacaine,AVAILABLE,OUT_OF_STOCK
+30,Rabeprazole 20,20mg,Tablet,Proton Pump Inhibitor,Rabeprazole Sodium,AVAILABLE,AVAILABLE
+31,Telma 40,40mg,Tablet,Antihypertensive (ARB),Telmisartan,AVAILABLE,AVAILABLE
+32,Amlong 5,5mg,Tablet,Calcium Channel Blocker,Amlodipine Besylate,AVAILABLE,AVAILABLE
+33,Glycomet 500 SR,500mg,Tablet,Antidiabetic (Biguanide),Metformin Hydrochloride,AVAILABLE,AVAILABLE
+34,Januvia 100,100mg,Tablet,Antidiabetic (DPP-4 Inhibitor),Sitagliptin,AVAILABLE,OUT_OF_STOCK
+35,Ecosprin 75,75mg,Tablet,Antiplatelet Agent,Aspirin (Acetylsalicylic Acid),AVAILABLE,AVAILABLE
+36,Atorva 10,10mg,Tablet,Lipid Lowering (Statin),Atorvastatin,AVAILABLE,AVAILABLE
+37,Ciplar 10,10mg,Tablet,Beta Blocker,Propranolol Hydrochloride,AVAILABLE,AVAILABLE
+38,Thyronorm 50,50mcg,Tablet,Thyroid Hormone Supplement,Thyroxine Sodium,AVAILABLE,AVAILABLE
+39,Jardiance 10,10mg,Tablet,Antidiabetic (SGLT2 Inhibitor),Empagliflozin,AVAILABLE,OUT_OF_STOCK
+40,Concor 5,5mg,Tablet,Cardioselective Beta Blocker,Bisoprolol Fumarate,AVAILABLE,AVAILABLE
+41,Asthalin Inhaler,100mcg/puff,Inhaler,Emergency Bronchodilator,Salbutamol (Albuterol),AVAILABLE,AVAILABLE
+42,Sorbitrate 5,5mg,Sublingual Tablet,Emergency Vasodilator,Isosorbide Dinitrate,AVAILABLE,AVAILABLE
+43,Epinephrine Auto-Injector,0.3mg,Injection,Emergency Anaphylaxis Agent,Epinephrine (Adrenaline),AVAILABLE,OUT_OF_STOCK
+44,Deriphyllin Retard 150,150mg,Tablet,Bronchodilator (Xanthine),Etofylline + Theophylline,OUT_OF_STOCK,AVAILABLE
+45,Budecort 200 Inhaler,200mcg/puff,Inhaler,Inhaled Corticosteroid,Budesonide,AVAILABLE,AVAILABLE
+46,Cetirizine 10,10mg,Tablet,Antihistamine (2nd Gen),Cetirizine Hydrochloride,AVAILABLE,AVAILABLE
+47,Allegra 120,120mg,Tablet,Non-sedating Antihistamine,Fexofenadine Hydrochloride,AVAILABLE,OUT_OF_STOCK
+48,Dexona 4,4mg,Tablet,Systemic Corticosteroid,Dexamethasone,OUT_OF_STOCK,OUT_OF_STOCK
+49,Lasix 40,40mg,Tablet,Loop Diuretic,Furosemide,AVAILABLE,AVAILABLE
+50,Atropine Injection,0.6mg/ml,Injection,Emergency Anticholinergic,Atropine Sulfate,OUT_OF_STOCK,OUT_OF_STOCK

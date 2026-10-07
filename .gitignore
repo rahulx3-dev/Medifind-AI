@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.venv/
+**/__pycache__/
+
+# Environment & Secret Files
+.env
+.env.*
+!.env.example
+server/.env
+client/.env
+
+# Database & SQLite files
+*.db
+*.db*
+*.db-journal
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+server/prisma/*.db*
+server/prisma/*.bak
+server/prisma/*.backup
+
+# Build output
+dist/
+client/dist/
+build/
+
+# Uploads & Media (except .gitkeep)
+server/uploads/*
+!server/uploads/.gitkeep
+uploads/*
+
+# OCR models & cache
+.paddleocr/
+.paddlex/
+ocr_cache/
+*.onnx
+*.pdparams
+
+# Logs
+*.log
+logs/
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.antigravity/
+.antigravity-ide/
+.gemini/
+brain/
+scratch/
+scratch*
+server/scratch*

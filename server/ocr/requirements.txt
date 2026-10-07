@@ -1,0 +1,18 @@
+# MediFind AI — Phase 6.1E.1 Local Handwritten Prescription OCR & Document Understanding Pipeline
+# Python Dependencies
+
+# Core Image & Document Preprocessing
+Pillow>=10.0.0
+opencv-python>=4.8.0; python_version < "3.13"
+requests>=2.31.0
+
+# PaddleOCR & PP-Structure Layout Pipeline
+# Primary OCR engine for printed and handwritten prescription extraction
+paddlepaddle>=2.6.0; python_version < "3.13"
+paddleocr>=2.8.0
+
+# Optional Clinical NLP extraction layer (supporting only, never authoritative)
+# medspacy>=1.1.0; python_version < "3.13"
+
+# Optional local LLM fallback (Qwen-VL via local Ollama HTTP client)
+# Requires no pip package — uses standard requests to local Ollama instance (http://127.0.0.1:11434)

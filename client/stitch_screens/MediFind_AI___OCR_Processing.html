@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>MediFind AI - Prescription Workflow</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-background": "#0f1e1b", "surface-container-highest": "#d5e6e0", "on-primary-fixed": "#00201b", "on-primary-container": "#8ab2a9", "outline": "#717976", "on-secondary-container": "#336c61", "inverse-surface": "#24332f", "on-secondary": "#ffffff", "surface-bright": "#ecfdf7", "on-primary": "#ffffff", "tertiary-fixed": "#ffdad4", "secondary-fixed": "#b3eee0", "tertiary-fixed-dim": "#ffb4a8", "error": "#ba1a1a", "primary-fixed": "#c1ebe1", "tertiary": "#5a0100", "primary": "#032f28", "on-tertiary-fixed": "#410100", "on-tertiary-fixed-variant": "#8a1c10", "tertiary-container": "#7e1208", "secondary-fixed-dim": "#97d2c4", "on-error": "#ffffff", "surface-container": "#e0f2eb", "on-secondary-fixed-variant": "#105045", "on-error-container": "#93000a", "on-secondary-fixed": "#00201b", "surface-container-low": "#e6f8f1", "primary-container": "#1e453e", "primary-fixed-dim": "#a6cfc5", "secondary": "#2e685d", "surface-container-lowest": "#ffffff", "surface-container-high": "#dbece5", "surface-variant": "#d5e6e0", "surface": "#ecfdf7", "inverse-primary": "#a6cfc5", "surface-tint": "#3f655e", "on-primary-fixed-variant": "#274d46", "on-tertiary": "#ffffff", "secondary-container": "#b0ecdd", "background": "#ecfdf7", "error-container": "#ffdad6", "inverse-on-surface": "#e3f5ee", "on-tertiary-container": "#ff8875", "surface-dim": "#cdded7", "outline-variant": "#c0c8c5", "on-surface": "#0f1e1b", "on-surface-variant": "#414846" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-xs": "0.25rem", "space-xl": "2rem", "space-md": "1rem", "margin-mobile": "1rem", "space-lg": "1.5rem", "space-sm": "0.5rem", "gutter": "1rem", "gutter-mobile": "0.75rem", "margin": "2rem" }, "fontFamily": { "headline-lg-mobile": [ "Plus Jakarta Sans" ], "display": [ "Plus Jakarta Sans" ], "headline-md": [ "Plus Jakarta Sans" ], "headline-lg": [ "Plus Jakarta Sans" ], "body-lg": [ "Plus Jakarta Sans" ], "body-sm": [ "Plus Jakarta Sans" ], "title-md": [ "Plus Jakarta Sans" ], "headline-sm": [ "Plus Jakarta Sans" ], "label-sm": [ "Plus Jakarta Sans" ], "label-lg": [ "Plus Jakarta Sans" ], "body-md": [ "Plus Jakarta Sans" ], "label-md": [ "Plus Jakarta Sans" ], "title-lg": [ "Plus Jakarta Sans" ] }, "fontSize": { "headline-lg-mobile": [ "26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700" } ], "display": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "headline-md": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "headline-lg": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700" } ], "body-lg": [ "16px", { "lineHeight": "24px", "fontWeight": "400" } ], "body-sm": [ "12px", { "lineHeight": "18px", "fontWeight": "400" } ], "title-md": [ "16px", { "lineHeight": "24px", "fontWeight": "600" } ], "headline-sm": [ "20px", { "lineHeight": "28px", "fontWeight": "600" } ], "label-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "label-lg": [ "14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" } ], "body-md": [ "14px", { "lineHeight": "20px", "fontWeight": "400" } ], "label-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" } ], "title-lg": [ "18px", { "lineHeight": "26px", "fontWeight": "600" } ] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-20 max-w-[1280px] mx-auto px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><a class="flex items-center gap-space-sm group focus:outline-none" href="#"><span class="flex items-center justify-center w-10 h-10 rounded-full bg-primary-container text-on-primary-container"><span class="material-symbols-outlined text-[20px]">vital_signs</span></span><div class="flex flex-col"><span class="font-title-lg text-title-lg text-primary tracking-tight">MediFind<span class="text-secondary font-display text-[15px] ml-1 px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">AI</span></span></div></a><nav class="hidden xl:flex items-center gap-space-xs bg-surface-container-low px-space-xs py-space-xs rounded-full p-1" data-active-classes="bg-primary-container text-on-primary-container font-label-lg text-label-lg rounded-full px-space-md py-space-xs shadow-[0_2px_8px_-2px_rgba(30,69,62,0.12)]"><a class="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface px-space-md py-space-xs rounded-full transition-colors" data-path="medicine-catalogue" href="#">Medicine Catalogue</a><a class="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface px-space-md py-space-xs rounded-full transition-colors" data-path="active-request" href="#">Active Request</a><a aria-current="page" class="transition-colors bg-primary-container text-on-primary-container font-label-lg text-label-lg rounded-full px-space-md py-space-xs shadow-[0_2px_8px_-2px_rgba(30,69,62,0.12)]" data-path="prescriptions" href="#">Prescriptions</a><a class="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface px-space-md py-space-xs rounded-full transition-colors" data-path="pharmacy-locator" href="#">Pharmacy Locator</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden md:flex items-center bg-surface-container-lowest rounded-full px-space-md py-space-xs shadow-[0_2px_8px_-2px_rgba(30,69,62,0.05)] w-56 lg:w-64 focus-within:ring-2 focus-within:ring-primary/20"><span class="material-symbols-outlined text-[18px] text-outline mr-space-xs">search</span><input aria-label="Search medications or prescriptions" class="w-full bg-transparent font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none" placeholder="Search Rx or drug..." type="text"/><kbd class="hidden lg:inline-block font-label-sm text-label-sm text-outline bg-surface-container px-1.5 py-0.5 rounded-md">⌘K</kbd></div><button aria-label="Notifications" class="relative p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden sm:flex flex-col text-right"><span class="font-label-md text-label-md text-on-surface">Yaryna Chuma</span><span class="font-label-sm text-label-sm text-secondary font-medium flex items-center justify-end gap-1"><span class="material-symbols-outlined text-[14px]">verified</span>Verified Patient</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary-fixed" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/></div></div></div></header><main class="w-full pt-20 bg-surface flex-1"><div class="flex flex-col w-full">
+<div class="max-w-[1280px] w-full mx-auto px-margin py-space-xl flex flex-col gap-space-xl">
+<!-- Top Progress Breadcrumbs -->
+<div class="w-full bg-surface-container-lowest rounded-full shadow-sm p-space-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-sm px-space-md py-space-xs rounded-full bg-surface-container-low text-primary">
+<span class="w-6 h-6 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Step 1</span>
+<span class="font-label-md text-label-md font-semibold text-primary">Upload or Capture</span>
+</div>
+</div>
+<div class="hidden sm:flex items-center text-outline-variant">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-space-sm px-space-md py-space-xs rounded-full bg-primary-container text-on-primary-container shadow-md relative overflow-hidden">
+<span class="absolute inset-0 bg-white/5 animate-pulse"></span>
+<span class="relative w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-label-sm text-label-sm font-bold">
+          2
+        </span>
+<div class="relative flex flex-col">
+<span class="font-label-sm text-label-sm text-primary-fixed-dim uppercase tracking-wider flex items-center gap-1">
+            Step 2 
+            <span class="w-1.5 h-1.5 rounded-full bg-secondary-container animate-ping inline-block"></span>
+</span>
+<span class="font-label-md text-label-md font-bold text-on-primary">Optical Reading &amp; Medicine Extraction</span>
+</div>
+</div>
+<div class="hidden sm:flex items-center text-outline-variant">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-space-sm px-space-md py-space-xs rounded-full text-on-surface-variant/70">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm font-medium">
+          3
+        </span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Step 3</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Patient Verification</span>
+</div>
+</div>
+</div>
+<!-- Header Section -->
+<div class="flex flex-col gap-space-xs max-w-3xl">
+<div class="inline-flex items-center gap-space-xs text-secondary font-label-md text-label-md bg-secondary-container/50 px-space-md py-space-xs rounded-full w-fit">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">neurology</span>
+        MediFind DeepRead OCR Active
+      </div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">
+        Reading Prescription Document &amp; Extracting Medicines
+      </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+        MediFind optical character recognition is scanning the uploaded doctor's prescription. Detected medicine formulations will be presented for your verification in the next step.
+      </p>
+</div>
+<!-- Main Two-Column Balanced Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- Left Column: Prescription Scanning Visualizer -->
+<div class="lg:col-span-6 flex flex-col gap-space-md">
+<div class="relative bg-surface-container-lowest rounded-lg shadow-xl overflow-hidden p-space-lg flex flex-col items-center">
+<!-- Document Header bar within card -->
+<div class="w-full flex items-center justify-between pb-space-md text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-secondary">description</span>
+<span class="font-medium text-primary">Dr_Julian_Vance_Clinic_Rx_10-24.pdf</span>
+</div>
+<span class="bg-surface-container-high px-space-sm py-0.5 rounded-full text-outline font-mono">1.8 MB · Layer 1 OCR</span>
+</div>
+<!-- Prescription Frame with Scanner Simulation -->
+<div class="relative w-full aspect-[1/1.3] bg-surface-container-low rounded-DEFAULT overflow-hidden shadow-inner p-space-lg flex flex-col justify-between select-none">
+<!-- Real visual prescription paper artifact -->
+<div class="absolute inset-4 bg-surface-container-lowest rounded-DEFAULT shadow-md p-space-lg flex flex-col justify-between overflow-hidden">
+<!-- Prescription Header Mock -->
+<div class="flex justify-between items-start pb-space-sm">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-primary font-bold tracking-tight">Dr. Julian Vance, MD, FACP</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Pulmonary &amp; Internal Medicine Clinic</span>
+<span class="font-body-sm text-body-sm text-outline">License #RX-8849204 · DEA #BV4920194</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[24px]">local_pharmacy</span>
+</div>
+</div>
+<!-- Prescription Body Content -->
+<div class="flex flex-col gap-space-lg my-auto pt-space-xs">
+<div class="flex flex-col text-on-surface-variant font-body-sm text-body-sm">
+<span><strong class="text-primary font-label-md text-label-md">Patient:</strong> Yaryna Chuma (DOB: 14-Aug-1994)</span>
+<span><strong class="text-primary font-label-md text-label-md">Date of Issue:</strong> October 24, 2024</span>
+</div>
+<!-- Rx Symbol & Detected Zone 1 -->
+<div class="relative flex items-start gap-space-md py-space-xs">
+<span class="font-display text-display text-primary/40 leading-none select-none">℞</span>
+<div class="flex flex-col w-full gap-space-sm">
+<!-- Zone 1 container with relative anchor for detection overlay -->
+<div class="relative p-2 rounded-DEFAULT bg-surface-container-high/40">
+<span class="font-title-md text-title-md text-primary block">Amoxicillin 500mg capsules</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant block">Sig: 1 capsule by mouth every 8 hours for 10 days. #30</span>
+</div>
+<!-- Zone 2 container with relative anchor for detection overlay -->
+<div class="relative p-2 rounded-DEFAULT bg-surface-container-high/40">
+<span class="font-title-md text-title-md text-primary block">Ventolin Evohaler (100mcg)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant block">Sig: Inhale 1-2 puffs every 4 to 6 hours as needed for bronchospasm.</span>
+</div>
+</div>
+</div>
+<!-- Signature Mock -->
+<div class="flex justify-between items-end pt-space-sm">
+<div class="flex flex-col font-body-sm text-body-sm text-outline">
+<span>Dispense as Written</span>
+<span>Refills: 0 (Zero)</span>
+</div>
+<div class="relative flex flex-col items-center">
+<span class="font-serif italic text-primary text-xl select-none tracking-widest opacity-80 rotate-[-6deg]">
+                      Julian Vance, M.D.
+                    </span>
+<div class="w-36 h-0.5 bg-outline-variant mt-1"></div>
+<span class="font-label-sm text-label-sm text-outline mt-1">Authorized Physician Signature</span>
+</div>
+</div>
+</div>
+<!-- Watermark -->
+<div class="text-center font-label-sm text-label-sm text-outline/40 pt-space-xs uppercase tracking-widest select-none">
+                Official Clinical Prescription Document · State Pharmacy Board Registered
+              </div>
+</div>
+<!-- Optical Scanning Dynamic Overlay Elements -->
+<!-- Detected Bounding Box 1: Amoxicillin -->
+<div class="absolute top-[28%] left-[24%] right-[8%] rounded-DEFAULT bg-secondary/15 shadow-[0_0_0_2px_rgba(46,104,93,0.8),0_0_16px_rgba(46,104,93,0.3)] pointer-events-none transition-all p-2 flex flex-col justify-between">
+<div class="self-start -mt-6 bg-primary text-on-primary px-space-sm py-0.5 rounded-full font-label-sm text-label-sm font-semibold shadow-md flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping"></span>
+                Extracting Formula: Amoxicillin Trihydrate 500mg
+              </div>
+<div class="flex justify-between items-center text-secondary font-mono text-[10px] mt-2 font-bold uppercase tracking-wider">
+<span>Confidence 99.4%</span>
+<span class="material-symbols-outlined text-[14px]">done_all</span>
+</div>
+</div>
+<!-- Detected Bounding Box 2: Ventolin -->
+<div class="absolute top-[48%] left-[24%] right-[8%] rounded-DEFAULT bg-secondary/15 shadow-[0_0_0_2px_rgba(46,104,93,0.8),0_0_16px_rgba(46,104,93,0.3)] pointer-events-none transition-all p-2 flex flex-col justify-between">
+<div class="self-start -mt-6 bg-primary text-on-primary px-space-sm py-0.5 rounded-full font-label-sm text-label-sm font-semibold shadow-md flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping"></span>
+                Extracting Formula: Salbutamol Sulfate 100mcg
+              </div>
+<div class="flex justify-between items-center text-secondary font-mono text-[10px] mt-2 font-bold uppercase tracking-wider">
+<span>Confidence 98.7%</span>
+<span class="material-symbols-outlined text-[14px]">done_all</span>
+</div>
+</div>
+<!-- Detected Bounding Box 3: Signature -->
+<div class="absolute bottom-[8%] right-[8%] w-[48%] h-[16%] rounded-DEFAULT bg-secondary-container/30 shadow-[0_0_0_2px_rgba(51,108,97,0.7)] pointer-events-none flex flex-col justify-end p-1">
+<div class="self-end bg-surface-container-lowest text-primary px-space-sm py-0.5 rounded-full font-label-sm text-label-sm font-semibold shadow-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px] text-secondary">verified</span>
+                Physician Credential Detected
+              </div>
+</div>
+<!-- Continuous Animated Laser Scanning Bar -->
+<div class="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-secondary-fixed-dim to-transparent pointer-events-none shadow-[0_0_18px_4px_rgba(179,238,224,0.9)] animate-[scan_3.2s_ease-in-out_infinite]"></div>
+<style>
+              @keyframes scan {
+                0% { top: 4%; opacity: 0.1; }
+                15% { opacity: 0.95; }
+                85% { opacity: 0.95; }
+                100% { top: 92%; opacity: 0.1; }
+              }
+            </style>
+</div>
+<!-- Optical Details Badge Under Viewer -->
+<div class="mt-space-md flex flex-wrap items-center justify-center gap-space-sm text-center">
+<span class="inline-flex items-center gap-1.5 font-label-md text-label-md px-space-md py-space-xs rounded-full bg-surface-container text-on-surface-variant shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">document_scanner</span>
+              Image Quality: Optimal (1200 DPI)
+            </span>
+<span class="inline-flex items-center gap-1.5 font-label-md text-label-md px-space-md py-space-xs rounded-full bg-secondary-container text-on-secondary-container font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+              OCR Engine v2.4 Active
+            </span>
+</div>
+</div>
+</div>
+<!-- Right Column: Extraction Stages & Progress Architecture -->
+<div class="lg:col-span-6 flex flex-col gap-space-lg">
+<!-- Live Progress Status Card -->
+<div class="bg-surface-container-lowest rounded-lg shadow-md p-space-xl flex flex-col gap-space-lg">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Total Progress</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-display text-display text-primary font-bold">72</span>
+<span class="font-title-lg text-title-lg text-secondary font-bold">%</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-full text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px] text-secondary">timer</span>
+<span>Estimated time: <strong>~ 4 seconds</strong></span>
+</div>
+</div>
+<!-- Progress Track -->
+<div class="w-full bg-surface-container-high h-3 rounded-full overflow-hidden p-0.5">
+<div class="bg-gradient-to-r from-secondary to-primary-container h-full rounded-full transition-all duration-500 w-[72%] shadow-[0_0_12px_rgba(46,104,93,0.4)]"></div>
+</div>
+<!-- Step-by-Step Structured Extraction Stages Checklist -->
+<div class="flex flex-col gap-space-md pt-space-xs">
+<!-- Stage 1: Completed -->
+<div class="flex items-start gap-space-md bg-surface-container-lowest p-space-sm rounded-DEFAULT">
+<div class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Image Preprocessing &amp; Contrast Calibration</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container px-2 py-0.5 rounded-full font-medium">Done</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Binarized paper background, corrected keystoning distortion, and adjusted gamma spectrum.</p>
+</div>
+</div>
+<!-- Stage 2: Completed -->
+<div class="flex items-start gap-space-md bg-surface-container-lowest p-space-sm rounded-DEFAULT">
+<div class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Text &amp; Optical Character Parsing</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container px-2 py-0.5 rounded-full font-medium">Done</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Parsed line vectors, Latin terminology, patient identifiers, and physician license notation.</p>
+</div>
+</div>
+<!-- Stage 3: In Progress (Active) -->
+<div class="flex items-start gap-space-md bg-surface-container-low p-space-md rounded-DEFAULT shadow-sm relative overflow-hidden">
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 animate-spin">
+<span class="material-symbols-outlined text-[18px]">progress_activity</span>
+</div>
+<div class="flex flex-col flex-1">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md text-primary font-bold">Medicine Formulation &amp; Dosage Matching</span>
+<span class="font-label-sm text-label-sm bg-primary-container text-on-primary px-2.5 py-0.5 rounded-full font-bold animate-pulse">Running</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                  Mapping extracted text against accredited pharmaceutical catalogue (FDA &amp; WHO ATC drug codes).
+                </p>
+<div class="flex items-center gap-2 mt-2 font-mono text-label-sm text-secondary bg-surface-container px-space-sm py-1 rounded-DEFAULT w-fit">
+<span class="material-symbols-outlined text-[14px]">sync</span>
+<span>Queried: "Amoxicillin 500mg" → Match: Amoxicillin Trihydrate (ATC: J01CA04)</span>
+</div>
+</div>
+</div>
+<!-- Stage 4: Queued -->
+<div class="flex items-start gap-space-md bg-surface-container-lowest p-space-sm rounded-DEFAULT opacity-60">
+<div class="w-8 h-8 rounded-full bg-surface-container-high text-outline flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">hourglass_empty</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-on-surface-variant font-medium">Candidate Preparation for Patient Verification</span>
+<span class="font-label-sm text-label-sm text-outline bg-surface-container px-2 py-0.5 rounded-full">Queued</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline">Generating editable verification cards and dosage validation review fields.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Clarification Callout (Medical Safety & Scope) -->
+<div class="bg-surface-container rounded-lg p-space-lg flex items-start gap-space-md shadow-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">info</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-bold">Medical Safety &amp; Optical Extraction Scope</span>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              OCR extracts text candidates only. MediFind does <strong>NOT</strong> diagnose conditions, prescribe medications, or confirm pharmacy stock at this stage. You will review and verify all detected medicines in Step 3.
+            </p>
+</div>
+</div>
+<!-- Action Controls -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-space-md pt-space-xs">
+<button class="order-2 sm:order-1 text-on-surface-variant hover:text-error transition-colors font-label-lg text-label-lg flex items-center gap-1.5 py-space-xs px-space-sm rounded-full" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+            Cancel Processing
+          </button>
+<button class="order-1 sm:order-2 w-full sm:w-auto bg-primary-container text-on-primary-container font-label-lg text-label-lg rounded-full px-space-xl py-space-md flex items-center justify-center gap-space-sm shadow-md cursor-not-allowed opacity-90" disabled="" type="button">
+<span class="material-symbols-outlined text-[20px] animate-spin">autorenew</span>
+            Preparing Verification Workspace... (72%)
+          </button>
+</div>
+<!-- Compliance & Security Assurance Note -->
+<div class="flex items-center justify-center sm:justify-start gap-space-sm text-outline font-label-sm text-label-sm pt-space-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">encrypted</span>
+<span>Prescription telemetry processed via HIPAA 256-Bit In-Flight Memory Isolation. No raw handwriting cached.</span>
+</div>
+</div>
+</div>
+</div>
+</div></main><footer class="w-full bg-surface-container-low mt-auto"><div class="max-w-[1280px] mx-auto px-margin py-space-xl"><div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-space-lg pb-space-lg"><div class="flex items-center gap-space-sm"><span class="flex items-center justify-center w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container"><span class="material-symbols-outlined text-[18px]">health_and_safety</span></span><span class="font-title-md text-title-md text-primary">MediFind AI Clinical Network</span></div><div class="flex flex-wrap items-center gap-space-md"><div class="flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm"><span class="material-symbols-outlined text-[16px] text-secondary">lock</span><span>256-Bit TLS End-to-End Encrypted</span></div><div class="flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm"><span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span><span>HIPAA Certified &amp; SOC2 Type II Compliant</span></div></div></div><div class="pt-space-md flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant font-body-sm text-body-sm"><p class="text-center md:text-left">© 2024 MediFind AI Health Systems Inc. All clinical dispatch decisions are verified by board-certified pharmacists.</p><div class="flex items-center gap-space-lg font-label-md text-label-md"><a class="hover:text-on-surface transition-colors" href="#">Privacy Policy</a><a class="hover:text-on-surface transition-colors" href="#">Terms of Clinical Service</a><a class="hover:text-on-surface transition-colors" href="#">Pharmacy Regulatory Status</a></div></div></div></footer></body></html>

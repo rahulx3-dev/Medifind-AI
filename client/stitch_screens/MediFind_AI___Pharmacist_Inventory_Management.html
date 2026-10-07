@@ -1,0 +1,802 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_standard" name="shell-type"><title>MediFind AI - Pharmacist Portal</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"error-container":"#ffdad6","on-tertiary-fixed-variant":"#8a1c10","inverse-primary":"#a6cfc5","surface-container-highest":"#d5e6e0","primary-container":"#1e453e","surface-tint":"#3f655e","secondary-fixed-dim":"#97d2c4","on-secondary-fixed":"#00201b","on-primary-container":"#8ab2a9","secondary-fixed":"#b3eee0","error":"#ba1a1a","on-secondary-fixed-variant":"#105045","tertiary-fixed-dim":"#ffb4a8","on-background":"#0f1e1b","on-tertiary":"#ffffff","secondary-container":"#b0ecdd","surface-container-low":"#e6f8f1","surface-container":"#e0f2eb","inverse-surface":"#24332f","on-primary-fixed-variant":"#274d46","primary-fixed":"#c1ebe1","inverse-on-surface":"#e3f5ee","on-secondary-container":"#336c61","surface-dim":"#cdded7","surface-variant":"#d5e6e0","surface-container-lowest":"#ffffff","on-primary-fixed":"#00201b","surface-bright":"#ecfdf7","outline-variant":"#c0c8c5","on-error":"#ffffff","tertiary":"#5a0100","on-error-container":"#93000a","background":"#ecfdf7","tertiary-container":"#7e1208","on-primary":"#ffffff","on-surface":"#0f1e1b","on-surface-variant":"#414846","primary-fixed-dim":"#a6cfc5","surface":"#ecfdf7","on-tertiary-container":"#ff8875","on-secondary":"#ffffff","surface-container-high":"#dbece5","outline":"#717976","secondary":"#2e685d","tertiary-fixed":"#ffdad4","primary":"#032f28","on-tertiary-fixed":"#410100"},borderRadius:{DEFAULT:"1rem",lg:"2rem",xl:"3rem",full:"9999px"},spacing:{"space-xs":"0.25rem",margin:"2rem","margin-mobile":"1rem","space-md":"1rem","gutter-mobile":"0.75rem","space-lg":"1.5rem","space-xl":"2rem","space-sm":"0.5rem",gutter:"1rem"},fontFamily:{"title-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"title-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],"headline-lg-mobile":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],display:["Plus Jakarta Sans"]},fontSize:{"title-lg":["18px",{lineHeight:"26px",fontWeight:"600"}],"body-sm":["12px",{lineHeight:"18px",fontWeight:"400"}],"body-md":["14px",{lineHeight:"20px",fontWeight:"400"}],"title-md":["16px",{lineHeight:"24px",fontWeight:"600"}],"headline-sm":["20px",{lineHeight:"28px",fontWeight:"600"}],"label-md":["12px",{lineHeight:"16px",letterSpacing:"0.02em",fontWeight:"600"}],"label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.02em",fontWeight:"500"}],"headline-lg-mobile":["26px",{lineHeight:"34px",letterSpacing:"-0.01em",fontWeight:"700"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.01em",fontWeight:"600"}],"headline-lg":["32px",{lineHeight:"40px",letterSpacing:"-0.015em",fontWeight:"700"}],"body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],"headline-md":["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"600"}],display:["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"700"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(30,69,62,0.04)]"><div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-gutter"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-md"><img alt="MediFind AI Logo" class="w-9 h-9 rounded-full object-cover shrink-0 shadow-[0_2px_6px_rgba(30,69,62,0.1)] ring-2 ring-surface-container-high" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"><div class="flex flex-col justify-center"><div class="flex items-center gap-space-xs"><span class="font-title-md text-title-md text-primary font-bold tracking-tight leading-none">MediFind AI</span><span class="inline-flex items-center px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-[11px] leading-none font-medium ml-1">Pharmacist Portal</span></div><span class="font-body-sm text-[12px] text-on-surface-variant leading-none mt-1">St. Jude Community Apothecary</span></div></div><div class="hidden xl:flex items-center gap-space-sm"><span class="inline-flex items-center px-space-sm py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm shadow-sm whitespace-nowrap"><span class="material-symbols-outlined text-[14px] mr-1 text-secondary">verified</span>Verified Dispenser #819</span><span class="inline-flex items-center px-space-sm py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap"><span class="material-symbols-outlined text-[14px] mr-1 text-outline">science</span>TEST DATA — NOT A PARTICIPATING PHARMACY</span></div></div><nav class="hidden md:flex items-center bg-surface-container-lowest/80 p-1.5 rounded-full shadow-[0_1px_4px_rgba(30,69,62,0.05)]" data-active-classes="bg-primary text-on-primary font-label-md text-label-md rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.12)]"><a class="px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="overview-reservations" href="#">Overview / Reservations</a><a aria-current="page" class="px-space-md py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm transition-colors" data-path="inventory" href="#">Inventory</a><a class="px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="notifications" href="#">Notifications<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-tertiary text-on-tertiary font-label-sm text-[10px] leading-none">2</span></a><a class="px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="account-pharmacy-profile" href="#">Account / Pharmacy Profile</a></nav><div class="flex items-center gap-space-sm"><a class="hidden sm:inline-flex items-center px-space-md py-1.5 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-md text-label-md transition-all" data-path="login" href="#">Logout</a><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"></div></div></header><main class="w-full pt-20 bg-surface min-h-[calc(100vh-140px)]"><div class="flex flex-col w-full">
+<!-- Active Tab Highlight Synchronization -->
+<script>
+    (function syncHeaderNav() {
+      const navLinks = document.querySelectorAll('header nav a');
+      navLinks.forEach(link => {
+        if (link.getAttribute('data-path') === 'inventory') {
+          link.className = 'px-space-md py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm transition-colors';
+        } else {
+          link.className = 'px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors';
+        }
+      });
+    })();
+  </script>
+<!-- Top Hero & Inventory Command Bar -->
+<section class="max-w-7xl mx-auto px-margin w-full pt-space-lg pb-space-md">
+<!-- Breadcrumb & Regulatory Notice Band -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant">
+<span class="">Pharmacy Portal</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-label-md text-label-md">Dispensary Inventory</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-secondary">Zone Alpha-08</span>
+</div>
+<!-- Freshness Indicator Badge -->
+<div class="inline-flex items-center gap-space-xs px-space-md py-1 rounded-full bg-surface-container-lowest text-on-surface-variant shadow-sm">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-label-sm text-label-sm">Last updated today, 10:42 AM</span>
+<span class="text-outline-variant font-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-secondary">Synchronized via EDI-855</span>
+<span class="material-symbols-outlined text-[14px] text-secondary">cloud_done</span>
+</div>
+</div>
+<!-- Main Section Header -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-lg pb-space-lg">
+<div class="max-w-3xl">
+<div class="flex items-center gap-space-sm mb-space-xs">
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">Dispenser #819 Ledger</span>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm">DSCSA Compliant</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Dispensary Inventory Management</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-space-xs">Manage stock quantities, clinical pricing, and inventory availability synchronized with MediFind AI patient discovery.</p>
+</div>
+<!-- Header Actions -->
+<div class="flex flex-wrap items-center gap-space-sm shrink-0">
+<button class="inline-flex items-center gap-space-xs px-space-md py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all" id="toggleEmptyBtn" onclick="toggleEmptyState()">
+<span class="material-symbols-outlined text-[18px]">filter_alt_off</span>
+<span class="">Simulate No Results</span>
+</button>
+<button class="inline-flex items-center gap-space-xs px-space-lg py-2.5 rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-md hover:bg-primary-container transition-all" onclick="openDrawer('new')">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span class="">+ Add Medicine to Inventory</span>
+</button>
+</div>
+</div>
+<!-- Quick Stats Bento Overview -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-md mb-space-lg">
+<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
+<span class="font-label-md text-label-md uppercase tracking-wider">Catalogue Active</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">medication</span>
+</div>
+<div>
+<span class="font-headline-md text-headline-md text-primary font-bold">48</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant ml-1.5">SKUs indexed</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
+<span class="font-label-md text-label-md uppercase tracking-wider">Available Ready</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span>
+</div>
+<div>
+<span class="font-headline-md text-headline-md text-primary font-bold">39</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant ml-1.5">81.2% healthy</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
+<span class="font-label-md text-label-md uppercase tracking-wider">Low Stock Watch</span>
+<span class="material-symbols-outlined text-tertiary-container text-[20px]">warning</span>
+</div>
+<div>
+<span class="font-headline-md text-headline-md text-tertiary-container font-bold">6</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant ml-1.5">threshold ≤10</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant mb-space-sm">
+<span class="font-label-md text-label-md uppercase tracking-wider">Zero Units</span>
+<span class="material-symbols-outlined text-error text-[20px]">error_outline</span>
+</div>
+<div>
+<span class="font-headline-md text-headline-md text-error font-bold">3</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant ml-1.5">requiring PO</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Filter & Controls Toolbar -->
+<section class="max-w-7xl mx-auto px-margin w-full mb-space-md">
+<div class="bg-surface-container-lowest p-space-md rounded-lg shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md">
+<!-- Search Bar Capsule -->
+<div class="relative flex-1 min-w-[280px]">
+<span class="material-symbols-outlined absolute left-space-md top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+<input class="w-full pl-11 pr-10 py-2.5 rounded-full bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all" id="inventorySearchInput" oninput="handleSearch(this.value)" placeholder="Search medicine by generic name, brand, or NDC..." type="text">
+<button class="material-symbols-outlined absolute right-space-md top-1/2 -translate-y-1/2 text-outline-variant hover:text-on-surface text-[18px]" onclick="clearSearch()">cancel</button>
+</div>
+<!-- Filters & Category Dropdown -->
+<div class="flex flex-wrap items-center gap-space-sm">
+<!-- Stock Filter Pills -->
+<div class="flex items-center bg-surface-container-low p-1 rounded-full overflow-x-auto max-w-full">
+<button class="filter-pill px-space-md py-1.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm transition-all whitespace-nowrap" onclick="filterStatus('ALL', this)">
+            All Stock (48)
+          </button>
+<button class="filter-pill px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm transition-all whitespace-nowrap" onclick="filterStatus('AVAILABLE', this)">
+            Available (39)
+          </button>
+<button class="filter-pill px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm transition-all whitespace-nowrap" onclick="filterStatus('LOW STOCK', this)">
+            Low Stock (6)
+          </button>
+<button class="filter-pill px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm transition-all whitespace-nowrap" onclick="filterStatus('OUT OF STOCK', this)">
+            Out of Stock (3)
+          </button>
+</div>
+<!-- Category Dropdown -->
+<div class="relative">
+<select class="appearance-none bg-surface-container-low text-on-surface pl-space-md pr-9 py-2 rounded-full font-label-sm text-label-sm focus:outline-none focus:ring-2 focus:ring-secondary/40 cursor-pointer" id="categorySelect" onchange="filterCategory(this.value)">
+<option value="ALL">All Therapeutic Classes</option>
+<option value="Antibiotics">Antibiotics (14)</option>
+<option value="Cardiovascular">Cardiovascular (11)</option>
+<option value="Respiratory">Respiratory (8)</option>
+<option value="Pain Relief">Pain Relief (9)</option>
+<option value="Diabetes Care">Diabetes Care (6)</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Inventory Main Content Container -->
+<section class="max-w-7xl mx-auto px-margin w-full pb-space-xl">
+<!-- Table Wrapper Card -->
+<div class="bg-surface-container-lowest rounded-lg shadow-sm overflow-hidden transition-all" id="tableContainer">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/70 text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-space-md px-space-lg font-semibold">Medicine &amp; Clinical Profile</th>
+<th class="py-space-md px-space-md font-semibold">Therapeutic Class</th>
+<th class="py-space-md px-space-md font-semibold">Stock Level</th>
+<th class="py-space-md px-space-md font-semibold">Availability Status</th>
+<th class="py-space-md px-space-md font-semibold">Unit Price</th>
+<th class="py-space-md px-space-md font-semibold">Sync Freshness</th>
+<th class="py-space-md px-space-lg text-right font-semibold">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y-0" id="inventoryTableBody">
+<!-- Row 1: Amoxicillin -->
+<tr class="inventory-row hover:bg-surface-container-low/40 transition-colors group" data-category="Antibiotics" data-name="amoxicillin 500mg" data-status="AVAILABLE">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container/40 flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[20px]">pill</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Amoxicillin 500mg</span>
+<span class="inline-flex items-center px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px]">Rx Only</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Oral Capsule • MediFind ID: #MED-1049 • Shelf A-4</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">
+                  Antibiotics
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-primary font-bold">42 packs</span>
+<div class="w-24 bg-surface-container h-1.5 rounded-full mt-1 overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 75%;"></div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  AVAILABLE
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-title-md text-title-md text-primary font-semibold">₹320.00</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm block">per pack</span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-body-sm text-body-sm text-on-surface-variant block">18 min ago</span>
+<span class="font-label-sm text-label-sm text-outline">Dr. S. Vance</span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="inline-flex items-center gap-1 px-space-md py-1.5 rounded-full bg-surface-container-low text-primary hover:bg-primary hover:text-on-primary font-label-md text-label-md transition-all shadow-sm" onclick="openDrawer('amoxicillin')">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span class="">Edit</span>
+</button>
+</td>
+</tr>
+<!-- Row 2: Ventolin Evohaler -->
+<tr class="inventory-row hover:bg-surface-container-low/40 transition-colors group" data-category="Respiratory" data-name="ventolin evohaler 100mcg albuterol" data-status="LOW STOCK">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed/40 flex items-center justify-center shrink-0 text-tertiary">
+<span class="material-symbols-outlined text-[20px]">air</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Ventolin Evohaler 100mcg</span>
+<span class="inline-flex items-center px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px]">Rx Only</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Inhaler 200 doses • NDC 0173-0682-20 • Bay C-2</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">
+                  Respiratory
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md text-tertiary-container font-bold">8 units</span>
+<span class="font-label-sm text-[10px] text-tertiary px-1 rounded bg-tertiary-fixed">Threshold 10</span>
+</div>
+<div class="w-24 bg-surface-container h-1.5 rounded-full mt-1 overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 25%;"></div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
+                  LOW STOCK
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-title-md text-title-md text-primary font-semibold">₹560.00</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm block">per canister</span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-body-sm text-body-sm text-on-surface-variant block">25 min ago</span>
+<span class="font-label-sm text-label-sm text-outline">System EDI-855</span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="inline-flex items-center gap-1 px-space-md py-1.5 rounded-full bg-surface-container-low text-primary hover:bg-primary hover:text-on-primary font-label-md text-label-md transition-all shadow-sm" onclick="openDrawer('ventolin')">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span class="">Edit</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: Lipitor -->
+<tr class="inventory-row hover:bg-surface-container-low/40 transition-colors group" data-category="Cardiovascular" data-name="lipitor 20mg atorvastatin" data-status="AVAILABLE">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container/40 flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[20px]">monitor_heart</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Lipitor 20mg</span>
+<span class="inline-flex items-center px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px]">Rx Only</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Tablet 30s • Atorvastatin Calcium • Shelf D-1</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">
+                  Cardiovascular
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-primary font-bold">65 boxes</span>
+<div class="w-24 bg-surface-container h-1.5 rounded-full mt-1 overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 90%;"></div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  AVAILABLE
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-title-md text-title-md text-primary font-semibold">₹450.00</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm block">per box</span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-body-sm text-body-sm text-on-surface-variant block">1 hr ago</span>
+<span class="font-label-sm text-label-sm text-outline">Pharm. K. Patel</span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="inline-flex items-center gap-1 px-space-md py-1.5 rounded-full bg-surface-container-low text-primary hover:bg-primary hover:text-on-primary font-label-md text-label-md transition-all shadow-sm" onclick="openDrawer('lipitor')">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span class="">Edit</span>
+</button>
+</td>
+</tr>
+<!-- Row 4: Paracetamol Extra -->
+<tr class="inventory-row hover:bg-surface-container-low/40 transition-colors group" data-category="Pain Relief" data-name="paracetamol extra 500mg acetaminophen" data-status="OUT OF STOCK">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-error-container/60 flex items-center justify-center shrink-0 text-error">
+<span class="material-symbols-outlined text-[20px]">vaccines</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Paracetamol Extra 500mg</span>
+<span class="inline-flex items-center px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px]">OTC</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Caplets 24s • Paracetamol/Caffeine • Shelf F-8</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">
+                  Pain Relief
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-error font-bold">0 packs</span>
+<div class="w-24 bg-surface-container h-1.5 rounded-full mt-1 overflow-hidden">
+<div class="bg-error h-full rounded-full" style="width: 0%;"></div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                  OUT OF STOCK
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-title-md text-title-md text-primary font-semibold">₹120.00</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm block">per pack</span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-body-sm text-body-sm text-on-surface-variant block">Today, 08:15 AM</span>
+<span class="font-label-sm text-label-sm text-outline">Stock Audit Auto</span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="inline-flex items-center gap-1 px-space-md py-1.5 rounded-full bg-surface-container-low text-primary hover:bg-primary hover:text-on-primary font-label-md text-label-md transition-all shadow-sm" onclick="openDrawer('paracetamol')">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span class="">Edit</span>
+</button>
+</td>
+</tr>
+<!-- Row 5: Metformin HCl -->
+<tr class="inventory-row hover:bg-surface-container-low/40 transition-colors group" data-category="Diabetes Care" data-name="metformin hcl 850mg glucophage" data-status="LOW STOCK">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed/40 flex items-center justify-center shrink-0 text-tertiary">
+<span class="material-symbols-outlined text-[20px]">water_drop</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">Metformin HCl 850mg</span>
+<span class="inline-flex items-center px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px]">Rx Only</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Bottle 60s • Biguanide Antidiabetic • Shelf B-2</p>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">
+                  Diabetes Care
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md text-tertiary-container font-bold">5 bottles</span>
+<span class="font-label-sm text-[10px] text-tertiary px-1 rounded bg-tertiary-fixed">Threshold 10</span>
+</div>
+<div class="w-24 bg-surface-container h-1.5 rounded-full mt-1 overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 18%;"></div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1 px-space-sm py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
+                  LOW STOCK
+                </span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-title-md text-title-md text-primary font-semibold">₹240.00</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm block">per bottle</span>
+</td>
+<td class="py-space-md px-space-md">
+<span class="font-body-sm text-body-sm text-on-surface-variant block">Yesterday</span>
+<span class="font-label-sm text-label-sm text-outline">Dr. S. Vance</span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="inline-flex items-center gap-1 px-space-md py-1.5 rounded-full bg-surface-container-low text-primary hover:bg-primary hover:text-on-primary font-label-md text-label-md transition-all shadow-sm" onclick="openDrawer('metformin')">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span class="">Edit</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer Metadata Bar -->
+<div class="px-space-lg py-space-md bg-surface-container-low/30 flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs font-body-sm text-body-sm text-on-surface-variant">
+<span class="">Showing <strong class="text-primary font-semibold" id="displayedCount">5</strong> of <strong class="text-primary font-semibold">48</strong> active dispensary lines</span>
+<span class="text-outline">•</span>
+<span class="">Controlled Substances Log Schedule II-IV excluded</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="px-space-md py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:text-primary disabled:opacity-50" disabled="">Previous</button>
+<span class="px-space-sm font-label-sm text-label-sm text-primary font-bold">1</span>
+<button class="px-space-md py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:text-primary">Next</button>
+</div>
+</div>
+</div>
+<!-- Empty State Simulation Card (Initially Hidden) -->
+<div class="hidden bg-surface-container-lowest p-space-xl rounded-lg shadow-sm text-center max-w-2xl mx-auto my-space-lg" id="emptyStateContainer">
+<div class="w-16 h-16 rounded-full bg-surface-container-high mx-auto flex items-center justify-center text-outline mb-space-md">
+<span class="material-symbols-outlined text-[32px]">manage_search</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary font-semibold mb-space-xs">No matching medicines found</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-space-lg">We couldn't find any inventory records matching your query or filter criteria in the St. Jude Community Apothecary repository.</p>
+<div class="flex items-center justify-center gap-space-sm">
+<button class="px-space-lg py-2 rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container shadow-sm transition-all" onclick="resetFilters()">
+          Clear Filters &amp; Search
+        </button>
+<button class="px-space-lg py-2 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all" onclick="openDrawer('new')">
+          Add New Medicine
+        </button>
+</div>
+</div>
+<!-- Regulatory Compliance & Verification Card -->
+<div class="mt-space-lg p-space-md rounded-lg bg-surface-container-low flex flex-col md:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-secondary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">policy</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-semibold">MediFind Verified Dispensary Guarantee</span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-secondary text-on-secondary font-label-sm text-[10px]">Strict Integrity</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Live stock feed guarantees 99.4% reservation fulfillment accuracy. Offline edits will lock reservation broadcast until reconciled.</p>
+</div>
+</div>
+<a class="inline-flex items-center gap-1 font-label-md text-label-md text-secondary hover:underline shrink-0" href="#">
+<span class="">View State Board Audit Log</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</section>
+<!-- Add / Edit Inventory Slide-Over Drawer & Overlay -->
+<div class="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300" id="drawerOverlay">
+<div class="absolute inset-y-0 right-0 max-w-xl w-full bg-surface-container-lowest shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-out" id="drawerPanel">
+<!-- Drawer Header -->
+<div class="p-space-lg bg-surface-container-low/50 flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">edit_note</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-primary tracking-tight" id="drawerTitle">Edit Inventory Record — Amoxicillin 500mg</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">St. Jude Community Apothecary • Dispenser #819</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors" onclick="closeDrawer()">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Drawer Scrollable Body -->
+<div class="flex-1 overflow-y-auto p-space-lg space-y-space-lg">
+<!-- Offline Warning Banner -->
+<div class="p-space-md rounded-DEFAULT bg-tertiary-fixed text-on-tertiary-fixed flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-tertiary text-[20px] shrink-0 mt-0.5">cloud_off</span>
+<div>
+<strong class="font-label-md text-label-md text-tertiary block">Offline Mode Queue Active</strong>
+<p class="font-body-sm text-body-sm text-on-tertiary-fixed-variant mt-0.5">
+              Inventory modifications are queued locally and cannot be committed without live server sync. Ensure network reconnect before confirming critical batches.
+            </p>
+</div>
+</div>
+<!-- Medicine Selection (Read-Only Catalogue Notice) -->
+<div class="space-y-space-xs">
+<label class="font-label-md text-label-md text-primary font-semibold flex items-center justify-between">
+<span class="">Verified MediFind Catalogue Entry</span>
+<span class="inline-flex items-center gap-1 font-label-sm text-[11px] text-secondary">
+<span class="material-symbols-outlined text-[13px]">verified</span> Validated Rx
+            </span>
+</label>
+<div class="p-space-md rounded-DEFAULT bg-surface-container-low text-primary font-body-md text-body-md flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary">medication_liquid</span>
+<span class="font-semibold" id="drawerMedName">Amoxicillin 500mg Oral Capsule (MediFind Verified Catalogue #MED-1049)</span>
+</div>
+<span class="material-symbols-outlined text-outline text-[18px]">lock</span>
+</div>
+<!-- Regulatory requirement notice -->
+<p class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px] text-outline">info</span>
+<span class="">Medicine must exist in the MediFind verified catalogue. Free-text medicines cannot be added.</span>
+</p>
+</div>
+<!-- Input Fields (Stock & Price) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<!-- Stock Quantity Input -->
+<div class="space-y-space-xs">
+<label class="font-label-md text-label-md text-primary font-semibold block" for="stockInput">
+              Stock Quantity (Units/Packs)
+            </label>
+<div class="relative">
+<input class="w-full pl-space-md pr-12 py-2.5 rounded-DEFAULT bg-surface-container-low text-on-surface font-title-md text-title-md focus:outline-none focus:ring-2 focus:ring-secondary/40" id="stockInput" min="0" oninput="validateNonNegative(this, 'stockError')" type="number" value="42">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-label-sm text-label-sm text-on-surface-variant pointer-events-none">packs</span>
+</div>
+<p class="hidden font-label-sm text-label-sm text-error flex items-center gap-1" id="stockError">
+<span class="material-symbols-outlined text-[14px]">error</span>
+<span class="">Stock cannot be negative</span>
+</p>
+<span class="font-body-sm text-[11px] text-on-surface-variant block">Low stock threshold: 10 units</span>
+</div>
+<!-- Unit Price (INR) Input -->
+<div class="space-y-space-xs">
+<label class="font-label-md text-label-md text-primary font-semibold block" for="priceInput">
+              Unit Price (INR)
+            </label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 font-title-md text-title-md text-primary font-bold">₹</span>
+<input class="w-full pl-8 pr-16 py-2.5 rounded-DEFAULT bg-surface-container-low text-on-surface font-title-md text-title-md focus:outline-none focus:ring-2 focus:ring-secondary/40" id="priceInput" min="0" oninput="validateNonNegative(this, 'priceError')" step="0.01" type="number" value="320.00">
+<span class="absolute right-3 top-1/2 -translate-y-1/2 font-label-sm text-label-sm text-on-surface-variant pointer-events-none">/ pack</span>
+</div>
+<p class="hidden font-label-sm text-label-sm text-error flex items-center gap-1" id="priceError">
+<span class="material-symbols-outlined text-[14px]">error</span>
+<span class="">Price cannot be negative</span>
+</p>
+<span class="font-body-sm text-[11px] text-on-surface-variant block">MRP Ceiling: ₹345.00</span>
+</div>
+</div>
+<!-- Availability Status Radio Pills -->
+<div class="space-y-space-xs">
+<label class="font-label-md text-label-md text-primary font-semibold block">Availability Status for Discovery</label>
+<div class="grid grid-cols-3 gap-space-xs bg-surface-container-low p-1.5 rounded-DEFAULT">
+<label class="cursor-pointer">
+<input checked="" class="sr-only peer" name="availabilityStatus" type="radio" value="AVAILABLE">
+<div class="py-2 text-center rounded-DEFAULT font-label-md text-label-md text-on-surface-variant peer-checked:bg-secondary-container peer-checked:text-on-secondary-container peer-checked:font-bold transition-all">
+                AVAILABLE
+              </div>
+</label>
+<label class="cursor-pointer">
+<input class="sr-only peer" name="availabilityStatus" type="radio" value="LOW STOCK">
+<div class="py-2 text-center rounded-DEFAULT font-label-md text-label-md text-on-surface-variant peer-checked:bg-tertiary-fixed peer-checked:text-on-tertiary-fixed peer-checked:font-bold transition-all">
+                LOW STOCK
+              </div>
+</label>
+<label class="cursor-pointer">
+<input class="sr-only peer" name="availabilityStatus" type="radio" value="OUT OF STOCK">
+<div class="py-2 text-center rounded-DEFAULT font-label-md text-label-md text-on-surface-variant peer-checked:bg-error-container peer-checked:text-on-error-container peer-checked:font-bold transition-all">
+                OUT OF STOCK
+              </div>
+</label>
+</div>
+</div>
+<!-- Batch & Shelf Storage Location -->
+<div class="p-space-md rounded-DEFAULT bg-surface-container-low flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px] text-secondary">inventory_2</span>
+<span class="">Batch &amp; Physical Storage</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary font-medium">Verified Active</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-md text-on-surface-variant font-body-sm text-body-sm mt-1">
+<div class="bg-surface-container-lowest px-space-sm py-1 rounded-full shadow-sm">
+<strong>Shelf:</strong> A-4
+            </div>
+<div class="bg-surface-container-lowest px-space-sm py-1 rounded-full shadow-sm">
+<strong>Batch:</strong> #AMX-2024-B
+            </div>
+<div class="bg-surface-container-lowest px-space-sm py-1 rounded-full shadow-sm">
+<strong>Expiry:</strong> 12/2026
+            </div>
+</div>
+</div>
+<!-- Audit & Last Modification Stamp -->
+<div class="border-t-0 p-space-sm rounded-DEFAULT bg-surface-container-low/40 flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-outline">history</span>
+<span class="">Updated 18 min ago by <strong>Pharmacist Dr. S. Vance</strong></span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary">DSCSA Ledger Sealed</span>
+</div>
+</div>
+<!-- Drawer Sticky Footer -->
+<div class="p-space-lg bg-surface-container-low/70 flex items-center justify-end gap-space-sm shadow-sm">
+<button class="px-space-lg py-2.5 rounded-full bg-surface-container text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" onclick="closeDrawer()">
+          Cancel
+        </button>
+<button class="inline-flex items-center gap-1.5 px-space-xl py-2.5 rounded-full bg-primary text-on-primary hover:bg-primary-container font-label-md text-label-md shadow-md transition-all" onclick="saveDrawerChanges()">
+<span class="material-symbols-outlined text-[18px]">check</span>
+<span class="">Save Inventory Changes</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Inline Script for Interactive Demo & Filtering -->
+<script>
+    let activeFilter = 'ALL';
+    let activeCategory = 'ALL';
+    let searchQuery = '';
+    let isSimulatingEmpty = false;
+
+    function applyFilters() {
+      const rows = document.querySelectorAll('.inventory-row');
+      const table = document.getElementById('tableContainer');
+      const emptyState = document.getElementById('emptyStateContainer');
+      const counter = document.getElementById('displayedCount');
+
+      if (isSimulatingEmpty) {
+        table.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        if (counter) counter.innerText = '0';
+        return;
+      }
+
+      let visible = 0;
+      rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        const category = row.getAttribute('data-category');
+        const name = row.getAttribute('data-name');
+
+        const matchesStatus = (activeFilter === 'ALL' || status === activeFilter);
+        const matchesCategory = (activeCategory === 'ALL' || category === activeCategory);
+        const matchesSearch = (searchQuery === '' || name.includes(searchQuery));
+
+        if (matchesStatus && matchesCategory && matchesSearch) {
+          row.classList.remove('hidden');
+          visible++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+
+      if (counter) counter.innerText = visible;
+
+      if (visible === 0) {
+        table.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+      } else {
+        table.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+      }
+    }
+
+    function filterStatus(status, btn) {
+      activeFilter = status;
+      document.querySelectorAll('.filter-pill').forEach(b => {
+        b.className = 'filter-pill px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm transition-all whitespace-nowrap';
+      });
+      btn.className = 'filter-pill px-space-md py-1.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm transition-all whitespace-nowrap';
+      applyFilters();
+    }
+
+    function filterCategory(cat) {
+      activeCategory = cat;
+      applyFilters();
+    }
+
+    function handleSearch(val) {
+      searchQuery = val.trim().toLowerCase();
+      applyFilters();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('inventorySearchInput');
+      input.value = '';
+      searchQuery = '';
+      applyFilters();
+    }
+
+    function toggleEmptyState() {
+      isSimulatingEmpty = !isSimulatingEmpty;
+      const btn = document.getElementById('toggleEmptyBtn');
+      if (isSimulatingEmpty) {
+        btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">visibility</span><span>Restore Stock List</span>`;
+        btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+      } else {
+        btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">filter_alt_off</span><span>Simulate No Results</span>`;
+        btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+      }
+      applyFilters();
+    }
+
+    function resetFilters() {
+      isSimulatingEmpty = false;
+      const toggleBtn = document.getElementById('toggleEmptyBtn');
+      toggleBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">filter_alt_off</span><span>Simulate No Results</span>`;
+      toggleBtn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+
+      activeFilter = 'ALL';
+      activeCategory = 'ALL';
+      searchQuery = '';
+
+      const searchInput = document.getElementById('inventorySearchInput');
+      if (searchInput) searchInput.value = '';
+
+      const catSelect = document.getElementById('categorySelect');
+      if (catSelect) catSelect.value = 'ALL';
+
+      const firstFilterBtn = document.querySelector('.filter-pill');
+      if (firstFilterBtn) {
+        document.querySelectorAll('.filter-pill').forEach(b => {
+          b.className = 'filter-pill px-space-md py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm transition-all whitespace-nowrap';
+        });
+        firstFilterBtn.className = 'filter-pill px-space-md py-1.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm transition-all whitespace-nowrap';
+      }
+
+      applyFilters();
+    }
+
+    function openDrawer(mode) {
+      const overlay = document.getElementById('drawerOverlay');
+      const panel = document.getElementById('drawerPanel');
+      const title = document.getElementById('drawerTitle');
+      const medName = document.getElementById('drawerMedName');
+      const stockInput = document.getElementById('stockInput');
+      const priceInput = document.getElementById('priceInput');
+
+      if (mode === 'ventolin') {
+        title.innerText = 'Edit Inventory Record — Ventolin Evohaler 100mcg';
+        medName.innerText = 'Ventolin Evohaler 100mcg (NDC 0173-0682-20)';
+        stockInput.value = '8';
+        priceInput.value = '560.00';
+      } else if (mode === 'new') {
+        title.innerText = 'Add Catalogue Medicine — Verified Dispensary';
+        medName.innerText = 'Select Medicine from MediFind Verified Drug Directory (DSCSA Ledger)';
+        stockInput.value = '10';
+        priceInput.value = '100.00';
+      } else {
+        title.innerText = 'Edit Inventory Record — Amoxicillin 500mg';
+        medName.innerText = 'Amoxicillin 500mg Oral Capsule (MediFind Verified Catalogue #MED-1049)';
+        stockInput.value = '42';
+        priceInput.value = '320.00';
+      }
+
+      overlay.classList.remove('opacity-0', 'pointer-events-none');
+      overlay.classList.add('opacity-100');
+      panel.classList.remove('translate-x-full');
+      panel.classList.add('translate-x-0');
+    }
+
+    function closeDrawer() {
+      const overlay = document.getElementById('drawerOverlay');
+      const panel = document.getElementById('drawerPanel');
+      overlay.classList.remove('opacity-100');
+      overlay.classList.add('opacity-0', 'pointer-events-none');
+      panel.classList.remove('translate-x-0');
+      panel.classList.add('translate-x-full');
+    }
+
+    function validateNonNegative(input, errorId) {
+      const err = document.getElementById(errorId);
+      if (parseFloat(input.value) < 0 || isNaN(parseFloat(input.value))) {
+        err.classList.remove('hidden');
+        input.classList.add('ring-2', 'ring-error');
+      } else {
+        err.classList.add('hidden');
+        input.classList.remove('ring-2', 'ring-error');
+      }
+    }
+
+    function saveDrawerChanges() {
+      const stockVal = parseFloat(document.getElementById('stockInput').value);
+      const priceVal = parseFloat(document.getElementById('priceInput').value);
+
+      if (stockVal < 0 || isNaN(stockVal) || priceVal < 0 || isNaN(priceVal)) {
+        alert('Validation notice: Stock and Price cannot be negative.');
+        return;
+      }
+
+      // Visual feedback and closure
+      closeDrawer();
+    }
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest py-space-xl shadow-[0_-1px_6px_rgba(30,69,62,0.02)]"><div class="max-w-7xl mx-auto px-margin flex flex-col md:flex-row items-center justify-between gap-space-lg"><div class="flex flex-col items-center md:items-start gap-space-xs"><div class="flex items-center gap-space-xs"><span class="font-title-md text-title-md text-primary">MediFind AI Clinical Gateway</span><span class="inline-flex items-center px-space-xs py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">HIPAA / DSCSA Safe</span></div><p class="font-body-sm text-body-sm text-on-surface-variant text-center md:text-left">Encrypted precision inventory and reservation dispatch system. Safe clinical dispensing standard.</p></div><div class="flex flex-wrap items-center justify-center gap-space-lg text-on-surface-variant font-label-sm text-label-sm"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-secondary">lock</span><span class="">256-Bit Cryptographic Ledger</span></div><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span><span class="">State Board Dispensary Compliance</span></div><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-secondary">support_agent</span><span class="">Provider Escalation Line</span></div></div><div class="text-center md:text-right font-body-sm text-body-sm text-on-surface-variant">© 2024 MediFind AI Inc. Licensed clinical portal sandbox.</div></div></footer>
+
+</body></html>

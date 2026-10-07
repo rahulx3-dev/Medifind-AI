@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-tertiary-fixed": "#410100", "surface-dim": "#cdded7", "on-error": "#ffffff", "primary": "#032f28", "on-primary-container": "#8ab2a9", "surface-container-highest": "#d5e6e0", "on-primary-fixed-variant": "#274d46", "surface-container-low": "#e6f8f1", "secondary-fixed": "#b3eee0", "secondary-fixed-dim": "#97d2c4", "on-primary-fixed": "#00201b", "on-primary": "#ffffff", "inverse-surface": "#24332f", "tertiary-container": "#7e1208", "surface-container-lowest": "#ffffff", "background": "#ecfdf7", "surface-tint": "#3f655e", "surface-container": "#e0f2eb", "primary-container": "#1e453e", "on-tertiary": "#ffffff", "tertiary-fixed": "#ffdad4", "tertiary-fixed-dim": "#ffb4a8", "on-surface": "#0f1e1b", "surface-variant": "#d5e6e0", "surface": "#ecfdf7", "on-tertiary-container": "#ff8875", "on-surface-variant": "#414846", "inverse-on-surface": "#e3f5ee", "primary-fixed-dim": "#a6cfc5", "outline": "#717976", "on-background": "#0f1e1b", "on-secondary-container": "#336c61", "tertiary": "#5a0100", "on-tertiary-fixed-variant": "#8a1c10", "secondary-container": "#b0ecdd", "surface-container-high": "#dbece5", "inverse-primary": "#a6cfc5", "on-secondary-fixed": "#00201b", "surface-bright": "#ecfdf7", "on-secondary-fixed-variant": "#105045", "on-error-container": "#93000a", "error-container": "#ffdad6", "secondary": "#2e685d", "error": "#ba1a1a", "primary-fixed": "#c1ebe1", "on-secondary": "#ffffff", "outline-variant": "#c0c8c5" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-xs": "0.25rem", "space-md": "1rem", "space-lg": "1.5rem", "margin-mobile": "1rem", "gutter-mobile": "0.75rem", "gutter": "1rem", "space-xl": "2rem", "space-sm": "0.5rem", "margin": "2rem" }, "fontFamily": { "headline-sm": [ "Plus Jakarta Sans" ], "label-md": [ "Plus Jakarta Sans" ], "label-sm": [ "Plus Jakarta Sans" ], "headline-md": [ "Plus Jakarta Sans" ], "body-lg": [ "Plus Jakarta Sans" ], "body-sm": [ "Plus Jakarta Sans" ], "body-md": [ "Plus Jakarta Sans" ], "title-md": [ "Plus Jakarta Sans" ], "headline-lg": [ "Plus Jakarta Sans" ], "label-lg": [ "Plus Jakarta Sans" ], "title-lg": [ "Plus Jakarta Sans" ], "display": [ "Plus Jakarta Sans" ], "headline-lg-mobile": [ "Plus Jakarta Sans" ] }, "fontSize": { "headline-sm": [ "20px", { "lineHeight": "28px", "fontWeight": "600" } ], "label-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" } ], "label-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "headline-md": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "body-lg": [ "16px", { "lineHeight": "24px", "fontWeight": "400" } ], "body-sm": [ "12px", { "lineHeight": "18px", "fontWeight": "400" } ], "body-md": [ "14px", { "lineHeight": "20px", "fontWeight": "400" } ], "title-md": [ "16px", { "lineHeight": "24px", "fontWeight": "600" } ], "headline-lg": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700" } ], "label-lg": [ "14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" } ], "title-lg": [ "18px", { "lineHeight": "26px", "fontWeight": "600" } ], "display": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "headline-lg-mobile": [ "26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700" } ] } } } };</script></head><body class="bg-background font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-20 max-w-7xl mx-auto px-space-lg flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-sm"><span class="font-title-lg text-title-lg text-primary tracking-tight">MediFind AI</span><span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-space-sm py-space-xs rounded-full">Medicine Access Assistant</span></div><div class="hidden xl:flex items-center gap-space-xs bg-surface-container px-space-sm py-space-xs rounded-full text-on-surface-variant font-label-sm text-label-sm"><span class="w-2 h-2 rounded-full bg-secondary"></span><span>Dispatch Active • Zone Alpha-08</span><span class="text-outline-variant">•</span><span class="text-secondary font-label-sm text-label-sm">Online • Ready for Assignment</span></div></div><div class="flex items-center gap-space-lg"><nav class="flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary rounded-full font-label-md"><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="available-tasks" href="#">Available Tasks</a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="active-delivery" href="#">Active Delivery</a><a class="relative px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="notifications" href="#">Notifications<span class="ml-space-xs inline-flex items-center justify-center px-space-xs min-w-[18px] h-[18px] bg-tertiary text-on-tertiary rounded-full font-label-sm text-label-sm">1</span></a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="account" href="#">Account</a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="logout" href="#">Logout</a></nav><div class="flex items-center gap-space-sm pl-space-sm border-l-0"><div class="flex flex-col text-right"><span class="font-label-md text-label-md text-on-surface">Marcus Sterling</span><span class="font-label-sm text-label-sm text-on-surface-variant">#AST-542</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/></div></div></div></header><main class="w-full pt-20 bg-background min-h-[calc(100vh-140px)]"><div class="flex flex-col w-full">
+<!-- Interactive State Engine -->
+<script>
+    function setSimulationState(stepIndex) {
+      const stepNames = ['ACCEPTED', 'COLLECTING', 'IN_TRANSIT'];
+      const targetState = stepNames[stepIndex];
+
+      // Update state buttons styling
+      for (let i = 0; i < 3; i++) {
+        const btn = document.getElementById('sim-btn-' + i);
+        if (btn) {
+          if (i === stepIndex) {
+            btn.className = "flex items-center justify-between p-space-sm rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm transition-all";
+          } else {
+            btn.className = "flex items-center justify-between p-space-sm rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md transition-all";
+          }
+        }
+      }
+
+      // Update Task Status Tag in Header
+      const taskBadge = document.getElementById('current-task-status-badge');
+      if (taskBadge) {
+        if (stepIndex === 0) taskBadge.textContent = 'ACCEPTED • READY TO COLLECT';
+        else if (stepIndex === 1) taskBadge.textContent = 'COLLECTING • AT APOTHECARY';
+        else taskBadge.textContent = 'IN TRANSIT • ACTIVE CUSTODY';
+      }
+
+      // Stepper node updates
+      for (let i = 1; i <= 5; i++) {
+        const node = document.getElementById('stepper-node-' + i);
+        const icon = document.getElementById('stepper-icon-' + i);
+        const text = document.getElementById('stepper-text-' + i);
+        if (!node) continue;
+
+        if (i <= stepIndex + 1) {
+          // Completed or active
+          if (i === stepIndex + 1) {
+            // Current Active
+            node.className = "w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-md text-label-md ring-4 ring-secondary-container shadow-sm";
+            if (icon) icon.textContent = i === 1 ? 'assignment_turned_in' : (i === 2 ? 'storefront' : 'local_shipping');
+            if (text) text.className = "font-label-md text-label-md text-primary font-bold";
+          } else {
+            // Past Completed
+            node.className = "w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-label-md text-label-md";
+            if (icon) icon.textContent = 'check';
+            if (text) text.className = "font-label-md text-label-md text-on-surface-variant";
+          }
+        } else {
+          // Future Pending
+          node.className = "w-9 h-9 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-label-md text-label-md";
+          if (icon) icon.textContent = i === 4 ? 'where_to_vote' : 'verified';
+          if (text) text.className = "font-label-md text-label-md text-outline";
+        }
+      }
+
+      // Update stepper prompt text
+      const stepPrompt = document.getElementById('stepper-next-prompt');
+      if (stepPrompt) {
+        if (stepIndex === 0) stepPrompt.textContent = "Next Step: Proceed to St. Jude Community Apothecary (Sector 4)";
+        else if (stepIndex === 1) stepPrompt.textContent = "Next Step: Verify Sealed Pouch #TL-9034 Barcode with Pharmacist";
+        else stepPrompt.textContent = "Next Step: Proceed to Handover at Destination Checkpoint (Locker Bay 04)";
+      }
+
+      // Pharmacy status in Left Col
+      const pharmStatus = document.getElementById('pharmacy-status-pill');
+      const pharmActionBtn = document.getElementById('pharmacy-action-btn');
+      if (pharmStatus && pharmActionBtn) {
+        if (stepIndex === 0) {
+          pharmStatus.className = "px-space-sm py-space-xs rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm";
+          pharmStatus.textContent = "Awaiting Assistant Arrival";
+          pharmActionBtn.textContent = "Navigate to Dispenser Node →";
+          pharmActionBtn.disabled = false;
+          pharmActionBtn.className = "w-full py-space-sm px-space-md rounded-full bg-secondary text-on-secondary font-label-md text-label-md shadow-sm hover:bg-primary transition-all text-center";
+        } else if (stepIndex === 1) {
+          pharmStatus.className = "px-space-sm py-space-xs rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm animate-pulse";
+          pharmStatus.textContent = "Apothecary Handoff in Progress";
+          pharmActionBtn.textContent = "Scan Package Barcode & Confirm Custody →";
+          pharmActionBtn.disabled = false;
+          pharmActionBtn.className = "w-full py-space-sm px-space-md rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm hover:bg-primary-container transition-all text-center";
+        } else {
+          pharmStatus.className = "px-space-sm py-space-xs rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm";
+          pharmStatus.textContent = "COLLECTED & SEALED (10:48 AM)";
+          pharmActionBtn.textContent = "Medicine Custody Transferred (Verified 10:48 AM) ✓";
+          pharmActionBtn.disabled = true;
+          pharmActionBtn.className = "w-full py-space-sm px-space-md rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-label-md cursor-not-allowed text-center";
+        }
+      }
+
+      // Controller Card Right
+      const ctrlTitle = document.getElementById('ctrl-title');
+      const ctrlSubtitle = document.getElementById('ctrl-subtitle');
+      const ctrlPrimaryCTA = document.getElementById('ctrl-primary-cta');
+
+      if (ctrlTitle && ctrlSubtitle && ctrlPrimaryCTA) {
+        if (stepIndex === 0) {
+          ctrlTitle.textContent = "Active Step: Journey to Apothecary";
+          ctrlSubtitle.textContent = "Assigned to Task #TSK-8477. Transfer custody from dispenser node.";
+          ctrlPrimaryCTA.innerHTML = '<span>Start Collection Route</span><span class="material-symbols-outlined text-sm">arrow_forward</span>';
+        } else if (stepIndex === 1) {
+          ctrlTitle.textContent = "Active Step: Custody Exchange at Apothecary";
+          ctrlSubtitle.textContent = "Present Carrier ID #AST-542 to Pharmacist Dr. Clara Vance.";
+          ctrlPrimaryCTA.innerHTML = '<span>Scan & Verify Tamper Seal</span><span class="material-symbols-outlined text-sm">qr_code_scanner</span>';
+        } else {
+          ctrlTitle.textContent = "Active Step: In Transit to Handover";
+          ctrlSubtitle.textContent = "You are currently holding custody of Sealed Pouch #TL-9034.";
+          ctrlPrimaryCTA.innerHTML = '<span>Proceed to Handover</span><span class="material-symbols-outlined text-sm">arrow_forward</span>';
+        }
+      }
+    }
+  </script>
+<!-- Content Container with strict 8pt grid -->
+<div class="max-w-7xl mx-auto w-full px-space-lg py-space-lg flex flex-col gap-space-lg">
+<!-- Section 1: Operational Breadcrumb & Top Bar -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant">
+<span class="hover:text-primary cursor-pointer">Assistant Portal</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="hover:text-primary cursor-pointer">Active Deliveries</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary font-semibold">Task #TSK-8477</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm pt-space-xs">
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight">Active Custody &amp; Handover</h1>
+<span class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-md text-label-md tracking-wider" id="current-task-status-badge">
+            IN TRANSIT • ACTIVE CUSTODY
+          </span>
+<span class="px-space-sm py-space-xs rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Telemetry Lock Active
+          </span>
+</div>
+</div>
+<!-- Route Corridor Pill Card -->
+<div class="flex items-center gap-space-md bg-surface-container-lowest p-space-sm pl-space-md pr-space-md rounded-full shadow-sm">
+<div class="flex items-center gap-space-xs text-on-surface">
+<span class="material-symbols-outlined text-secondary text-sm">storefront</span>
+<span class="font-label-md text-label-md font-semibold">St. Jude Apothecary</span>
+</div>
+<div class="flex items-center text-outline-variant">
+<span class="material-symbols-outlined text-sm">trending_flat</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface">
+<span class="material-symbols-outlined text-primary text-sm">location_city</span>
+<span class="font-label-md text-label-md font-semibold">First Hill Bay 04</span>
+</div>
+<div class="h-4 w-[1px] bg-surface-container-high mx-space-xs"></div>
+<div class="flex items-center gap-space-xs text-secondary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-sm">lock_clock</span>
+<span>Custody Protocol V3.1</span>
+</div>
+</div>
+</div>
+<!-- Section 2: Lifecycle vs Order Lifecycle Clarification (Separation of Concerns Card) -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-md shadow-sm relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-secondary"></div>
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md pl-space-sm">
+<div class="flex items-start gap-space-sm max-w-2xl">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-base">privacy_tip</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-title-md text-title-md text-on-surface">Separation of Concerns: Operational vs Clinical Registry</span>
+<span class="bg-surface-container text-on-surface-variant font-label-sm text-label-sm px-space-sm py-space-xs rounded-full">Zero-Knowledge Architecture</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              You are viewing the <span class="font-semibold text-primary">Assistant Custody Lifecycle</span> (operational parcel transit only). Patient clinical evaluation, prescription indications, and dosage registries remain cryptographically isolated.
+            </p>
+</div>
+</div>
+<!-- Comparative Lifecycle Chips -->
+<div class="flex flex-wrap items-center gap-space-sm bg-surface-container-low p-space-sm rounded-full">
+<div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-full bg-surface-container-lowest shadow-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Linked Rx Record:</span>
+<span class="font-label-md text-label-md font-semibold text-primary">#MF-8477-RX</span>
+</div>
+<div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-full bg-secondary-container text-on-secondary-container">
+<span class="font-label-sm text-label-sm">Order Status:</span>
+<span class="font-label-md text-label-md font-bold">DISPENSING / IN FULFILLMENT</span>
+</div>
+<span class="text-outline text-label-sm hidden sm:inline">≠</span>
+<div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-full bg-primary text-on-primary">
+<span class="font-label-sm text-label-sm">Task Status:</span>
+<span class="font-label-md text-label-md font-bold">IN TRANSIT</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 3: Visual Stepper Component -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs">
+<span class="font-label-lg text-label-lg text-primary uppercase tracking-wider">Custody Progression Milestones</span>
+<span class="font-label-md text-label-md text-secondary font-semibold bg-surface-container-low px-space-md py-space-xs rounded-full" id="stepper-next-prompt">
+          Next Step: Proceed to Handover at Destination Checkpoint (Locker Bay 04)
+        </span>
+</div>
+<!-- Stepper Track -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-space-md items-center pt-space-xs">
+<!-- Step 1: ACCEPTED -->
+<div class="flex flex-col gap-space-xs relative">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-label-md text-label-md shrink-0" id="stepper-node-1">
+<span class="material-symbols-outlined text-base" id="stepper-icon-1">check</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface-variant" id="stepper-text-1">1. ACCEPTED</span>
+<span class="font-label-sm text-label-sm text-outline truncate">Oct 24, 10:35 AM</span>
+</div>
+</div>
+<div class="hidden md:block absolute right-0 top-4 w-6 h-[2px] bg-secondary-container"></div>
+</div>
+<!-- Step 2: COLLECTING -->
+<div class="flex flex-col gap-space-xs relative">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-label-md text-label-md shrink-0" id="stepper-node-2">
+<span class="material-symbols-outlined text-base" id="stepper-icon-2">check</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface-variant" id="stepper-text-2">2. COLLECTING</span>
+<span class="font-label-sm text-label-sm text-outline truncate">Oct 24, 10:48 AM</span>
+</div>
+</div>
+<div class="hidden md:block absolute right-0 top-4 w-6 h-[2px] bg-secondary-container"></div>
+</div>
+<!-- Step 3: IN TRANSIT (ACTIVE) -->
+<div class="flex flex-col gap-space-xs relative">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-md text-label-md shrink-0 ring-4 ring-secondary-container shadow-sm" id="stepper-node-3">
+<span class="material-symbols-outlined text-base" id="stepper-icon-3">local_shipping</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-primary font-bold" id="stepper-text-3">3. IN TRANSIT</span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold truncate">Active Carrier Custody</span>
+</div>
+</div>
+<div class="hidden md:block absolute right-0 top-4 w-6 h-[2px] bg-surface-container-high"></div>
+</div>
+<!-- Step 4: DELIVERED -->
+<div class="flex flex-col gap-space-xs relative">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-label-md text-label-md shrink-0" id="stepper-node-4">
+<span class="material-symbols-outlined text-base" id="stepper-icon-4">where_to_vote</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-outline" id="stepper-text-4">4. DELIVERED</span>
+<span class="font-label-sm text-label-sm text-outline truncate">Pending Checkpoint</span>
+</div>
+</div>
+<div class="hidden md:block absolute right-0 top-4 w-6 h-[2px] bg-surface-container-high"></div>
+</div>
+<!-- Step 5: CONFIRMED -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-label-md text-label-md shrink-0" id="stepper-node-5">
+<span class="material-symbols-outlined text-base" id="stepper-icon-5">verified</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-outline" id="stepper-text-5">5. CONFIRMED</span>
+<span class="font-label-sm text-label-sm text-outline truncate">Recipient PIN Required</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 4: Two-Column Operational Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- LEFT COLUMN (60% ~ 7 cols): Verification Record & Handover Target -->
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+<!-- Card A: Pharmacy Collection Verification Record -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined">local_pharmacy</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-secondary font-semibold uppercase tracking-wider">Apothecary Origin Node</span>
+<span class="font-title-lg text-title-lg text-on-surface">St. Jude Community Apothecary</span>
+</div>
+</div>
+<span class="px-space-sm py-space-xs rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm" id="pharmacy-status-pill">
+              COLLECTED &amp; SEALED (10:48 AM)
+            </span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md bg-surface-container-low p-space-md rounded-DEFAULT">
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Dispenser Terminal ID</span>
+<span class="font-body-md text-body-md font-semibold text-on-surface">Node #819 (Licensed Pharmacist Dr. C. Vance)</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Facility Location</span>
+<span class="font-body-md text-body-md text-on-surface">42 Medical Enclave, Sector 4, Downtown</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Collection Custody Timestamp</span>
+<span class="font-body-md text-body-md text-on-surface">Today, 10:48 AM • Authenticated #AST-542</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Operating Window</span>
+<span class="font-body-md text-body-md text-secondary font-semibold">Mon–Sat 08:00 – 21:00 (Open Now)</span>
+</div>
+</div>
+<!-- Operational Verification Details -->
+<div class="flex flex-col gap-space-sm">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Operational Seal &amp; Cold-Chain Record</span>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<div class="p-space-sm bg-surface-container rounded-DEFAULT flex flex-col gap-1">
+<div class="flex items-center gap-space-xs text-primary">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span class="font-label-sm text-label-sm font-bold">Tamper Seal</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-on-surface">Pouch #TL-9034</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Tape Intact • Barcoded</span>
+</div>
+<div class="p-space-sm bg-surface-container rounded-DEFAULT flex flex-col gap-1">
+<div class="flex items-center gap-space-xs text-primary">
+<span class="material-symbols-outlined text-sm">ac_unit</span>
+<span class="font-label-sm text-label-sm font-bold">Cold Chain</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-secondary">2°C – 8°C Maintained</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Isothermal Pack Active</span>
+</div>
+<div class="p-space-sm bg-surface-container rounded-DEFAULT flex flex-col gap-1">
+<div class="flex items-center gap-space-xs text-primary">
+<span class="material-symbols-outlined text-sm">inventory_2</span>
+<span class="font-label-sm text-label-sm font-bold">Package Units</span>
+</div>
+<span class="font-label-md text-label-md font-semibold text-on-surface">1 Envelope Sealed</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">#MED-8477-PK</span>
+</div>
+</div>
+</div>
+<!-- Audited Signature Button -->
+<button class="w-full py-space-sm px-space-md rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-label-md cursor-not-allowed text-center" disabled="" id="pharmacy-action-btn">
+            Medicine Custody Transferred (Verified 10:48 AM) ✓
+          </button>
+</div>
+<!-- Card B: Delivery Destination & Safe Handover Details (Current Operational Target) -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined">where_to_vote</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-primary font-semibold uppercase tracking-wider">Target Handover Checkpoint</span>
+<span class="font-title-lg text-title-lg text-on-surface">First Hill Residential District (Zone B)</span>
+</div>
+</div>
+<span class="px-space-sm py-space-xs rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+              Secure Drop Point
+            </span>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-DEFAULT flex flex-col gap-space-sm">
+<div class="flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-secondary shrink-0 mt-0.5">home_pin</span>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface">742 Summit Ave, Locker Bay 04</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Secure Resident Concierge Desk / Temperature-Regulated Locker Cluster</span>
+</div>
+</div>
+<div class="h-[1px] w-full bg-surface-container-high"></div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Authorized Handover Handshake</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold">Recipient PIN or Concierge Signoff</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Verification Safeguard</span>
+<span class="font-body-md text-body-md text-secondary font-semibold">4-Digit Dynamic Token Required</span>
+</div>
+</div>
+</div>
+<!-- Non-Clinical Delivery Instructions -->
+<div class="flex flex-col gap-space-xs bg-surface-container p-space-md rounded-DEFAULT">
+<div class="flex items-center gap-space-xs text-primary font-label-md text-label-md">
+<span class="material-symbols-outlined text-sm">info</span>
+<span>Courier Delivery Instructions (Non-Medical)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface">
+              “Ring Bay 04 buzzer upon arrival. If patient does not respond within 3 minutes, handover directly to on-duty concierge attendant Mrs. Gable at the front desk. Collect digital recipient counter-PIN to complete custody release.”
+            </p>
+</div>
+<!-- Zero-Knowledge PHI Privacy Banner -->
+<div class="flex items-center gap-space-sm p-space-sm bg-surface-container-low rounded-full">
+<span class="material-symbols-outlined text-secondary text-sm ml-space-xs">verified_user</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">
+<strong class="text-on-surface font-semibold">Protected Health Information (PHI) Shield Active:</strong> Specific pharmaceutical compounds, indications, and clinical notes are partitioned from courier terminal.
+            </span>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN (40% ~ 5 cols): Actions, Simulator, & Telemetry -->
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+<!-- Card C: Primary Operational Action Card -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-lg shadow-md flex flex-col gap-space-md">
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-secondary uppercase font-bold tracking-wider">Custody Execution Desk</span>
+<h2 class="font-title-lg text-title-lg text-on-surface font-bold" id="ctrl-title">Active Step: In Transit to Handover</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant" id="ctrl-subtitle">
+              You are currently holding custody of Sealed Pouch #TL-9034.
+            </p>
+</div>
+<!-- Primary CTA -->
+<button class="w-full py-space-md px-space-lg rounded-full bg-primary text-on-primary font-label-lg text-label-lg shadow-md hover:bg-primary-container transition-all flex items-center justify-center gap-space-sm" id="ctrl-primary-cta">
+<span>Proceed to Handover</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+<!-- Secondary CTA -->
+<button class="w-full py-space-sm px-space-md rounded-full bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md transition-all flex items-center justify-center gap-space-xs">
+<span class="material-symbols-outlined text-sm">support_agent</span>
+<span>Report Handover Obstacle / Contact Dispatch</span>
+</button>
+<!-- Sequential Transition Enforcer Warning -->
+<div class="flex items-start gap-space-xs p-space-sm bg-surface-container rounded-DEFAULT">
+<span class="material-symbols-outlined text-on-surface-variant text-sm mt-0.5">policy</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">
+              Strict Sequential Protocol: Skipping steps, leaving sealed packages unattended, or unverified drops strictly violates chain-of-custody compliance.
+            </span>
+</div>
+</div>
+<!-- Card D: Interactive Lifecycle State Simulator (Reviewer Testing Panel) -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-sm">tune</span>
+<span class="font-label-lg text-label-lg text-on-surface font-bold">Lifecycle State Simulator</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-space-sm py-space-xs rounded-full">Interactive Demo</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Toggle between the 3 core prompt delivery states to verify UI behavior, button states, and stepper logic:
+          </p>
+<div class="flex flex-col gap-space-xs">
+<button class="flex items-center justify-between p-space-sm rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md transition-all" id="sim-btn-0" onclick="setSimulationState(0)">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-sm">radio_button_unchecked</span>
+<span>State 1: ACCEPTED</span>
+</div>
+<span class="font-label-sm text-label-sm opacity-80">Navigate to Apothecary</span>
+</button>
+<button class="flex items-center justify-between p-space-sm rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md transition-all" id="sim-btn-1" onclick="setSimulationState(1)">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-sm">radio_button_unchecked</span>
+<span>State 2: COLLECTING</span>
+</div>
+<span class="font-label-sm text-label-sm opacity-80">Barcode Custody Scan</span>
+</button>
+<button class="flex items-center justify-between p-space-sm rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm transition-all" id="sim-btn-2" onclick="setSimulationState(2)">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span>State 3: IN TRANSIT (Default)</span>
+</div>
+<span class="font-label-sm text-label-sm opacity-90">Held in Cold-Pouch</span>
+</button>
+</div>
+<!-- Offline Guard Status Notice -->
+<div class="flex items-center gap-space-xs text-secondary font-label-sm text-label-sm pt-space-xs">
+<span class="material-symbols-outlined text-sm">cloud_sync</span>
+<span>Offline Sync Guard: Cryptographic signatures queue locally if connection drops.</span>
+</div>
+</div>
+<!-- Card E: Custody Telemetry & Compensation Record -->
+<div class="w-full bg-surface-container-lowest rounded-DEFAULT p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary uppercase font-bold tracking-wider">Custody Cryptographic Ledger</span>
+<span class="material-symbols-outlined text-secondary text-base">security</span>
+</div>
+<div class="flex flex-col gap-space-xs font-mono text-label-sm text-on-surface-variant">
+<div class="flex justify-between items-center py-1">
+<span>Sealed Pouch Barcode:</span>
+<span class="text-on-surface font-semibold">TL-9034-ISOTHRM</span>
+</div>
+<div class="h-[1px] bg-surface-container-high"></div>
+<div class="flex justify-between items-center py-1">
+<span>Terminal Operator:</span>
+<span class="text-on-surface font-semibold">Marcus Sterling #AST-542</span>
+</div>
+<div class="h-[1px] bg-surface-container-high"></div>
+<div class="flex justify-between items-center py-1">
+<span>Dispenser Handshake:</span>
+<span class="text-secondary font-semibold">e3b0c442...8b456</span>
+</div>
+<div class="h-[1px] bg-surface-container-high"></div>
+<div class="flex justify-between items-center py-1">
+<span>Custody Guarantee:</span>
+<span class="text-primary font-bold">₹140.00 (Guaranteed on PIN)</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container-low rounded-DEFAULT flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Isothermal Log (Current)</span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> 4.1°C (Nominal)
+            </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></main><footer class="w-full bg-surface-container-low"><div class="max-w-7xl mx-auto px-space-lg py-space-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md text-on-surface-variant"><div class="flex flex-col gap-space-xs"><div class="flex items-center gap-space-sm font-label-md text-label-md text-primary"><span class="material-symbols-outlined text-sm">verified_user</span><span>MediFind AI Logistics Network • Zero-Knowledge Medical Privacy Standard • Encrypted Chain of Custody</span></div><p class="font-body-sm text-body-sm text-on-surface-variant max-w-3xl">Assistants handle sealed package handoff only. Clinical prescription screening, dosage details, and diagnostic notes are strictly partitioned from logistics operators.</p></div><div class="flex items-center gap-space-sm font-label-sm text-label-sm text-secondary bg-surface-container px-space-md py-space-xs rounded-full self-start md:self-auto"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span>Logistics Telemetry Online</span></div></div></footer></body></html>

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-primary-fixed-variant": "#274d46", "surface-container-lowest": "#ffffff", "primary-fixed": "#c1ebe1", "on-surface": "#0f1e1b", "on-primary": "#ffffff", "error-container": "#ffdad6", "on-primary-container": "#8ab2a9", "tertiary": "#5a0100", "surface-dim": "#cdded7", "tertiary-fixed-dim": "#ffb4a8", "surface-bright": "#ecfdf7", "on-error": "#ffffff", "on-primary-fixed": "#00201b", "inverse-surface": "#24332f", "surface-tint": "#3f655e", "surface": "#ecfdf7", "background": "#ecfdf7", "secondary-fixed": "#b3eee0", "on-tertiary-container": "#ff8875", "surface-container-high": "#dbece5", "on-error-container": "#93000a", "secondary": "#2e685d", "surface-container": "#e0f2eb", "primary": "#032f28", "secondary-container": "#b0ecdd", "on-background": "#0f1e1b", "tertiary-container": "#7e1208", "on-tertiary-fixed-variant": "#8a1c10", "primary-container": "#1e453e", "outline": "#717976", "primary-fixed-dim": "#a6cfc5", "outline-variant": "#c0c8c5", "on-secondary": "#ffffff", "on-tertiary-fixed": "#410100", "inverse-primary": "#a6cfc5", "surface-variant": "#d5e6e0", "on-surface-variant": "#414846", "tertiary-fixed": "#ffdad4", "on-tertiary": "#ffffff", "on-secondary-container": "#336c61", "on-secondary-fixed": "#00201b", "inverse-on-surface": "#e3f5ee", "error": "#ba1a1a", "on-secondary-fixed-variant": "#105045", "surface-container-low": "#e6f8f1", "secondary-fixed-dim": "#97d2c4", "surface-container-highest": "#d5e6e0" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "gutter": "1rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "margin-mobile": "1rem", "space-sm": "0.5rem", "space-md": "1rem", "gutter-mobile": "0.75rem", "space-xl": "2rem", "margin": "2rem" }, "fontFamily": { "label-md": [ "Plus Jakarta Sans" ], "title-md": [ "Plus Jakarta Sans" ], "body-sm": [ "Plus Jakarta Sans" ], "body-lg": [ "Plus Jakarta Sans" ], "headline-lg-mobile": [ "Plus Jakarta Sans" ], "display": [ "Plus Jakarta Sans" ], "title-lg": [ "Plus Jakarta Sans" ], "headline-sm": [ "Plus Jakarta Sans" ], "body-md": [ "Plus Jakarta Sans" ], "label-lg": [ "Plus Jakarta Sans" ], "headline-lg": [ "Plus Jakarta Sans" ], "label-sm": [ "Plus Jakarta Sans" ], "headline-md": [ "Plus Jakarta Sans" ] }, "fontSize": { "label-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" } ], "title-md": [ "16px", { "lineHeight": "24px", "fontWeight": "600" } ], "body-sm": [ "12px", { "lineHeight": "18px", "fontWeight": "400" } ], "body-lg": [ "16px", { "lineHeight": "24px", "fontWeight": "400" } ], "headline-lg-mobile": [ "26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700" } ], "display": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "title-lg": [ "18px", { "lineHeight": "26px", "fontWeight": "600" } ], "headline-sm": [ "20px", { "lineHeight": "28px", "fontWeight": "600" } ], "body-md": [ "14px", { "lineHeight": "20px", "fontWeight": "400" } ], "label-lg": [ "14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" } ], "headline-lg": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700" } ], "label-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "headline-md": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" } ] } } } };</script></head><body class="bg-background font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(30,69,62,0.06)]"><div class="h-20 max-w-[1280px] mx-auto px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><a class="flex items-center gap-space-sm group" href="#"><img alt="MediFind AI Brand Logo" class="w-10 h-10 object-contain rounded-full shadow-sm" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><div class="flex flex-col"><span class="font-title-md text-title-md text-primary tracking-tight font-bold">MediFind<span class="text-secondary ml-0.5">AI</span></span><span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Rx Network</span></div></a><nav class="hidden xl:flex items-center gap-space-xs p-1 bg-surface-container-low rounded-full" data-active-classes="bg-primary-container text-on-primary font-label-md rounded-full shadow-sm"><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" data-path="medicine-catalogue" href="#">Medicine Catalogue</a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" data-path="active-request" href="#">Active Request</a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" data-path="prescriptions" href="#">Prescriptions</a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" data-path="pharmacy-locator" href="#">Pharmacy Locator</a><a class="px-space-md py-space-sm rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" data-path="orders" href="#">Orders</a></nav></div><div class="flex items-center gap-space-md"><button aria-label="Notifications" class="relative w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors shadow-[0_2px_8px_-2px_rgba(30,69,62,0.05)]" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-tertiary-container ring-2 ring-surface"></span></button><div class="flex items-center gap-space-sm pl-space-sm py-1 pr-space-md bg-surface-container-lowest rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.05)]"><div class="relative"><img alt="Patient Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-1 ring-surface"></span></div><div class="flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface leading-tight font-semibold">Yaryna Chuma</span><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span><span class="font-label-sm text-label-sm text-secondary font-medium">Verified Patient</span></div></div></div></div></div></header><main class="w-full pt-20 bg-background min-h-screen"><div class="flex flex-col w-full">
+<div class="w-full max-w-[1280px] mx-auto px-margin-mobile sm:px-margin pb-space-xl">
+<!-- Top Metadata Breadcrumb & Context Header -->
+<div class="pt-6 pb-space-lg flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<a class="inline-flex items-center gap-1.5 text-secondary hover:text-primary transition-colors font-label-md text-label-md w-fit group" href="#">
+<span class="material-symbols-outlined text-[18px] transition-transform group-hover:-translate-x-0.5">arrow_back</span>
+<span>Back to Order #MF-8492-RX</span>
+</a>
+<div class="flex flex-wrap items-center gap-x-space-md gap-y-1 mt-1">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight font-bold">Order Tracking &amp; Fulfillment Journey</h1>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>#MF-8492-RX</span>
+<span class="text-on-secondary-container/60">•</span>
+<span>St. Jude Community Apothecary</span>
+</div>
+</div>
+</div>
+<!-- Quick Micro-Badges -->
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-surface-container-lowest shadow-sm text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-secondary">check_circle</span>
+<span class="font-label-md text-label-md">Status: READY_FOR_PICKUP</span>
+</div>
+<div class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px]">thermostat</span>
+<span>Cold Chain Preserved (4°C)</span>
+</div>
+</div>
+</div>
+<!-- PRIMARY ACTION SYSTEM: Prominent Unambiguous Next Action Hero -->
+<section class="relative w-full rounded-2xl bg-gradient-to-br from-primary via-primary-container to-[#173731] text-on-primary p-6 md:p-8 shadow-xl overflow-hidden mb-space-xl">
+<!-- Ambient decorative rings -->
+<div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary-fixed/5 blur-2xl pointer-events-none"></div>
+<div class="absolute right-1/4 -bottom-24 w-96 h-96 rounded-full bg-secondary-container/5 blur-3xl pointer-events-none"></div>
+<div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-center">
+<!-- Action Context -->
+<div class="lg:col-span-7 flex flex-col gap-space-sm">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed w-fit font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span>Action Required by You</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg font-bold text-on-primary tracking-tight">Ready for Pickup</h2>
+<p class="font-body-lg text-body-lg text-on-primary-container max-w-xl">
+            Your prescription medicines have been verified, packaged, and quarantined at the dispensary counter. You can collect your order now.
+          </p>
+<div class="flex items-start gap-2.5 mt-2 p-3.5 rounded-xl bg-white/5 backdrop-blur-md max-w-xl">
+<span class="material-symbols-outlined text-[20px] text-primary-fixed shrink-0 mt-0.5">verified_user</span>
+<p class="font-body-sm text-body-sm text-on-primary-container">
+              Show this PIN and your valid Government/Clinical ID to <span class="font-medium text-white">Dr. Sarah Vance, PharmD</span> at <span class="text-white font-medium">Counter 2</span>.
+            </p>
+</div>
+<!-- CTAs -->
+<div class="flex flex-wrap items-center gap-space-sm pt-2">
+<button class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary-fixed text-on-primary-fixed font-label-lg text-label-lg hover:bg-white transition-all shadow-md active:scale-95 cursor-pointer">
+<span class="material-symbols-outlined text-[20px] text-primary">directions</span>
+<span>Get Directions to Pharmacy</span>
+</button>
+<button class="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-on-primary font-label-lg text-label-lg backdrop-blur-md transition-all active:scale-95 cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">call</span>
+<span>Contact Pharmacist</span>
+</button>
+</div>
+</div>
+<!-- Distinct 4-Digit Pickup PIN Card -->
+<div class="lg:col-span-5 flex flex-col items-center lg:items-end">
+<div class="w-full max-w-sm bg-surface-container-lowest text-on-surface rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center">
+<div class="flex items-center justify-between w-full pb-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-secondary">lock</span>
+                DISPENSING TOKEN
+              </span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">Bay #04</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant mb-2">Patient Pickup Verification PIN</span>
+<!-- Large 4-digit PIN layout -->
+<div class="flex items-center justify-center gap-2.5 my-2">
+<div class="w-14 h-16 sm:w-16 sm:h-20 rounded-xl bg-surface-container-low flex items-center justify-center font-display text-display font-bold text-primary shadow-sm select-all">8</div>
+<div class="w-14 h-16 sm:w-16 sm:h-20 rounded-xl bg-surface-container-low flex items-center justify-center font-display text-display font-bold text-primary shadow-sm select-all">4</div>
+<div class="w-14 h-16 sm:w-16 sm:h-20 rounded-xl bg-surface-container-low flex items-center justify-center font-display text-display font-bold text-primary shadow-sm select-all">9</div>
+<div class="w-14 h-16 sm:w-16 sm:h-20 rounded-xl bg-surface-container-low flex items-center justify-center font-display text-display font-bold text-primary shadow-sm select-all">2</div>
+</div>
+<!-- PIN Validity & Micro Barcode Simulation -->
+<div class="w-full mt-4 pt-3 flex flex-col items-center gap-2">
+<div class="w-full h-8 flex items-center justify-center gap-1 opacity-70 px-4">
+<span class="w-1 h-full bg-on-surface rounded-full"></span>
+<span class="w-2 h-full bg-on-surface rounded-full"></span>
+<span class="w-0.5 h-full bg-on-surface rounded-full"></span>
+<span class="w-3 h-full bg-on-surface rounded-full"></span>
+<span class="w-1 h-full bg-on-surface rounded-full"></span>
+<span class="w-2 h-full bg-on-surface rounded-full"></span>
+<span class="w-1 h-full bg-on-surface rounded-full"></span>
+<span class="w-4 h-full bg-on-surface rounded-full"></span>
+<span class="w-0.5 h-full bg-on-surface rounded-full"></span>
+<span class="w-2 h-full bg-on-surface rounded-full"></span>
+<span class="w-1 h-full bg-on-surface rounded-full"></span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant text-center">
+                Valid today until <strong class="text-on-surface font-semibold">10:30 PM</strong> • Single-use clinical release code
+              </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- MAIN VISUAL TIMELINE: "Your Medicine Journey" -->
+<section class="w-full bg-surface-container-lowest rounded-2xl p-6 sm:p-8 shadow-sm mb-space-xl">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 gap-2">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">timeline</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">Your Medicine Journey</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Live end-to-end pharmacy verification &amp; fulfillment states</p>
+</div>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm w-fit">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Real-time Rx Pipeline Synchronized</span>
+</div>
+</div>
+<!-- Horizontal Multi-step Stepper -->
+<div class="relative w-full pt-4 pb-2">
+<!-- Desktop Grid Stepper -->
+<div class="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+<!-- Step 1: Completed -->
+<div class="relative flex flex-col items-start p-4 rounded-xl bg-surface-container-low transition-all">
+<div class="flex items-center justify-between w-full mb-3">
+<span class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary font-medium">10:42 AM</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1 font-semibold">Step 01</span>
+<h4 class="font-title-md text-title-md text-primary font-bold mb-1">Pharmacy Confirmation</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Prescription verified by apothecary</p>
+<div class="mt-3 inline-flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[14px]">done_all</span> Completed
+            </div>
+</div>
+<!-- Step 2: Completed -->
+<div class="relative flex flex-col items-start p-4 rounded-xl bg-surface-container-low transition-all">
+<div class="flex items-center justify-between w-full mb-3">
+<span class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary font-medium">10:44 AM</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1 font-semibold">Step 02</span>
+<h4 class="font-title-md text-title-md text-primary font-bold mb-1">Payment</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">₹1,200.00 confirmed paid</p>
+<div class="mt-3 inline-flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[14px]">done_all</span> Completed
+            </div>
+</div>
+<!-- Step 3: Completed -->
+<div class="relative flex flex-col items-start p-4 rounded-xl bg-surface-container-low transition-all">
+<div class="flex items-center justify-between w-full mb-3">
+<span class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary font-medium">11:15 AM</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1 font-semibold">Step 03</span>
+<h4 class="font-title-md text-title-md text-primary font-bold mb-1">Preparing</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Medicines checked &amp; batch packaged</p>
+<div class="mt-3 inline-flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[14px]">done_all</span> Completed
+            </div>
+</div>
+<!-- Step 4: Active / Current Step -->
+<div class="relative flex flex-col items-start p-4 rounded-xl bg-primary text-on-primary shadow-lg ring-2 ring-primary-fixed-dim/40 scale-[1.02] z-10">
+<div class="flex items-center justify-between w-full mb-3">
+<span class="w-8 h-8 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[20px] animate-pulse">radio_button_checked</span>
+</span>
+<span class="font-label-sm text-label-sm text-primary-fixed font-semibold">11:30 AM Today</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary-fixed uppercase tracking-wider mb-1 font-semibold">Current Step</span>
+<h4 class="font-title-md text-title-md text-on-primary font-bold mb-1">Ready for Pickup</h4>
+<p class="font-body-sm text-body-sm text-on-primary-container">Locked in temperature-controlled counter</p>
+<div class="mt-3 inline-flex items-center gap-1 text-primary-fixed font-label-sm text-label-sm font-semibold">
+<span class="w-2 h-2 rounded-full bg-primary-fixed animate-ping"></span> Live Status
+            </div>
+</div>
+<!-- Step 5: Upcoming -->
+<div class="relative flex flex-col items-start p-4 rounded-xl bg-surface-container opacity-85 transition-all">
+<div class="flex items-center justify-between w-full mb-3">
+<span class="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">radio_button_unchecked</span>
+</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Pending</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1 font-semibold">Step 05</span>
+<h4 class="font-title-md text-title-md text-on-surface-variant font-bold mb-1">Completed</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Handover confirmed &amp; receipt issued</p>
+<div class="mt-3 inline-flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm font-medium">
+              Awaiting Counter Pickup
+            </div>
+</div>
+</div>
+</div>
+</section>
+<!-- FULFILLMENT DEDICATED VISUAL & CONTEXT (Two-column layout) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg mb-space-lg">
+<!-- Left Column: Pharmacy Collection Details & Visual Map Anchor -->
+<section class="lg:col-span-7 flex flex-col gap-space-md">
+<div class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm pb-1">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-sm text-label-sm uppercase px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-semibold">Apothecary Hub</span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[16px]">verified</span> Verified Dispenser #819
+                </span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">St. Jude Community Apothecary</h3>
+</div>
+<div class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[26px]">local_pharmacy</span>
+</div>
+</div>
+<!-- Location visual card with data-location pipeline -->
+<div class="w-full h-56 rounded-xl bg-cover bg-center relative overflow-hidden flex flex-col justify-end p-4 shadow-inner" data-location="42 Medical Enclave, Sector 4, Metro Medical Zone" style="background-image: url('https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg')">
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+<div class="relative z-10 flex items-center justify-between text-white">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px] text-primary-fixed">pin_drop</span>
+<span class="font-label-md text-label-md drop-shadow-sm font-semibold">Sector 4, Metro Medical Zone</span>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md font-label-sm text-label-sm font-medium">0.8 km from your saved address</span>
+</div>
+</div>
+<!-- Key Pharmacy Info Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm pt-1">
+<div class="p-4 rounded-xl bg-surface-container-low flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-[22px] mt-0.5">schedule</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Operating Hours</span>
+<span class="font-title-md text-title-md text-primary font-bold">Open until 10:30 PM</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Dispensary counter open continuously</span>
+</div>
+</div>
+<div class="p-4 rounded-xl bg-surface-container-low flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-[22px] mt-0.5">storefront</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Counter Instructions</span>
+<span class="font-title-md text-title-md text-primary font-bold">Counter 2 (Rx Rapid Release)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Tell staff you have a MediFind AI reservation. Provide PIN 8492.</span>
+</div>
+</div>
+</div>
+<!-- Address line -->
+<div class="flex items-center gap-3 p-3.5 rounded-xl bg-surface-container text-on-surface">
+<span class="material-symbols-outlined text-[20px] text-secondary">location_on</span>
+<p class="font-body-md text-body-md text-on-surface">
+<strong class="font-semibold text-primary">Address:</strong> 42 Medical Enclave, Sector 4, Metro Medical Zone (Opposite Metro Pillar 128)
+            </p>
+</div>
+<!-- Required Verification Disclaimer -->
+<div class="p-3.5 rounded-xl bg-surface-container-high text-on-surface-variant flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-outline">science</span>
+<span class="font-label-sm text-label-sm font-semibold tracking-wide text-on-surface">VERIFICATION NOTICE:</span>
+<span class="font-body-sm text-body-sm">TEST DATA — NOT A PARTICIPATING PHARMACY</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-medium hidden sm:inline">Sandboxed Sandbox Environment</span>
+</div>
+</div>
+</section>
+<!-- Right Column: Compact Status History & Prescribed Package Summary -->
+<section class="lg:col-span-5 flex flex-col gap-space-md">
+<!-- Order Status History -->
+<div class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">history_toggle_off</span>
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">Order Status History</h3>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Live Audit Log</span>
+</div>
+<!-- Chronological List -->
+<div class="relative pl-6 flex flex-col gap-5">
+<!-- Connecting Line -->
+<div class="absolute left-2.5 top-2 bottom-3 w-0.5 bg-surface-container-highest"></div>
+<!-- Item 1: Confirmed -->
+<div class="relative flex items-start gap-3">
+<div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[12px] shadow-sm">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-primary font-bold">Order Confirmed</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Today • 10:42 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Prescription digitally approved and verified against clinical registry.</p>
+</div>
+</div>
+<!-- Item 2: Payment Confirmed -->
+<div class="relative flex items-start gap-3">
+<div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[12px] shadow-sm">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-primary font-bold">Payment Confirmed</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Today • 10:44 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">UPI AutoPay transaction verified (Ref: #UPI-94820184).</p>
+</div>
+</div>
+<!-- Item 3: Medicines Packaged -->
+<div class="relative flex items-start gap-3">
+<div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[12px] shadow-sm">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-primary font-bold">Medicines Packaged</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Today • 11:15 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Amoxicillin 500mg &amp; Ventolin HFA bottled, double-checked, and tamper-sealed.</p>
+</div>
+</div>
+<!-- Item 4: Ready at Counter (Active) -->
+<div class="relative flex items-start gap-3">
+<div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-primary text-primary-fixed flex items-center justify-center text-[12px] ring-4 ring-primary-fixed/40">
+<span class="material-symbols-outlined text-[14px]">radio_button_checked</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-primary font-bold">Ready at Counter</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">Today • 11:30 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium">Quarantined in climate-controlled pickup locker #04.</p>
+</div>
+</div>
+<!-- Item 5: Handover (Pending) -->
+<div class="relative flex items-start gap-3 opacity-60">
+<div class="absolute -left-6 top-1 w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center text-[12px]">
+<span class="material-symbols-outlined text-[14px]">pending</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-on-surface-variant font-bold">Handover &amp; Signature</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Pending Collection</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Awaiting physical biometric/PIN release and pharmacist briefing.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Prescribed Items In Package Snapshot -->
+<div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary font-bold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-secondary">medication</span>
+              Items in Sealed Package (2)
+            </span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">Cold Chain Verified</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low text-on-surface">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-primary">Amoxicillin Clavulanate (Augmentin)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">625mg • 10 Film-coated tablets • Batch #AX-9921</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container font-medium text-on-surface">Qty: 1</span>
+</div>
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low text-on-surface">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-primary">Ventolin Evohaler (Salbutamol)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">100 mcg • 200 Actuations • Batch #VT-4180</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container font-medium text-on-surface">Qty: 1</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- BOTTOM ASSISTANT DELIVERY DEMONSTRATION / EXPLANATORY BOX -->
+<section class="w-full bg-surface-container rounded-2xl p-6 sm:p-7 shadow-sm">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md pb-4">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary shadow-sm shrink-0">
+<span class="material-symbols-outlined text-[22px]">swap_horizontal_circle</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<h3 class="font-title-lg text-title-lg text-primary font-bold">Assistant Delivery Architecture</h3>
+<span class="font-label-sm text-label-sm px-2.5 py-0.5 rounded-full bg-secondary text-on-secondary font-medium">Tandem Subsystem</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+              Looking for Assistant Delivery? When selected, AssistantTask progression runs in tandem: <strong class="text-primary font-semibold">Available → Accepted → Collecting → In Transit → Delivered → Confirmed</strong>.
+            </p>
+</div>
+</div>
+<!-- Mode Toggle Trigger (Demonstration UI) -->
+<div class="flex items-center gap-2 bg-surface-container-lowest p-1 rounded-full shadow-sm shrink-0 self-start md:self-auto">
+<button class="px-4 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold transition-all" id="btn-self-pickup">
+            Counter Pickup (Active)
+          </button>
+<button class="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" id="btn-assistant-toggle">
+            Simulate Assistant Delivery Flow
+          </button>
+</div>
+</div>
+<!-- Structured Step Progression Pipeline (Demonstrating distinct pipeline without conflating order status) -->
+<div class="w-full pt-4 mt-2" id="assistant-flow-view">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+<div class="p-3 rounded-xl bg-surface-container-lowest flex flex-col items-center text-center">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm mb-1.5 font-bold">1</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">Available</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px] mt-0.5">Task broadcast to fleet</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-lowest flex flex-col items-center text-center">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm mb-1.5 font-bold">2</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">Accepted</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px] mt-0.5">Clinical agent assigned</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-lowest flex flex-col items-center text-center">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm mb-1.5 font-bold">3</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">Collecting</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px] mt-0.5">Physical pickup at Bay</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-lowest flex flex-col items-center text-center">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm mb-1.5 font-bold">4</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">In Transit</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px] mt-0.5">Insulated safe transport</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-lowest flex flex-col items-center text-center">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm mb-1.5 font-bold">5</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">Delivered</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px] mt-0.5">Arrived at patient premise</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-lowest flex flex-col items-center text-center">
+<span class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-sm text-label-sm mb-1.5 font-bold">6</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">Confirmed</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px] mt-0.5">OTP &amp; prescription match</span>
+</div>
+</div>
+<div class="mt-4 flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[18px] text-secondary">info</span>
+<span>Architectural Rule: Assistant delivery runs as an isolated dispatch job without altering order-level core state invariants (READY_FOR_PICKUP → COMPLETED).</span>
+</div>
+</div>
+</section>
+</div>
+</div>
+<script>
+  // Simple micro-interaction for demonstration toggle
+  const btnPickup = document.getElementById('btn-self-pickup');
+  const btnAssistant = document.getElementById('btn-assistant-toggle');
+  const flowView = document.getElementById('assistant-flow-view');
+
+  if (btnAssistant && btnPickup && flowView) {
+    btnAssistant.addEventListener('click', () => {
+      btnAssistant.classList.add('bg-primary', 'text-on-primary', 'font-semibold');
+      btnAssistant.classList.remove('text-on-surface-variant');
+      
+      btnPickup.classList.remove('bg-primary', 'text-on-primary', 'font-semibold');
+      btnPickup.classList.add('text-on-surface-variant');
+      
+      flowView.classList.add('ring-2', 'ring-secondary', 'rounded-xl', 'p-2');
+    });
+
+    btnPickup.addEventListener('click', () => {
+      btnPickup.classList.add('bg-primary', 'text-on-primary', 'font-semibold');
+      btnPickup.classList.remove('text-on-surface-variant');
+
+      btnAssistant.classList.remove('bg-primary', 'text-on-primary', 'font-semibold');
+      btnAssistant.classList.add('text-on-surface-variant');
+
+      flowView.classList.remove('ring-2', 'ring-secondary', 'rounded-xl', 'p-2');
+    });
+  }
+</script></main><footer class="w-full bg-surface-container-low mt-space-xl"><div class="max-w-[1280px] mx-auto px-margin py-space-xl flex flex-col gap-space-lg"><div class="flex flex-wrap items-center justify-between gap-space-md pb-space-lg"><div class="flex items-center gap-space-sm"><img alt="MediFind AI Logo" class="w-7 h-7 object-contain rounded-full" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><span class="font-title-md text-title-md text-primary font-bold">MediFind AI</span><span class="font-body-sm text-body-sm text-on-surface-variant ml-space-sm">Precision Pharmacology &amp; Verified Access</span></div><div class="flex flex-wrap items-center gap-space-md"><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-[0_1px_4px_rgba(30,69,62,0.04)]"><span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span><span class="">HIPAA &amp; SOC-2 Type II Certified</span></div><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-[0_1px_4px_rgba(30,69,62,0.04)]"><span class="material-symbols-outlined text-[16px] text-secondary">lock</span><span class="">256-bit AES Clinical Data Encryption</span></div><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shadow-[0_1px_4px_rgba(30,69,62,0.04)]"><span class="material-symbols-outlined text-[16px] text-secondary">health_and_safety</span><span class="">FDA Real-Time Medicine Verification</span></div></div></div><div class="p-space-md rounded-lg bg-surface-container-lowest flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-md shadow-[0_2px_8px_-2px_rgba(30,69,62,0.04)]"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-secondary text-[22px]">info</span><p class="font-body-sm text-body-sm text-on-surface-variant"><strong class="font-medium text-on-surface">FDA Real-Time Verification Disclaimer:</strong> Medicinal availability, drug interactions, and dispensing inventory are synchronized live via accredited national pharmacy networks. Always consult your licensed healthcare professional before changing dosages.</p></div><div class="flex items-center gap-space-sm shrink-0"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary font-medium">FDA Database Synced</span></div></div><div class="flex flex-col sm:flex-row items-center justify-between gap-space-sm pt-space-sm"><p class="font-body-sm text-body-sm text-on-surface-variant">© 2025 MediFind AI Inc. All clinical and dispensary rights reserved.</p><div class="flex items-center gap-space-lg"><a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Patient Privacy Policy</a><a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Clinical Terms of Service</a><a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Pharmacy Verification Protocol</a></div></div></div></footer>
+</body></html>

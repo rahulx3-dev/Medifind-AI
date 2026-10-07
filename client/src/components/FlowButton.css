@@ -1,0 +1,218 @@
+/*
+ * FlowButton.css — MediFind Animated CTA Button
+ * Exact match to reference: expanding circle from center,
+ * left-arrow enters, right-arrow exits, text shifts right.
+ */
+
+/* ── Base shell ───────────────────────────────────────────────── */
+.flow-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  text-decoration: none;
+
+  /* Colour tokens — overridable via inline style */
+  --fb-color:        #032f28;
+  --fb-color-hover:  #ffffff;
+  --fb-circle-bg:    #032f28;
+  --fb-border:       rgba(3, 47, 40, 0.35);
+
+  color: var(--fb-color);
+  background: transparent;
+  border: 1.5px solid var(--fb-border);
+  border-radius: 9999px;
+
+  /* border/radius morph on hover */
+  transition:
+    border-color   500ms cubic-bezier(0.23, 1, 0.32, 1),
+    color          300ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-radius  500ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow     300ms ease,
+    transform      150ms ease;
+}
+
+/* ── Sizes ────────────────────────────────────────────────────── */
+.flow-btn.fb-sm { padding: 0.4rem 1.1rem;  font-size: 12px; height: 36px; }
+.flow-btn.fb-md { padding: 0.55rem 1.5rem; font-size: 13px; height: 42px; }
+.flow-btn.fb-lg { padding: 0.75rem 2rem;   font-size: 15px; height: 50px; }
+.flow-btn.fb-full { width: 100%; }
+
+/* ── Variant colour overrides ─────────────────────────────────── */
+.flow-btn.fb-secondary {
+  --fb-color:        #032f28;
+  --fb-circle-bg:    #2e685d;
+  --fb-border:       rgba(3, 47, 40, 0.2);
+  background: #e0f2eb;
+}
+.flow-btn.fb-outline {
+  --fb-circle-bg: #032f28;
+  --fb-border:    #2e685d;
+}
+.flow-btn.fb-ghost {
+  --fb-color:        #2e685d;
+  --fb-circle-bg:    #2e685d;
+  --fb-border:       transparent;
+}
+.flow-btn.fb-danger {
+  --fb-color:        #ffffff;
+  --fb-circle-bg:    #93000a;
+  --fb-border:       transparent;
+  background: #ba1a1a;
+}
+
+/* ── Hover state (not disabled, not loading) ─────────────────── */
+.flow-btn:not(:disabled):not(.fb-loading):hover {
+  border-color: transparent;
+  color: var(--fb-color-hover);
+  border-radius: 14px;
+  box-shadow: 0 6px 22px rgba(3, 47, 40, 0.22);
+}
+
+/* ── Active press ─────────────────────────────────────────────── */
+.flow-btn:not(:disabled):not(.fb-loading):active {
+  transform: scale(0.96);
+}
+
+/* ── Disabled ─────────────────────────────────────────────────── */
+.flow-btn:disabled,
+.flow-btn.fb-loading {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* ANIMATED PARTS                                                  */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* ── Expanding dark circle (from center) ──────────────────────── */
+.flow-btn .fb-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: var(--fb-circle-bg);
+  opacity: 0;
+  z-index: 0;
+  transition:
+    width   800ms cubic-bezier(0.19, 1, 0.22, 1),
+    height  800ms cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 200ms ease;
+}
+
+.flow-btn:not(:disabled):not(.fb-loading):hover .fb-circle {
+  width: 340px;
+  height: 340px;
+  opacity: 1;
+}
+
+/* ── Button text — shifts right on hover ─────────────────────── */
+.flow-btn .fb-text {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transform: translateX(-10px);
+  transition: transform 800ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.flow-btn:not(:disabled):not(.fb-loading):hover .fb-text {
+  transform: translateX(10px);
+}
+
+/* When there's a left icon, no shift (icon replaces left arrow) */
+.flow-btn.fb-has-icon-left .fb-text {
+  transform: translateX(0);
+}
+.flow-btn.fb-has-icon-left:not(:disabled):not(.fb-loading):hover .fb-text {
+  transform: translateX(4px);
+}
+
+/* ── Left arrow — enters from left ───────────────────────────── */
+.flow-btn .fb-arrow-left {
+  position: absolute;
+  left: -22%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  color: var(--fb-color);
+  transition:
+    left   800ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    color  300ms ease;
+}
+
+.flow-btn:not(:disabled):not(.fb-loading):hover .fb-arrow-left {
+  left: 14px;
+  color: var(--fb-color-hover);
+}
+
+/* ── Right arrow — exits right ────────────────────────────────── */
+.flow-btn .fb-arrow-right {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  color: var(--fb-color);
+  transition:
+    right  800ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    color  300ms ease;
+}
+
+.flow-btn:not(:disabled):not(.fb-loading):hover .fb-arrow-right {
+  right: -22%;
+  color: var(--fb-color-hover);
+}
+
+/* ── Loading spinner ──────────────────────────────────────────── */
+.fb-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border-style: solid;
+  border-color: currentColor;
+  border-top-color: transparent;
+  animation: fb-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+.flow-btn.fb-sm .fb-spinner { width: 13px; height: 13px; border-width: 2px; }
+.flow-btn.fb-md .fb-spinner { width: 15px; height: 15px; border-width: 2px; }
+.flow-btn.fb-lg .fb-spinner { width: 17px; height: 17px; border-width: 2px; }
+
+@keyframes fb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Reduced-motion: kill all transitions ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .flow-btn,
+  .flow-btn .fb-circle,
+  .flow-btn .fb-text,
+  .flow-btn .fb-arrow-left,
+  .flow-btn .fb-arrow-right {
+    transition: none !important;
+  }
+  .flow-btn .fb-arrow-left { display: none; }
+  .flow-btn .fb-arrow-right { display: none; }
+  .flow-btn .fb-text { transform: none !important; }
+  .flow-btn:not(:disabled):not(.fb-loading):hover {
+    border-radius: 9999px;
+    border-color: var(--fb-border);
+  }
+}

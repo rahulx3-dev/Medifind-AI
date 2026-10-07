@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MediFind AI — Camera Capture</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            clinical: {
+              50: '#ecfdf7',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#1e453e',
+              950: '#09231f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #0c1514;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    .viewfinder-border {
+      box-shadow: 0 0 0 9999px rgba(10, 19, 17, 0.75);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-clinical-400 selection:text-clinical-950">
+
+  <!-- Mobile Top Bar (Responsive Web Browser App Bar) -->
+  <header class="w-full bg-[#121c1a]/90 backdrop-blur-md border-b border-clinical-800/40 px-4 py-3.5 flex items-center justify-between z-30">
+    <button class="flex items-center gap-1.5 text-xs font-semibold text-clinical-200 hover:text-white transition py-1 px-2.5 rounded-full bg-clinical-900/60 border border-clinical-700/50">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      <span>Cancel / Upload</span>
+    </button>
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-2 rounded-full bg-clinical-400 animate-pulse"></div>
+      <span class="text-xs font-bold tracking-wide uppercase text-clinical-100">Live Camera Web View</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button title="Toggle Flash" class="w-8 h-8 rounded-full bg-clinical-900/60 border border-clinical-700/50 flex items-center justify-center text-clinical-200 hover:text-white">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Viewfinder Container (Phone Viewport Responsive Camera Simulation) -->
+  <main class="relative flex-1 flex flex-col items-center justify-center px-4 py-3 overflow-hidden">
+    
+    <!-- Camera Sensor Stream Mockup Background (Realistic Rx paper document on desk) -->
+    <div class="absolute inset-0 z-0 bg-[#162321] flex items-center justify-center">
+      <div class="w-[330px] h-[480px] sm:w-[360px] sm:h-[520px] bg-[#f8faf9] rounded-xl shadow-2xl p-6 relative border border-slate-300 text-slate-800 opacity-90 transform rotate-[0.5deg]">
+        <!-- Doctor's Prescription Paper Graphic Mockup -->
+        <div class="border-b-2 border-slate-200 pb-3 mb-4 flex justify-between items-start">
+          <div>
+            <div class="text-[11px] font-extrabold uppercase tracking-wider text-clinical-800">St. Jude Medical Group</div>
+            <div class="text-[9px] text-slate-500">Dr. Julian Vance, MD · License #MED-84920</div>
+            <div class="text-[8px] text-slate-400">Department of Internal Medicine</div>
+          </div>
+          <div class="w-7 h-7 rounded-md bg-clinical-100 border border-clinical-300 flex items-center justify-center text-clinical-800 font-bold text-xs">
+            Rx
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2 text-[9px] text-slate-600 mb-4 bg-slate-50 p-2 rounded border border-slate-200">
+          <div><span class="font-bold text-slate-700">Patient:</span> Yaryna Chuma</div>
+          <div><span class="font-bold text-slate-700">Age:</span> 34 · Female</div>
+          <div><span class="font-bold text-slate-700">Date:</span> 24 Oct 2024</div>
+          <div><span class="font-bold text-slate-700">Rx ID:</span> RX-2024-08819A</div>
+        </div>
+
+        <div class="space-y-3 pt-1">
+          <div class="border-l-2 border-clinical-600 pl-2">
+            <div class="text-[11px] font-bold text-slate-900">1. Amoxicillin 500mg Capsules</div>
+            <div class="text-[9px] text-slate-600 italic">Sig: Take 1 cap PO TID with water for 7 days #21</div>
+          </div>
+          <div class="border-l-2 border-clinical-600 pl-2">
+            <div class="text-[11px] font-bold text-slate-900">2. Ventolin Evohaler 100mcg</div>
+            <div class="text-[9px] text-slate-600 italic">Sig: 1-2 puffs q4h PRN wheezing / sob #1 inhaler</div>
+          </div>
+        </div>
+
+        <div class="absolute bottom-5 right-6 text-right">
+          <div class="w-24 border-b border-slate-400 mb-1"></div>
+          <div class="text-[8px] text-slate-500">Physician Digital Signature Verified</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Targeted Crop Guide Overlay / Viewfinder Box -->
+    <div class="relative z-10 w-[310px] h-[450px] sm:w-[340px] sm:h-[490px] rounded-2xl pointer-events-none flex flex-col justify-between p-4 border border-white/20 viewfinder-border">
+      <!-- Target Corner Guides -->
+      <div class="flex justify-between w-full">
+        <div class="w-8 h-8 border-t-4 border-l-4 border-clinical-400 rounded-tl-lg shadow-sm"></div>
+        <div class="w-8 h-8 border-t-4 border-r-4 border-clinical-400 rounded-tr-lg shadow-sm"></div>
+      </div>
+
+      <!-- Real-time Scanner Dynamic Laser Beam -->
+      <div class="w-full flex items-center justify-center my-auto">
+        <div class="w-full h-0.5 bg-gradient-to-r from-transparent via-clinical-400 to-transparent shadow-[0_0_12px_rgba(52,211,153,0.9)] animate-pulse"></div>
+      </div>
+
+      <!-- Bottom Target Corner Guides -->
+      <div class="flex justify-between w-full">
+        <div class="w-8 h-8 border-b-4 border-l-4 border-clinical-400 rounded-bl-lg shadow-sm"></div>
+        <div class="w-8 h-8 border-b-4 border-r-4 border-clinical-400 rounded-br-lg shadow-sm"></div>
+      </div>
+    </div>
+
+    <!-- Guidance Instruction Bubble -->
+    <div class="relative z-20 mt-3 bg-black/75 backdrop-blur-md border border-clinical-600/40 text-clinical-100 text-xs px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
+      <svg class="w-4 h-4 text-clinical-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>Align prescription edges within corner guides · Hold still</span>
+    </div>
+
+  </main>
+
+  <!-- Bottom Camera Control Bar (Ergonomic Touch Targets) -->
+  <footer class="w-full bg-[#0e1716] border-t border-clinical-900/80 px-6 py-5 z-30">
+    <div class="max-w-md mx-auto flex items-center justify-around">
+      
+      <!-- Alternate: Retake / Switch Document -->
+      <button class="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition group">
+        <div class="w-11 h-11 rounded-full bg-clinical-950/80 border border-clinical-800 flex items-center justify-center group-hover:border-clinical-400">
+          <svg class="w-5 h-5 text-clinical-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-400">Upload File</span>
+      </button>
+
+      <!-- Primary Shutter Button (Capture Action) -->
+      <button class="relative flex items-center justify-center group focus:outline-none" title="Capture Prescription">
+        <div class="w-20 h-20 rounded-full border-4 border-clinical-400/60 p-1 flex items-center justify-center transition transform group-hover:scale-105 active:scale-95">
+          <div class="w-full h-full bg-white rounded-full group-hover:bg-clinical-200 shadow-[0_0_16px_rgba(52,211,153,0.4)] flex items-center justify-center">
+            <div class="w-5 h-5 rounded-full border-2 border-clinical-900"></div>
+          </div>
+        </div>
+      </button>
+
+      <!-- Switch Camera (Front/Rear Macro) -->
+      <button class="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition group">
+        <div class="w-11 h-11 rounded-full bg-clinical-950/80 border border-clinical-800 flex items-center justify-center group-hover:border-clinical-400">
+          <svg class="w-5 h-5 text-clinical-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <span class="text-[11px] font-medium text-slate-400">Flip Lens</span>
+      </button>
+
+    </div>
+
+    <!-- Captured Preview Confirmation Ribbon (Demonstrating Accept or Retake interaction) -->
+    <div class="mt-4 pt-3 border-t border-clinical-900/60 flex items-center justify-between text-xs text-clinical-200">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-clinical-400"></span>
+        <span>Auto-focus locked · High dynamic range active</span>
+      </div>
+      <span class="text-[11px] text-slate-400 underline cursor-pointer hover:text-white">Camera permissions help</span>
+    </div>
+  </footer>
+
+</body>
+</html>

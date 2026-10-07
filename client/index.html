@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/medifind_logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFind AI - Prescription Medicine Availability & Emergency Pharmacy Locator</title>
+    <meta name="description" content="AI-powered prescription OCR, real-time multi-pharmacy availability matching, explainable ranking, 24x7 emergency locator, and Medicine Access Assistant network." />
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#032f28",
+              "primary-container": "#1e453e",
+              "on-primary": "#ffffff",
+              "on-primary-container": "#8ab2a9",
+              "primary-fixed": "#c1ebe1",
+              "primary-fixed-dim": "#a6cfc5",
+              "on-primary-fixed": "#00201b",
+              "on-primary-fixed-variant": "#274d46",
+              "secondary": "#2e685d",
+              "secondary-container": "#b0ecdd",
+              "secondary-fixed": "#b3eee0",
+              "secondary-fixed-dim": "#97d2c4",
+              "on-secondary": "#ffffff",
+              "on-secondary-container": "#336c61",
+              "on-secondary-fixed": "#00201b",
+              "on-secondary-fixed-variant": "#105045",
+              "background": "#ecfdf7",
+              "surface": "#ecfdf7",
+              "surface-bright": "#ecfdf7",
+              "surface-dim": "#cdded7",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-low": "#e6f8f1",
+              "surface-container": "#e0f2eb",
+              "surface-container-high": "#dbece5",
+              "surface-container-highest": "#d5e6e0",
+              "surface-variant": "#d5e6e0",
+              "surface-tint": "#3f655e",
+              "on-surface": "#0f1e1b",
+              "on-surface-variant": "#414846",
+              "on-background": "#0f1e1b",
+              "inverse-surface": "#24332f",
+              "inverse-on-surface": "#e3f5ee",
+              "inverse-primary": "#a6cfc5",
+              "outline": "#717976",
+              "outline-variant": "#c0c8c5",
+              "error": "#ba1a1a",
+              "error-container": "#ffdad6",
+              "on-error": "#ffffff",
+              "on-error-container": "#93000a",
+              "tertiary": "#5a0100",
+              "tertiary-container": "#7e1208",
+              "tertiary-fixed": "#ffdad4",
+              "tertiary-fixed-dim": "#ffb4a8",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#ff8875",
+              "on-tertiary-fixed": "#410100",
+              "on-tertiary-fixed-variant": "#8a1c10"
+            },
+            borderRadius: {
+              DEFAULT: "1rem",
+              lg: "1.5rem",
+              xl: "2rem",
+              "2xl": "2.5rem",
+              "3xl": "3rem",
+              full: "9999px"
+            },
+            spacing: {
+              "space-xs": "0.25rem",
+              "space-sm": "0.5rem",
+              "space-md": "1rem",
+              "space-lg": "1.5rem",
+              "space-xl": "2rem",
+              "gutter": "1rem",
+              "gutter-mobile": "0.75rem",
+              "margin": "2rem",
+              "margin-mobile": "1rem"
+            },
+            fontFamily: {
+              sans: ["'Plus Jakarta Sans'", "sans-serif"],
+              display: ["'Plus Jakarta Sans'", "sans-serif"],
+              body: ["'Plus Jakarta Sans'", "sans-serif"],
+              mono: ["'JetBrains Mono'", "monospace"]
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="bg-background text-on-surface font-sans antialiased min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary": "#2e685d", "tertiary": "#5a0100", "surface-container-low": "#e6f8f1", "on-tertiary": "#ffffff", "on-tertiary-container": "#ff8875", "surface-dim": "#cdded7", "on-surface-variant": "#414846", "inverse-on-surface": "#e3f5ee", "error": "#ba1a1a", "on-surface": "#0f1e1b", "surface-variant": "#d5e6e0", "surface-container-high": "#dbece5", "on-secondary-fixed": "#00201b", "background": "#ecfdf7", "on-secondary-container": "#336c61", "error-container": "#ffdad6", "tertiary-fixed-dim": "#ffb4a8", "outline": "#717976", "secondary-fixed-dim": "#97d2c4", "primary": "#032f28", "secondary-container": "#b0ecdd", "surface-bright": "#ecfdf7", "surface-container": "#e0f2eb", "tertiary-container": "#7e1208", "surface-tint": "#3f655e", "on-background": "#0f1e1b", "primary-fixed": "#c1ebe1", "secondary-fixed": "#b3eee0", "tertiary-fixed": "#ffdad4", "on-error-container": "#93000a", "on-primary-fixed-variant": "#274d46", "on-tertiary-fixed-variant": "#8a1c10", "on-primary-fixed": "#00201b", "inverse-surface": "#24332f", "surface-container-highest": "#d5e6e0", "surface": "#ecfdf7", "outline-variant": "#c0c8c5", "on-secondary-fixed-variant": "#105045", "on-primary-container": "#8ab2a9", "inverse-primary": "#a6cfc5", "primary-container": "#1e453e", "on-secondary": "#ffffff", "on-error": "#ffffff", "surface-container-lowest": "#ffffff", "primary-fixed-dim": "#a6cfc5", "on-tertiary-fixed": "#410100", "on-primary": "#ffffff" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-xl": "2rem", "space-md": "1rem", "gutter-mobile": "0.75rem", "gutter": "1rem", "space-xs": "0.25rem", "margin-mobile": "1rem", "space-sm": "0.5rem", "margin": "2rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "title-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"] }, "fontSize": { "headline-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }], "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }], "display": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-lg": ["18px", { "lineHeight": "26px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }] } } } };</script></head><body class="bg-background font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(30,69,62,0.06)]"><div class="h-20 max-w-[1280px] mx-auto px-margin flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-xl"><div class="flex items-center gap-space-sm"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary shadow-sm"><span class="material-symbols-outlined text-[22px]">local_pharmacy</span></div><div class="flex flex-col"><span class="font-title-lg text-title-lg text-primary tracking-tight">MediFind<span class="text-secondary font-headline-sm text-headline-sm ml-0.5">AI</span></span><span class="font-label-sm text-label-sm text-on-surface-variant leading-none">Clinical Medicine Access</span></div></div><nav class="hidden xl:flex items-center gap-space-xs p-1 bg-surface-container rounded-full" data-active-classes="bg-primary-container text-on-primary shadow-sm"><a aria-current="page" class="px-space-md py-space-xs rounded-full font-label-md transition-all bg-primary-container text-on-primary shadow-sm" data-path="medicine-catalogue" href="#">Medicine Catalogue</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-path="active-request" href="#">Active Request</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-path="prescriptions" href="#">Prescriptions</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" data-path="pharmacy-locator" href="#">Pharmacy Locator</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden md:flex items-center gap-space-sm px-space-md py-space-xs bg-surface-container-lowest rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.05),0_0_0_1px_#dbece5]"><span class="material-symbols-outlined text-outline text-[18px]">search</span><span class="font-body-sm text-body-sm text-on-surface-variant pr-space-md">Search generic, brand or NDC...</span><kbd class="font-label-sm text-label-sm px-1.5 py-0.5 bg-surface-container text-on-surface-variant rounded-md shadow-sm">⌘K</kbd></div><div class="relative flex items-center justify-center w-10 h-10 rounded-full bg-surface-container-lowest text-on-surface hover:bg-surface-container transition-all cursor-pointer"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-tertiary-container"></span></div><div class="flex items-center gap-space-sm pl-space-xs pr-space-md py-1 bg-surface-container-lowest rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.05),0_0_0_1px_#dbece5]"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><div class="flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface leading-tight">Yaryna Chuma</span><span class="font-label-sm text-label-sm text-secondary font-medium leading-none">Verified Patient</span></div><span class="material-symbols-outlined text-outline text-[18px] ml-space-xs">expand_more</span></div></div></div></header><main class="w-full pt-20 bg-background min-h-[calc(100vh-140px)]"><div class="flex flex-col w-full">
+<!-- Top Utility Context & Discovery Bar -->
+<div class="max-w-[1280px] w-full mx-auto px-margin pt-space-lg pb-space-sm">
+<!-- Informational Regulatory Banner -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-space-sm p-space-md bg-surface-container rounded-2xl shadow-sm mb-space-lg">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-secondary/15 flex items-center justify-center text-secondary shrink-0">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Verified Clinical Pharmacy Availability Registry</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Live decentralized inventory network across 84 accredited local dispensing apothecaries. Non-commercial patient allocation.</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs text-secondary shrink-0">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+<span class="font-label-sm text-label-sm font-semibold">Downtown Medical District (within 5.0 km)</span>
+</div>
+</div>
+<!-- Main Discovery Header & Dynamic Search Capsule -->
+<div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md mb-space-md">
+<div class="flex-1 relative">
+<div class="flex items-center gap-space-sm px-space-lg py-3.5 bg-surface-container-lowest rounded-full shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] focus-within:shadow-[0_4px_16px_-2px_rgba(30,69,62,0.12),0_0_0_2px_#2e685d] transition-all">
+<span class="material-symbols-outlined text-outline text-[22px]">search</span>
+<input class="w-full bg-transparent font-title-md text-title-md text-on-surface placeholder:text-outline-variant focus:outline-none" id="searchInput" placeholder="Search generic name, branded formula, NDC or therapeutic class..." type="text" value="Amoxicillin"/>
+<button class="p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" id="clearSearchBtn">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+<div class="h-5 w-[1px] bg-outline-variant/40 mx-space-xs"></div>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined text-[16px] text-secondary">tune</span>
+<span>Filters</span>
+</button>
+</div>
+</div>
+<!-- Quick Regulatory Switchers -->
+<div class="flex items-center gap-space-xs p-1 bg-surface-container rounded-full overflow-x-auto shrink-0">
+<button class="filter-tab active px-space-md py-2 rounded-full font-label-md text-label-md bg-primary-container text-on-primary shadow-sm transition-all" data-filter="all">All Formulations</button>
+<button class="filter-tab px-space-md py-2 rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" data-filter="rx">Rx Required</button>
+<button class="filter-tab px-space-md py-2 rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" data-filter="otc">OTC / Non-Rx</button>
+<button class="filter-tab px-space-md py-2 rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" data-filter="instock">In Stock Nearby</button>
+</div>
+</div>
+<!-- Category Pill Scroller -->
+<div class="flex items-center gap-space-xs overflow-x-auto pb-space-sm scrollbar-none">
+<button class="category-chip active flex items-center gap-1.5 px-space-md py-2 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shrink-0 shadow-sm transition-all">
+<span class="material-symbols-outlined text-[15px]">medication</span>
+<span>All Therapeutic Classes</span>
+</button>
+<button class="category-chip flex items-center gap-1.5 px-space-md py-2 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shrink-0 shadow-[0_1px_4px_rgba(30,69,62,0.04),0_0_0_1px_#dbece5] hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[15px] text-secondary">coronavirus</span>
+<span>Antibiotics &amp; Anti-infectives</span>
+</button>
+<button class="category-chip flex items-center gap-1.5 px-space-md py-2 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shrink-0 shadow-[0_1px_4px_rgba(30,69,62,0.04),0_0_0_1px_#dbece5] hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[15px] text-secondary">cardiology</span>
+<span>Cardiovascular</span>
+</button>
+<button class="category-chip flex items-center gap-1.5 px-space-md py-2 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shrink-0 shadow-[0_1px_4px_rgba(30,69,62,0.04),0_0_0_1px_#dbece5] hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[15px] text-secondary">healing</span>
+<span>Pain &amp; Anti-inflammatory</span>
+</button>
+<button class="category-chip flex items-center gap-1.5 px-space-md py-2 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shrink-0 shadow-[0_1px_4px_rgba(30,69,62,0.04),0_0_0_1px_#dbece5] hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[15px] text-secondary">pulmonology</span>
+<span>Respiratory &amp; Asthma</span>
+</button>
+<button class="category-chip flex items-center gap-1.5 px-space-md py-2 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shrink-0 shadow-[0_1px_4px_rgba(30,69,62,0.04),0_0_0_1px_#dbece5] hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[15px] text-secondary">bloodtype</span>
+<span>Diabetes Care</span>
+</button>
+<button class="category-chip flex items-center gap-1.5 px-space-md py-2 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm shrink-0 shadow-[0_1px_4px_rgba(30,69,62,0.04),0_0_0_1px_#dbece5] hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[15px] text-secondary">spa</span>
+<span>Allergy Relief</span>
+</button>
+</div>
+</div>
+<!-- Primary Content Area: Catalogue Grid + Side Insight Banner -->
+<div class="max-w-[1280px] w-full mx-auto px-margin py-space-md">
+<!-- Notice Bar for Search State -->
+<div class="flex items-center justify-between pb-space-md mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">Catalog Results</span>
+<span class="px-2.5 py-0.5 rounded-full bg-secondary/10 text-secondary font-label-sm text-label-sm">6 Formulations Available</span>
+</div>
+<div class="flex items-center gap-space-sm text-on-surface-variant font-label-md text-label-md">
+<span>Sort by:</span>
+<button class="flex items-center gap-1 font-semibold text-primary hover:text-secondary transition-all">
+<span>Pharmacy Proximity</span>
+<span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+</button>
+</div>
+</div>
+<!-- Medicine Card Grid (Bento Style 3x2) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg mb-space-xl">
+<!-- CARD 1: Amoxicillin 500mg (Active in request) -->
+<div class="medicine-card group bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] hover:shadow-[0_12px_28px_-6px_rgba(30,69,62,0.12)] transition-all flex flex-col justify-between relative overflow-hidden" data-id="med-1" data-type="rx">
+<div class="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">prescriptions</span>
+<span>Rx Required</span>
+</div>
+<div>
+<!-- Imagery preview well -->
+<div class="w-full h-44 rounded-xl bg-surface-container/60 mb-space-md flex items-center justify-center relative overflow-hidden group-hover:bg-surface-container transition-colors">
+<img class="h-32 object-contain filter drop-shadow-sm transition-transform duration-300 group-hover:scale-105" data-alt="A clean pharmaceutical studio product photograph of Amoxicillin 500mg capsule packaging and blister foil against an organic light sage background with clinical precision lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCoq1zN5Dn6A0g5NF0NYj4kgSQnZEq6Jr0CPVZmotriUQrgfCS8ubFfIF2nXzrQiH-J-SId7OFThT2JVlTMJOqegRlpKUX3_PT1p155NZTx5ZjDP2EPHdX3Ihe5VzSXUET38x1BLdDn2PSZx1cSYSNJ067ys0dIziRl6yePHWDJTQ429oIe7mp-NoBfdsXLQXOkeJKJsCAQDxvUQ-l3Uhvstxf5FxLEvxzAvZRwoSiIbMgtKD0DX5SpWA"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant font-label-sm text-label-sm shadow-xs">
+              Capsule 20s
+            </div>
+</div>
+<!-- Metadata -->
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm font-semibold">Antibiotic</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Oral Capsule</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">Amoxicillin 500mg</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 mb-space-md">Generic: Amoxicillin Trihydrate • Anti-infective agent</p>
+<!-- Pharmacy Availability Tag -->
+<div class="p-space-sm bg-surface-container rounded-xl flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">14 Nearby Pharmacies Stocked</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Closest 0.4 mi</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-space-sm border-t-0 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Price Est.</span>
+<span class="font-title-lg text-title-lg text-primary font-bold">$12.40<span class="text-label-sm font-normal text-on-surface-variant"> / pack</span></span>
+</div>
+<!-- Quantity Stepper / Added State -->
+<div class="flex items-center gap-2 bg-surface-container-high px-2 py-1.5 rounded-full">
+<button class="step-down w-7 h-7 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container flex items-center justify-center transition-all shadow-xs" data-target="qty-1">
+<span class="material-symbols-outlined text-[16px]">remove</span>
+</button>
+<span class="font-title-md text-title-md text-primary font-bold w-6 text-center" id="qty-1">2</span>
+<button class="step-up w-7 h-7 rounded-full bg-primary-container text-on-primary hover:bg-primary flex items-center justify-center transition-all shadow-xs" data-target="qty-1">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- CARD 2: Lipitor 20mg -->
+<div class="medicine-card group bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] hover:shadow-[0_12px_28px_-6px_rgba(30,69,62,0.12)] transition-all flex flex-col justify-between relative overflow-hidden" data-id="med-2" data-type="rx">
+<div class="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">prescriptions</span>
+<span>Rx Required</span>
+</div>
+<div>
+<!-- Imagery preview well -->
+<div class="w-full h-44 rounded-xl bg-surface-container/60 mb-space-md flex items-center justify-center relative overflow-hidden group-hover:bg-surface-container transition-colors">
+<img class="h-32 object-contain filter drop-shadow-sm transition-transform duration-300 group-hover:scale-105" data-alt="A clinical studio shot of Lipitor 20mg brand box with Atorvastatin Calcium prescription tablets on a clean soft mint and white surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIhj340jXiw0vFQOAW25S_1I35EeDrL_5WCWYNoF_RutESzL8Mf_wftnKNe2nt-74qb-4_moxx8CvO7OwPPBhDSm31iCROKuoZK2CwJj-77_wyYj8aXqbgrbGsHT9JF5KVbQRKts13yHga3Me42dpaKITrq_vdbfXahvLIKMoIfM8Cqs_Dz50eYOa2Li-wWd3Z9My3oYOO41zXrcyrcPvIZS4Pq97XdXg3psiaFWlreXl6_CuBtNDmHw"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant font-label-sm text-label-sm shadow-xs">
+              Tablet 30s
+            </div>
+</div>
+<!-- Metadata -->
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm font-semibold">Cardiovascular</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Film-coated Tab</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">Lipitor 20mg</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 mb-space-md">Brand: Atorvastatin Calcium • Lipid lowering statin</p>
+<!-- Pharmacy Availability Tag -->
+<div class="p-space-sm bg-surface-container rounded-xl flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">21 Nearby Pharmacies Stocked</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Closest 0.6 mi</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-space-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Price Est.</span>
+<span class="font-title-lg text-title-lg text-primary font-bold">$28.50<span class="text-label-sm font-normal text-on-surface-variant"> / box</span></span>
+</div>
+<!-- Quantity Stepper / In Request 1 -->
+<div class="flex items-center gap-2 bg-surface-container-high px-2 py-1.5 rounded-full">
+<button class="step-down w-7 h-7 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container flex items-center justify-center transition-all shadow-xs" data-target="qty-2">
+<span class="material-symbols-outlined text-[16px]">remove</span>
+</button>
+<span class="font-title-md text-title-md text-primary font-bold w-6 text-center" id="qty-2">1</span>
+<button class="step-up w-7 h-7 rounded-full bg-primary-container text-on-primary hover:bg-primary flex items-center justify-center transition-all shadow-xs" data-target="qty-2">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- CARD 3: Ventolin Evohaler 100mcg -->
+<div class="medicine-card group bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] hover:shadow-[0_12px_28px_-6px_rgba(30,69,62,0.12)] transition-all flex flex-col justify-between relative overflow-hidden" data-id="med-3" data-type="rx">
+<div class="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">prescriptions</span>
+<span>Rx Required</span>
+</div>
+<div>
+<!-- Imagery preview well -->
+<div class="w-full h-44 rounded-xl bg-surface-container/60 mb-space-md flex items-center justify-center relative overflow-hidden group-hover:bg-surface-container transition-colors">
+<img class="h-32 object-contain filter drop-shadow-sm transition-transform duration-300 group-hover:scale-105" data-alt="A clean pharmaceutical canister of Ventolin Evohaler 100mcg blue inhaler dispenser placed on a soft mint gradient platform with crisp clinical shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUaz7G_9AxJbmt4FDdso9RGAkh95TKH-lggdCLd9Nv7ruSl3XiW4KA5fxeMRmagAk9mkojY70D5nPMw5b5gO1RIgEIuBbbI1IMU9TVgejIk7QJ1ImzJyrqrPjJg_ICWzv-lnvQLMwE2I8z_ukLdtq26q-lDbDsGxee1XJ6XZpy-XDOO4wuAzrMkgS7qWCZP7wLlLiK8UeIwLZ8RGqvoGrQqJPDaf3_DGTg14s51DcCT5Ql4qpjzMivFg"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant font-label-sm text-label-sm shadow-xs">
+              Inhaler 200 Doses
+            </div>
+</div>
+<!-- Metadata -->
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm font-semibold">Respiratory</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Aerosol Inhalation</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">Ventolin Evohaler</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 mb-space-md">Generic: Salbutamol Sulfate • Bronchodilator rescue</p>
+<!-- Pharmacy Availability Tag -->
+<div class="p-space-sm bg-surface-container rounded-xl flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">9 Nearby Pharmacies Stocked</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Closest 1.1 mi</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-space-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Price Est.</span>
+<span class="font-title-lg text-title-lg text-primary font-bold">$18.90<span class="text-label-sm font-normal text-on-surface-variant"> / unit</span></span>
+</div>
+<!-- Add to Request CTA Button -->
+<button class="add-to-request-btn px-space-md py-2.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md flex items-center gap-1.5 shadow-sm hover:bg-primary transition-all">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Add to Request</span>
+</button>
+</div>
+</div>
+<!-- CARD 4: Paracetamol Extra 500mg/65mg (OTC) -->
+<div class="medicine-card group bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] hover:shadow-[0_12px_28px_-6px_rgba(30,69,62,0.12)] transition-all flex flex-col justify-between relative overflow-hidden" data-id="med-4" data-type="otc">
+<div class="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container/40 text-on-secondary-container font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
+<span>OTC / Non-Rx</span>
+</div>
+<div>
+<!-- Imagery preview well -->
+<div class="w-full h-44 rounded-xl bg-surface-container/60 mb-space-md flex items-center justify-center relative overflow-hidden group-hover:bg-surface-container transition-colors">
+<img class="h-32 object-contain filter drop-shadow-sm transition-transform duration-300 group-hover:scale-105" data-alt="A clean pharmaceutical box of Paracetamol Extra 500mg caffeine analgesic tablets neatly centered on an organic sage background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDw_XJYs7SD_I3SwbByHOTjvEOI7EOysAtsBu3T0gg_GCfYXGqEFjL8qT1OdroUAWIyYTkH3YpBZSd1IGesonCrv-XW7YODzBlO2aPcm4pSK3MTqo7MW-_F6EalMm7DTJMU9k3Zco9J5WoLSgmXSaxwevB5ib5g3VbisL0Xf2b6HoSlejFQ92nRHvZcGGNpFGSHFvuJlSBoKGaFN9FC_T8pPGgJFREeiEnKpoCpGWiM6NcXR174bdv1kw"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant font-label-sm text-label-sm shadow-xs">
+              Caplets 24s
+            </div>
+</div>
+<!-- Metadata -->
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm font-semibold">Pain Relief</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Oral Solid</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">Paracetamol Extra</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 mb-space-md">Acetaminophen 500mg • Caffeine 65mg quick relief</p>
+<!-- Pharmacy Availability Tag -->
+<div class="p-space-sm bg-surface-container rounded-xl flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">38 Nearby Pharmacies Stocked</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Closest 0.2 mi</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-space-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Retail Standard</span>
+<span class="font-title-lg text-title-lg text-primary font-bold">$6.25<span class="text-label-sm font-normal text-on-surface-variant"> / box</span></span>
+</div>
+<button class="add-to-request-btn px-space-md py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Add to Request</span>
+</button>
+</div>
+</div>
+<!-- CARD 5: Metformin Hydrochloride 850mg -->
+<div class="medicine-card group bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] hover:shadow-[0_12px_28px_-6px_rgba(30,69,62,0.12)] transition-all flex flex-col justify-between relative overflow-hidden" data-id="med-5" data-type="rx">
+<div class="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">prescriptions</span>
+<span>Rx Required</span>
+</div>
+<div>
+<!-- Imagery preview well -->
+<div class="w-full h-44 rounded-xl bg-surface-container/60 mb-space-md flex items-center justify-center relative overflow-hidden group-hover:bg-surface-container transition-colors">
+<img class="h-32 object-contain filter drop-shadow-sm transition-transform duration-300 group-hover:scale-105" data-alt="A clean pharmaceutical bottle of Metformin Hydrochloride 850mg tablets for diabetes glycemic control with crisp prescription label in bright clinical lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCq24E4JuqCUVxDbT_mMcXuZ0DouwPWHViWWdzzx5VGjWkPXIcQR9NYxvWq4xksO90WB1dx4rdZWWTPwSsUymPpVVgMLbF78wenDHmRH0xUJJfwvMWAXUvIeprfx4xi1UXS7ZSEutCA-zW8xNM0dI7zLUufLNQMK-ExZ2pVfNMhhc2ptyHVyUct7G7FZCnwFCV26qXU1B59N5fLR_A1YHT-yhto5l7VCFDjAoFw2bniy7N-_AQzHog6dw"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant font-label-sm text-label-sm shadow-xs">
+              Bottle 60s
+            </div>
+</div>
+<!-- Metadata -->
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm font-semibold">Diabetes Care</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Oral Biguanide</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">Metformin HCl 850mg</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 mb-space-md">Glucophage generic • Glycemic insulin sensitivity regulation</p>
+<!-- Pharmacy Availability Tag -->
+<div class="p-space-sm bg-surface-container rounded-xl flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">19 Nearby Pharmacies Stocked</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Closest 0.5 mi</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-space-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Price Est.</span>
+<span class="font-title-lg text-title-lg text-primary font-bold">$9.80<span class="text-label-sm font-normal text-on-surface-variant"> / bottle</span></span>
+</div>
+<button class="add-to-request-btn px-space-md py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Add to Request</span>
+</button>
+</div>
+</div>
+<!-- CARD 6: Cetirizine 10mg (OTC) -->
+<div class="medicine-card group bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06),0_0_0_1px_#dbece5] hover:shadow-[0_12px_28px_-6px_rgba(30,69,62,0.12)] transition-all flex flex-col justify-between relative overflow-hidden" data-id="med-6" data-type="otc">
+<div class="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container/40 text-on-secondary-container font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
+<span>OTC / Non-Rx</span>
+</div>
+<div>
+<!-- Imagery preview well -->
+<div class="w-full h-44 rounded-xl bg-surface-container/60 mb-space-md flex items-center justify-center relative overflow-hidden group-hover:bg-surface-container transition-colors">
+<img class="h-32 object-contain filter drop-shadow-sm transition-transform duration-300 group-hover:scale-105" data-alt="A clean pharmaceutical blister pack of Cetirizine 10mg allergy tablets on a light botanical sage background with natural soft reflections" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4KPZVAgUsMNOkmIQlAuY_H55_Lly9yuHx9i7SAkKGJ8PY6Be1OH7iUXhZVlenGXsKB1uKLFgwlRr6WJpta4lIUgeUrohD7JjfjvvZWWzIQpzsp0Bs-wZ8MOOmCgFSIzU4A6CrymiyKP8dyWkLLpYj1SUuv7QsXrkY3PxdmW1VZWxJaENk9Yg8V3PxxU7zP0AXRxEFO5sTGvKX4wLtnfqMx6aiKhUiTrNND_L58I8b-Nmy3R54FhTTZw"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface-variant font-label-sm text-label-sm shadow-xs">
+              Blister 30s
+            </div>
+</div>
+<!-- Metadata -->
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm font-semibold">Allergy Care</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">2nd Gen Antihistamine</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">Cetirizine HCl 10mg</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 mb-space-md">Generic: Zyrtec • 24hr non-drowsy relief for rhinitis &amp; hives</p>
+<!-- Pharmacy Availability Tag -->
+<div class="p-space-sm bg-surface-container rounded-xl flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">42 Nearby Pharmacies Stocked</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Closest 0.1 mi</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-space-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Retail Standard</span>
+<span class="font-title-lg text-title-lg text-primary font-bold">$11.20<span class="text-label-sm font-normal text-on-surface-variant"> / box</span></span>
+</div>
+<button class="add-to-request-btn px-space-md py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>Add to Request</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Prescriptions Direct Upload Banner Card (Inspired by Screen 1 Reference) -->
+<div class="w-full bg-gradient-to-r from-primary via-primary-container to-secondary rounded-2xl p-space-lg md:p-space-xl text-on-primary flex flex-col md:flex-row items-center justify-between gap-space-lg shadow-md mb-space-xl relative overflow-hidden">
+<!-- Decorative Organic Radial Glow -->
+<div class="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-secondary-fixed/10 filter blur-3xl pointer-events-none"></div>
+<div class="flex flex-col max-w-xl z-10">
+<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-lowest/15 backdrop-blur-md text-primary-fixed w-max mb-space-sm">
+<span class="material-symbols-outlined text-[16px]">document_scanner</span>
+<span class="font-label-sm text-label-sm font-semibold uppercase tracking-wider">Automated Rx Scan</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg font-bold text-white tracking-tight">Have a Paper Prescription from your Doctor?</h2>
+<p class="font-body-md text-body-md text-surface-container mt-2">
+          Upload an image of your written prescription. MediFind's clinical optical recognition extracts dosage, NDC codes, and scans verified neighborhood pharmacy stock instantly.
+        </p>
+<div class="flex flex-wrap items-center gap-space-md mt-space-lg">
+<button class="px-space-lg py-3 rounded-full bg-surface-container-lowest text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-all flex items-center gap-space-xs shadow-sm">
+<span class="material-symbols-outlined text-[20px]">upload_file</span>
+<span>Upload Written Prescription</span>
+</button>
+<span class="font-label-sm text-label-sm text-surface-container/80 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-primary-fixed">lock</span>
+            HIPAA-compliant document handling
+          </span>
+</div>
+</div>
+<div class="relative z-10 shrink-0 w-44 md:w-60 h-44 rounded-2xl bg-surface-container-lowest/10 backdrop-blur-md p-space-md flex flex-col items-center justify-center border-0 text-center">
+<div class="w-16 h-16 rounded-full bg-surface-container-lowest text-primary flex items-center justify-center shadow-lg mb-space-sm">
+<span class="material-symbols-outlined text-[32px]">photo_camera</span>
+</div>
+<span class="font-title-md text-title-md font-bold text-white">Quick Snap &amp; Match</span>
+<span class="font-body-sm text-body-sm text-surface-container/70 mt-1">Average verification: 4 mins</span>
+</div>
+</div>
+</div>
+<!-- FLOATING BOTTOM ACTIVE MEDICINE REQUEST DOCK (Persistent Summary Capsule) -->
+<div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-[860px]">
+<div class="bg-surface-container-lowest/95 backdrop-blur-xl rounded-full p-2.5 pl-space-lg shadow-[0_12px_40px_-6px_rgba(22,54,48,0.18),0_0_0_1px_#dbece5] flex items-center justify-between gap-space-md">
+<!-- Medicines Selected Indicator -->
+<div class="flex items-center gap-space-md">
+<div class="relative flex items-center justify-center w-11 h-11 rounded-full bg-primary-container text-on-primary">
+<span class="material-symbols-outlined text-[22px]">medical_services</span>
+<span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-secondary text-white font-label-sm text-[11px] flex items-center justify-center font-bold">2</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-bold">Active Medicine Request</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm font-semibold">2 Selected</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Amoxicillin 500mg (2x) • Lipitor 20mg (1x)</span>
+</div>
+</div>
+<!-- Action Group -->
+<div class="flex items-center gap-space-sm">
+<button class="hidden sm:flex items-center gap-1.5 px-space-md py-2.5 rounded-full bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-all" id="toggleDrawerBtn">
+<span class="material-symbols-outlined text-[18px]">list_alt</span>
+<span>View Items</span>
+</button>
+<button class="px-space-lg py-3 rounded-full bg-primary-container text-on-primary font-label-lg text-label-lg font-bold hover:bg-primary transition-all flex items-center gap-2 shadow-sm">
+<span>Check Pharmacy Availability</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Interactive Slide-Over Drawer for Active Medicine Request Preview -->
+<div class="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-300" id="requestDrawer">
+<!-- Backdrop overlay -->
+<div class="absolute inset-0 bg-primary/20 backdrop-blur-xs transition-opacity" id="drawerBackdrop"></div>
+<!-- Drawer Panel -->
+<div class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-surface-container-lowest shadow-2xl p-space-lg flex flex-col justify-between transform translate-x-full transition-transform duration-300 pointer-events-auto">
+<div>
+<div class="flex items-center justify-between pb-space-md mb-space-md">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[24px]">assignment_turned_in</span>
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">Medicine Request</h3>
+</div>
+<button class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" id="closeDrawerBtn">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="p-space-md bg-surface-container-low rounded-2xl mb-space-md">
+<span class="font-label-sm text-label-sm font-semibold text-secondary uppercase tracking-wider">Clinical Availability Notice</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+            This request initiates a concurrent stock reservation inquiry across 14 credentialed dispensing pharmacies within your location perimeter.
+          </p>
+</div>
+<div class="flex flex-col gap-space-md">
+<!-- Item 1 -->
+<div class="p-space-md bg-surface-container rounded-2xl flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface font-bold">Amoxicillin 500mg</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Capsule 20s • Rx Required</span>
+<span class="font-label-md text-label-md text-primary font-bold mt-1">$24.80 (2 units)</span>
+</div>
+<div class="flex items-center gap-2 bg-surface-container-lowest px-2 py-1 rounded-full shadow-xs">
+<span class="font-label-md text-label-md px-2 font-bold text-primary">Qty: 2</span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="p-space-md bg-surface-container rounded-2xl flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface font-bold">Lipitor 20mg</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tablet 30s • Rx Required</span>
+<span class="font-label-md text-label-md text-primary font-bold mt-1">$28.50 (1 unit)</span>
+</div>
+<div class="flex items-center gap-2 bg-surface-container-lowest px-2 py-1 rounded-full shadow-xs">
+<span class="font-label-md text-label-md px-2 font-bold text-primary">Qty: 1</span>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-space-md">
+<div class="flex items-center justify-between py-space-sm mb-space-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Estimated Network Price</span>
+<span class="font-headline-sm text-headline-sm text-primary font-bold">$53.30</span>
+</div>
+<button class="w-full py-3.5 rounded-full bg-primary-container text-on-primary font-label-lg text-label-lg font-bold hover:bg-primary transition-all flex items-center justify-center gap-2 shadow-sm">
+<span>Verify Dispensing Apothecaries</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    // Stepper and Add to Request Interactions
+    const upButtons = document.querySelectorAll('.step-up');
+    const downButtons = document.querySelectorAll('.step-down');
+
+    upButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        const countSpan = document.getElementById(targetId);
+        if (countSpan) {
+          let count = parseInt(countSpan.textContent, 10);
+          countSpan.textContent = count + 1;
+        }
+      });
+    });
+
+    downButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        const countSpan = document.getElementById(targetId);
+        if (countSpan) {
+          let count = parseInt(countSpan.textContent, 10);
+          if (count > 1) {
+            countSpan.textContent = count - 1;
+          }
+        }
+      });
+    });
+
+    // Add to request button toggle
+    const addButtons = document.querySelectorAll('.add-to-request-btn');
+    addButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!btn.classList.contains('in-request')) {
+          btn.classList.add('in-request');
+          btn.classList.remove('bg-surface-container', 'text-primary');
+          btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+          btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">done</span><span>In Request (1)</span>`;
+        }
+      });
+    });
+
+    // Category Chip selection
+    const categoryChips = document.querySelectorAll('.category-chip');
+    categoryChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        categoryChips.forEach(c => {
+          c.classList.remove('active', 'bg-primary-container', 'text-on-primary');
+          c.classList.add('bg-surface-container-lowest', 'text-on-surface');
+        });
+        chip.classList.add('active', 'bg-primary-container', 'text-on-primary');
+        chip.classList.remove('bg-surface-container-lowest', 'text-on-surface');
+      });
+    });
+
+    // Drawer Toggle
+    const toggleDrawerBtn = document.getElementById('toggleDrawerBtn');
+    const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+    const requestDrawer = document.getElementById('requestDrawer');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const drawerPanel = requestDrawer ? requestDrawer.querySelector('.max-w-md') : null;
+
+    function openDrawer() {
+      if (requestDrawer && drawerPanel) {
+        requestDrawer.classList.remove('pointer-events-none', 'opacity-0');
+        requestDrawer.classList.add('pointer-events-auto', 'opacity-100');
+        drawerPanel.classList.remove('translate-x-full');
+      }
+    }
+
+    function closeDrawer() {
+      if (requestDrawer && drawerPanel) {
+        requestDrawer.classList.add('pointer-events-none', 'opacity-0');
+        requestDrawer.classList.remove('pointer-events-auto', 'opacity-100');
+        drawerPanel.classList.add('translate-x-full');
+      }
+    }
+
+    if (toggleDrawerBtn) toggleDrawerBtn.addEventListener('click', openDrawer);
+    if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
+    if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+
+    // Search Clear
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const searchInput = document.getElementById('searchInput');
+    if (clearSearchBtn && searchInput) {
+      clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchInput.focus();
+      });
+    }
+  })();
+</script></main><footer class="w-full bg-surface-container-low mt-space-xl shadow-[0_-1px_12px_rgba(30,69,62,0.03)]"><div class="max-w-[1280px] mx-auto px-margin py-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex flex-wrap items-center gap-space-lg"><div class="flex items-center gap-space-xs text-on-surface"><span class="material-symbols-outlined text-[18px] text-secondary">verified_user</span><span class="font-label-md text-label-md">HIPAA &amp; SOC-2 Type II Certified</span></div><div class="flex items-center gap-space-xs text-on-surface"><span class="material-symbols-outlined text-[18px] text-secondary">lock</span><span class="font-label-md text-label-md">256-bit AES Clinical Data Encryption</span></div><div class="flex items-center gap-space-xs text-on-surface"><span class="material-symbols-outlined text-[18px] text-secondary">health_and_safety</span><span class="font-label-md text-label-md">FDA Real-Time Medicine Verification</span></div></div><div class="flex items-center gap-space-md"><span class="font-body-sm text-body-sm text-on-surface-variant">© 2024 MediFind AI Inc. Restricted medical prescription platform.</span></div></div></footer></body></html>

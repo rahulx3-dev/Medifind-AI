@@ -1,0 +1,354 @@
+[
+  {
+    "index": 1,
+    "title": "MediFind AI — Pharmacist Dashboard / Reservation Queue",
+    "screenId": "f3b5142cfc0a43b48cb058fc82f47ab6",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3046"
+  },
+  {
+    "index": 2,
+    "title": "MediFind AI — Mobile Cart Bottom Sheet",
+    "screenId": "2297e42167124a9aaa778a12076b797c",
+    "device": "MOBILE",
+    "width": "780",
+    "height": "1768"
+  },
+  {
+    "index": 3,
+    "title": "MediFind AI — Patient Home / Medicine Discovery",
+    "screenId": "87e07d5b9d1e441487ab073ccedddd16",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3660"
+  },
+  {
+    "index": 4,
+    "title": "MediFind AI — Order Detail",
+    "screenId": "5404446c711d4b27a7369ec0b40edb07",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3408"
+  },
+  {
+    "index": 5,
+    "title": "MediFind AI — Admin Overview / Operations Dashboard",
+    "screenId": "06e1be6626c6482a938ed8ccccfc71e7",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2260"
+  },
+  {
+    "index": 6,
+    "title": "MediFind AI — Prescription Verification Success",
+    "screenId": "b82bba59ee714ba2af852ae1eb70deb0",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3374"
+  },
+  {
+    "index": 7,
+    "title": "MediFind AI — Medicine Search / Catalogue",
+    "screenId": "8183425688289776459",
+    "device": "DESKTOP",
+    "width": "3456",
+    "height": "3482"
+  },
+  {
+    "index": 8,
+    "title": "MediFind AI — Order Tracking / Fulfillment Journey",
+    "screenId": "f93a243ff9114238bcdca6e5ef837fc7",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4472"
+  },
+  {
+    "index": 9,
+    "title": "MediFind AI — Global Empty, Error & Offline States",
+    "screenId": "829fca4d6e414ef487df58d44d842538",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "5236"
+  },
+  {
+    "index": 10,
+    "title": "MediFind AI — My Orders",
+    "screenId": "702dca9d989c4f3fae71585f1340dd2d",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3596"
+  },
+  {
+    "index": 11,
+    "title": "MediFind AI — Active Delivery / Collection Journey",
+    "screenId": "3d70ed6c36e64c2089bf27a1190c4220",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2998"
+  },
+  {
+    "index": 12,
+    "title": "MediFind AI — Prescription Verification",
+    "screenId": "ebfde8293be14e72aa1b7f0c6078b3d0",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3326"
+  },
+  {
+    "index": 13,
+    "title": "MediFind AI — Admin Users Management",
+    "screenId": "b7cc3c6e9919470ab7c0ab7ca500c40e",
+    "device": "DESKTOP",
+    "width": "3712",
+    "height": "2524"
+  },
+  {
+    "index": 14,
+    "title": "4edc0f35-deca-4ac9-bd3c-1f85291efcdf.png",
+    "screenId": "15650668332368753744",
+    "device": "DESKTOP",
+    "width": "4084",
+    "height": "2384"
+  },
+  {
+    "index": 15,
+    "title": "MediFind AI — Medicine Request",
+    "screenId": "89bf078295d94951a0112e7a4003ab49",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2048"
+  },
+  {
+    "index": 16,
+    "title": "MediFind AI — Admin Activity / Audit Timeline",
+    "screenId": "8bd85b04f7b644119dccf8bafc76f674",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4560"
+  },
+  {
+    "index": 17,
+    "title": "MediFind AI — Emergency Access Locator",
+    "screenId": "6c58a3d9c6794d768aab602871b40cce",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3324"
+  },
+  {
+    "index": 18,
+    "title": "MediFind AI — Payment Result",
+    "screenId": "538d639b774046d7a964776ad22590bd",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2876"
+  },
+  {
+    "index": 19,
+    "title": "MediFind AI — Global Loading & Skeleton System",
+    "screenId": "730217dc7c9d4d3c86a0df732f0cf9ab",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "6096"
+  },
+  {
+    "index": 20,
+    "title": "MediFind AI — Pharmacy Discovery (List + Map)",
+    "screenId": "2b95309f81c045f1abea8aab143873f7",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3500"
+  },
+  {
+    "index": 21,
+    "title": "MediFind AI — Prescription Upload",
+    "screenId": "e21903e1d8aa47b686c1bd2e7d51f0fb",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2884"
+  },
+  {
+    "index": 22,
+    "title": "MediFind AI — Admin Orders Management",
+    "screenId": "0916c1f366ec4dd6a023db9858f6b33f",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3932"
+  },
+  {
+    "index": 23,
+    "title": "MediFind AI — Patient Login",
+    "screenId": "3b10644b22b94caca002709a1953545b",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2048"
+  },
+  {
+    "index": 24,
+    "title": "MediFind AI — Global Notifications, Dialogs & Feedback System",
+    "screenId": "28f48993939048028389ee526567f80e",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4864"
+  },
+  {
+    "index": 25,
+    "title": "MediFind AI — Notifications Center",
+    "screenId": "52912e2e06c047328afe817878a523b6",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3628"
+  },
+  {
+    "index": 26,
+    "title": "MediFind AI — Low-Confidence / Manual Medicine Mapping",
+    "screenId": "7861901e465f40148c7c56a0f7667051",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3598"
+  },
+  {
+    "index": 27,
+    "title": "MediFind AI — Payment Result (Payment Failed)",
+    "screenId": "c6f9056e403749adab26d230a6e26584",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3810"
+  },
+  {
+    "index": 28,
+    "title": "MediFind AI — Reservation Confirmation",
+    "screenId": "1ec70d94bfab4d13bb7a821e7e3aaef6",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4368"
+  },
+  {
+    "index": 29,
+    "title": "MediFind AI — Patient Registration",
+    "screenId": "4ba824b4999346efa88c1d7b063e7aa0",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2246"
+  },
+  {
+    "index": 30,
+    "title": "MediFind AI — Admin Pharmacies & Verification",
+    "screenId": "2339726cd5224f6e8e2f550e4d6c6787",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3996"
+  },
+  {
+    "index": 31,
+    "title": "MediFind AI — Pharmacy Availability Comparison / Ranking",
+    "screenId": "97480310c8de4e19866b2d1c80174098",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4564"
+  },
+  {
+    "index": 32,
+    "title": "MediFind AI — Checkout / Fulfillment",
+    "screenId": "beb63d6472d9476b81f1e019017cf1f0",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3610"
+  },
+  {
+    "index": 33,
+    "title": "MediFind AI — Medicine Access Assistant Task Dashboard",
+    "screenId": "417169381336423f87860fcfdec74800",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4438"
+  },
+  {
+    "index": 34,
+    "title": "MediFind AI — Reservation Success",
+    "screenId": "d137f4b77ed04a4582607e5dd71d43d6",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3552"
+  },
+  {
+    "index": 35,
+    "title": "MediFind AI — Assistant Handover PIN / Delivery Completion",
+    "screenId": "328bf1e020a84455a4fa2f2817f6dc5d",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2596"
+  },
+  {
+    "index": 36,
+    "title": "MediFind AI — Pharmacy Detail & Availability Overview",
+    "screenId": "3b2d2a6bdc4547ca9acfbb3352ea5c4b",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "4254"
+  },
+  {
+    "index": 37,
+    "title": "MediFind AI — Emergency Pharmacy Detail / Emergency Access Request",
+    "screenId": "b24b7e881b4e4581b93baa5a9ac4b655",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2958"
+  },
+  {
+    "index": 38,
+    "title": "MediFind AI — Pharmacist Inventory Management",
+    "screenId": "d0880b15e57d41829257ab96eb826cd3",
+    "device": "DESKTOP",
+    "width": "3712",
+    "height": "2600"
+  },
+  {
+    "index": 39,
+    "title": "MediFind AI — Admin Emergency & Logistics",
+    "screenId": "24be6ca492f041eb966a64d73e5226a1",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "3272"
+  },
+  {
+    "index": 40,
+    "title": "MediFind AI — Payment Processing",
+    "screenId": "e7c9773c45c54c6eac34b89e47dc8d81",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2940"
+  },
+  {
+    "index": 41,
+    "title": "MediFind AI — OCR Processing",
+    "screenId": "13c2201a4ee24067ba968f75ac622ae7",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2916"
+  },
+  {
+    "index": 42,
+    "title": "MediFind AI — Camera Capture",
+    "screenId": "a166a211596e47dc801b859c094fceae",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2048"
+  },
+  {
+    "index": 43,
+    "title": "MediFind AI — Pharmacy Map & Location Exploration",
+    "screenId": "3b0524d631944328ba17f5eb1f3c4673",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2224"
+  },
+  {
+    "index": 44,
+    "title": "MediFind AI — Reservation Detail + Counter PIN Verification",
+    "screenId": "cd3c9feb12e84af2962935316bf94d82",
+    "device": "DESKTOP",
+    "width": "2560",
+    "height": "2598"
+  }
+]

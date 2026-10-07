@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>MediFind AI - Clinical Operations</title><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed": "#b3eee0", "on-secondary-container": "#336c61", "error-container": "#ffdad6", "inverse-primary": "#a6cfc5", "on-primary": "#ffffff", "on-error": "#ffffff", "outline": "#717976", "primary-container": "#1e453e", "surface-container-low": "#e6f8f1", "secondary": "#2e685d", "tertiary-fixed-dim": "#ffb4a8", "surface-dim": "#cdded7", "surface-container-lowest": "#ffffff", "on-secondary": "#ffffff", "surface-bright": "#ecfdf7", "on-secondary-fixed-variant": "#105045", "primary-fixed-dim": "#a6cfc5", "on-error-container": "#93000a", "secondary-container": "#b0ecdd", "primary-fixed": "#c1ebe1", "outline-variant": "#c0c8c5", "on-surface": "#0f1e1b", "on-secondary-fixed": "#00201b", "on-tertiary-fixed-variant": "#8a1c10", "on-primary-fixed": "#00201b", "surface-tint": "#3f655e", "tertiary": "#5a0100", "on-tertiary": "#ffffff", "surface": "#ecfdf7", "surface-container-high": "#dbece5", "surface-container-highest": "#d5e6e0", "on-background": "#0f1e1b", "tertiary-container": "#7e1208", "surface-container": "#e0f2eb", "on-primary-container": "#8ab2a9", "on-tertiary-container": "#ff8875", "surface-variant": "#d5e6e0", "primary": "#032f28", "inverse-surface": "#24332f", "background": "#ecfdf7", "on-primary-fixed-variant": "#274d46", "secondary-fixed-dim": "#97d2c4", "on-surface-variant": "#414846", "error": "#ba1a1a", "inverse-on-surface": "#e3f5ee", "tertiary-fixed": "#ffdad4", "on-tertiary-fixed": "#410100" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-xs": "0.25rem", "gutter": "1rem", "space-xl": "2rem", "margin-mobile": "1rem", "gutter-mobile": "0.75rem", "space-lg": "1.5rem", "space-sm": "0.5rem", "space-md": "1rem", "margin": "2rem" }, "fontFamily": { "headline-md": [ "Plus Jakarta Sans" ], "label-md": [ "Plus Jakarta Sans" ], "title-lg": [ "Plus Jakarta Sans" ], "label-sm": [ "Plus Jakarta Sans" ], "headline-sm": [ "Plus Jakarta Sans" ], "body-lg": [ "Plus Jakarta Sans" ], "headline-lg-mobile": [ "Plus Jakarta Sans" ], "title-md": [ "Plus Jakarta Sans" ], "headline-lg": [ "Plus Jakarta Sans" ], "body-sm": [ "Plus Jakarta Sans" ], "display": [ "Plus Jakarta Sans" ], "body-md": [ "Plus Jakarta Sans" ], "label-lg": [ "Plus Jakarta Sans" ] }, "fontSize": { "headline-md": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "label-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" } ], "title-lg": [ "18px", { "lineHeight": "26px", "fontWeight": "600" } ], "label-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "headline-sm": [ "20px", { "lineHeight": "28px", "fontWeight": "600" } ], "body-lg": [ "16px", { "lineHeight": "24px", "fontWeight": "400" } ], "headline-lg-mobile": [ "26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700" } ], "title-md": [ "16px", { "lineHeight": "24px", "fontWeight": "600" } ], "headline-lg": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "700" } ], "body-sm": [ "12px", { "lineHeight": "18px", "fontWeight": "400" } ], "display": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "body-md": [ "14px", { "lineHeight": "20px", "fontWeight": "400" } ], "label-lg": [ "14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" } ] } } } };</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-20 w-full max-w-[1280px] mx-auto px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-secondary-fixed text-[22px]">local_pharmacy</span></div><div class="flex flex-col"><span class="font-title-md text-title-md text-primary font-bold tracking-tight">MediFind AI</span><span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Logistics Core</span></div></div><div class="hidden sm:flex items-center gap-space-xs px-space-sm py-space-xs bg-secondary-container/50 rounded-full"><span class="w-2 h-2 rounded-full bg-secondary"></span><span class="font-label-sm text-label-sm text-on-secondary-fixed-variant">Clinical Ops / Admin Portal</span></div></div><nav class="hidden xl:flex items-center gap-space-xs bg-surface-container-low p-space-xs rounded-full" data-active-classes="bg-primary-container text-on-primary font-title-md rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.15)]"><a class="px-space-md py-space-xs rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="overview" href="#">Overview</a><a class="px-space-md py-space-xs rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="users" href="#">Users</a><a class="px-space-md py-space-xs rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="pharmacies" href="#">Pharmacies</a><a class="px-space-md py-space-xs rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="orders" href="#">Orders</a><a class="px-space-md py-space-xs rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="emergency-and-logistics" href="#">Emergency &amp; Logistics</a><a class="px-space-md py-space-xs rounded-full font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="activity" href="#">Activity</a></nav><div class="flex items-center gap-space-md"><div class="hidden lg:flex items-center gap-space-xs px-space-sm py-space-xs rounded-full bg-surface-container"><span class="w-2 h-2 rounded-full bg-secondary-fixed-dim animate-pulse"></span><span class="font-label-sm text-label-sm text-on-surface-variant font-medium">US-West-2 Live</span></div><button class="relative p-space-xs text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-0 right-0 w-4 h-4 bg-tertiary text-on-tertiary rounded-full font-label-sm text-[10px] flex items-center justify-center font-bold">4</span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">Dr. Eleanor Vance</span><span class="font-label-sm text-label-sm text-on-surface-variant">SysAdmin #ADM-101</span></div></div></div></div></header><main class="w-full pt-20 bg-surface min-h-[calc(100vh-140px)]"><div class="flex flex-col w-full">
+<div class="max-w-[1280px] w-full mx-auto px-margin py-space-lg flex flex-col gap-space-lg">
+<!-- SUB-HEADER SECTION & LIVE CONTROLS -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs max-w-2xl">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center justify-center w-2.5 h-2.5 rounded-full bg-secondary animate-ping"></span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold uppercase tracking-wider">Production Telemetry • US-West-2 • Live Audit Feed (Active 0.4s)</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Activity &amp; Audit Stream</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">A chronological operational history of governance events, fulfillment handshakes, dispensary stock verifications, and compliance milestones across the MediFind network.</p>
+</div>
+<!-- Action & State Switcher Controls -->
+<div class="flex flex-wrap items-center gap-space-sm">
+<!-- Live State Simulation Pills -->
+<div class="flex items-center bg-surface-container-low p-1 rounded-full shadow-sm">
+<button class="px-space-sm py-1 rounded-full font-label-sm text-label-sm bg-primary text-on-primary font-semibold transition-all" id="btn-state-active" onclick="switchState('active')">
+            Live Stream
+          </button>
+<button class="px-space-sm py-1 rounded-full font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-all" id="btn-state-empty" onclick="switchState('empty')">
+            Filter Empty
+          </button>
+<button class="px-space-sm py-1 rounded-full font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-all" id="btn-state-skeleton" onclick="switchState('skeleton')">
+            Skeleton Sync
+          </button>
+<button class="px-space-sm py-1 rounded-full font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-all" id="btn-state-offline" onclick="switchState('offline')">
+            Offline
+          </button>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md transition-all shadow-sm" id="feed-pause-btn" onclick="toggleFeedPause()">
+<span class="material-symbols-outlined text-[18px]" id="pause-icon">pause</span>
+<span id="pause-text">Pause Feed</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-full bg-primary text-on-primary hover:bg-primary-container font-label-md text-label-md transition-all shadow-sm" onclick="triggerExportNotice()">
+<span class="material-symbols-outlined text-[18px]">download</span>
+<span>Export CSV</span>
+</button>
+</div>
+</div>
+</div>
+<!-- OPERATIONAL TELEMETRY & METRIC HIGHLIGHTS RIBBON -->
+<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-space-sm">
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm">Total Events (24h)</span>
+<span class="material-symbols-outlined text-[18px] text-secondary">monitoring</span>
+</div>
+<div class="mt-space-sm">
+<div class="font-headline-md text-headline-md text-primary font-bold">14,892</div>
+<div class="font-label-sm text-label-sm text-secondary font-semibold flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+            +8.4% throughput
+          </div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm">Prescription Transitions</span>
+<span class="material-symbols-outlined text-[18px] text-secondary">receipt_long</span>
+</div>
+<div class="mt-space-sm">
+<div class="font-headline-md text-headline-md text-primary font-bold">3,420</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">e-Rx cycle verified</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm">Cold-Chain Handshakes</span>
+<span class="material-symbols-outlined text-[18px] text-secondary">ac_unit</span>
+</div>
+<div class="mt-space-sm">
+<div class="font-headline-md text-headline-md text-primary font-bold">412</div>
+<div class="font-label-sm text-label-sm text-secondary font-semibold mt-0.5">100% 2-8°C Compliant</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm">Dispensary Verifications</span>
+<span class="material-symbols-outlined text-[18px] text-secondary">storefront</span>
+</div>
+<div class="mt-space-sm">
+<div class="font-headline-md text-headline-md text-primary font-bold">86</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Active licensed nodes</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm">Emergency Bay Locks</span>
+<span class="material-symbols-outlined text-[18px] text-tertiary-container">emergency</span>
+</div>
+<div class="mt-space-sm">
+<div class="font-headline-md text-headline-md text-primary font-bold">18</div>
+<div class="font-label-sm text-label-sm text-tertiary-container font-semibold mt-0.5">Instant triage holds</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-sm text-label-sm">Compliance Hash Chain</span>
+<span class="material-symbols-outlined text-[18px] text-secondary">verified</span>
+</div>
+<div class="mt-space-sm">
+<div class="font-headline-md text-headline-md text-primary font-bold">100%</div>
+<div class="font-label-sm text-label-sm text-secondary font-semibold mt-0.5">SHA-256 Validated</div>
+</div>
+</div>
+</div>
+<!-- FILTER & SEARCH COCKPIT -->
+<div class="bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm flex flex-col gap-space-md">
+<!-- Search Input + Shortcut -->
+<div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-space-md">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+<input class="w-full pl-12 pr-16 py-3 bg-surface-container-low rounded-full font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest shadow-inner transition-colors" id="audit-search-input" onkeyup="handleSearch(this.value)" placeholder="Search by reference (#ORD-2025-9481, #AST-542), user, or pharmacy..." type="text"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-surface-container-highest rounded-full font-label-sm text-label-sm text-on-surface-variant select-none">⌘K</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm self-end md:self-center">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span id="active-filter-status">Active Filters: None (Showing all real-time events)</span>
+<button class="text-secondary font-semibold hover:underline ml-1" onclick="resetFilters()">Reset</button>
+</div>
+</div>
+<!-- Quick Category Filter Pills -->
+<div class="flex items-center gap-space-xs overflow-x-auto pb-1">
+<button class="category-pill active flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-sm text-label-sm bg-primary text-on-primary font-semibold whitespace-nowrap shadow-sm transition-all" onclick="setFilterCategory(this, 'all')">
+<span>All Events</span>
+<span class="px-1.5 py-0.2 bg-white/20 rounded-full font-label-sm text-[10px]">14,892</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-sm text-label-sm bg-surface-container-low text-on-surface hover:bg-surface-container whitespace-nowrap transition-all" onclick="setFilterCategory(this, 'orders')">
+<span>Orders &amp; Fulfillment</span>
+<span class="px-1.5 py-0.2 bg-surface-container-high rounded-full font-label-sm text-[10px] text-on-surface-variant">3,420</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-sm text-label-sm bg-surface-container-low text-on-surface hover:bg-surface-container whitespace-nowrap transition-all" onclick="setFilterCategory(this, 'emergency')">
+<span>Emergency &amp; Logistics</span>
+<span class="px-1.5 py-0.2 bg-surface-container-high rounded-full font-label-sm text-[10px] text-on-surface-variant">412</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-sm text-label-sm bg-surface-container-low text-on-surface hover:bg-surface-container whitespace-nowrap transition-all" onclick="setFilterCategory(this, 'dispensary')">
+<span>Dispensary &amp; Stock</span>
+<span class="px-1.5 py-0.2 bg-surface-container-high rounded-full font-label-sm text-[10px] text-on-surface-variant">86</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-sm text-label-sm bg-surface-container-low text-on-surface hover:bg-surface-container whitespace-nowrap transition-all" onclick="setFilterCategory(this, 'users')">
+<span>User &amp; Access</span>
+<span class="px-1.5 py-0.2 bg-surface-container-high rounded-full font-label-sm text-[10px] text-on-surface-variant">580</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-sm text-label-sm bg-surface-container-low text-on-surface hover:bg-surface-container whitespace-nowrap transition-all" onclick="setFilterCategory(this, 'security')">
+<span>System &amp; Security</span>
+<span class="px-1.5 py-0.2 bg-surface-container-high rounded-full font-label-sm text-[10px] text-on-surface-variant">14</span>
+</button>
+</div>
+<!-- Secondary Detailed Dropdowns -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-sm pt-space-xs">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Event Category</label>
+<select class="w-full px-space-md py-2 bg-surface-container-low rounded-full font-label-md text-label-md text-on-surface focus:outline-none appearance-none cursor-pointer">
+<option>All Event Categories (10 Types)</option>
+<option>Delivery Completed</option>
+<option>Emergency Request Created</option>
+<option>Payment Completed</option>
+<option>Order Status Changed</option>
+<option>Assistant Task Accepted</option>
+<option>Dispensary Verification</option>
+<option>User Registration</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Actor Role</label>
+<select class="w-full px-space-md py-2 bg-surface-container-low rounded-full font-label-md text-label-md text-on-surface focus:outline-none appearance-none cursor-pointer">
+<option>All Actor Roles</option>
+<option>Assistant (Couriers &amp; Runners)</option>
+<option>Patient / Consumer</option>
+<option>Pharmacist / Dispensary Staff</option>
+<option>System Admin / Governance</option>
+<option>Automated Financial Gateway</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Node / Dispensary</label>
+<select class="w-full px-space-md py-2 bg-surface-container-low rounded-full font-label-md text-label-md text-on-surface focus:outline-none appearance-none cursor-pointer">
+<option>All Participating Dispensaries (86)</option>
+<option>St. Jude Community Apothecary LLC</option>
+<option>Beacon 24/7 Emergency Care Dispensary</option>
+<option>Highland Heights Health Formulary</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Time Horizon</label>
+<select class="w-full px-space-md py-2 bg-surface-container-low rounded-full font-label-md text-label-md text-on-surface focus:outline-none appearance-none cursor-pointer">
+<option>Today (Past 24 Hours)</option>
+<option>Past 7 Days (e-Rx Batch)</option>
+<option>Past 30 Days (Full Regulatory Month)</option>
+<option>Custom Date Range...</option>
+</select>
+</div>
+</div>
+</div>
+<!-- MAIN TWO-COLUMN WORKSPACE -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- LEFT / MAIN TIMELINE COLUMN (8 of 12 cols, ~67%) -->
+<div class="lg:col-span-8 flex flex-col gap-space-md">
+<!-- VIEW STATE: ACTIVE STREAM (DEFAULT) -->
+<div class="flex flex-col gap-space-md" id="state-container-active">
+<!-- EVENT 1: DELIVERY COMPLETED -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer ring-2 ring-primary" onclick="selectEvent(1)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[20px]">package_2</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">Delivery Completed</span>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container font-label-sm text-label-sm text-on-secondary-container font-semibold">Dual-Key PIN Handshake</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Handover Confirmed • Pouch 4.1°C Compliant</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">2 mins ago (14:32:10 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">Cold-chain prescription pouch safely handed over to patient and verified via dual-key PIN validation at doorstep.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-secondary">tag</span>
+                  Ref: #ORD-2025-9481 • #TSK-8477
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">sports_motorsports</span>
+                  Marcus Sterling (#AST-542)
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">storefront</span>
+                  St. Jude Community Apothecary
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 2: EMERGENCY REQUEST CREATED -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(2)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined text-[20px]">e911_emergency</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">Emergency Request Created</span>
+<span class="px-space-sm py-0.5 rounded-full bg-error-container font-label-sm text-label-sm text-on-error-container font-semibold">Priority Triage Grade-A</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Stock Held (Lock Bay #04) • Instant Allocation</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">14 mins ago (14:20:04 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">Urgent night-hatch allocation triggered for Epinephrine Auto-Injector 0.3mg × 2 with verified digital emergency bypass protocol.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-tertiary-container">emergency</span>
+                  Ref: #EMG-2025-4109 • #ORD-2025-9488
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">person</span>
+                  Yaryna Kozlova (#PAT-11804)
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">local_hospital</span>
+                  Beacon 24/7 Emergency Care
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 3: PAYMENT COMPLETED -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(3)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">credit_card</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">Payment Completed</span>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container/60 font-label-sm text-label-sm text-on-secondary-fixed-variant font-semibold">Settled $40.90</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Zero Card Secrets Stored • Safe-Harbor Encrypted</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">28 mins ago (14:06:45 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">Prescription formulary copay settled for Amoxicillin 500mg (30ct) and Lipitor 20mg (90ct) via verified clearinghouse integration.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-secondary">payments</span>
+                  Ref: #PAY-88319-ST • #ORD-2025-9481
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">account_balance</span>
+                  Stripe Healthcare Connect
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+                  Tokenized Gateway
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 4: ORDER STATUS CHANGED -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(4)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
+<span class="material-symbols-outlined text-[20px]">fact_check</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">Order Status Progressed</span>
+<span class="px-space-sm py-0.5 rounded-full bg-primary-fixed font-label-sm text-label-sm text-on-primary-fixed-variant font-semibold">CONFIRMED → READY_FOR_PICKUP</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Pharmacist Packaging Verified • Staged Bay 02</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">36 mins ago (13:58:12 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">Order lifecycle progressed following pharmacist visual inspection and NDC barcode scan against e-Prescription telemetry.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-secondary">tag</span>
+                  Ref: #ORD-2025-9478
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">medical_services</span>
+                  Dr. Elena Ross, PharmD (#PHM-942)
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">storefront</span>
+                  St. Jude Community Apothecary
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 5: ASSISTANT TASK ACCEPTED -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(5)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[20px]">two_wheeler</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">Assistant Task Accepted</span>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface font-semibold">En Route to Dispensary</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Beacon 24/7 → Zone Beta-03 (Capitol Hill East)</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">48 mins ago (13:46:30 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">Authorized courier accepted medicine collection task and locked insulated thermal pouch telemetry before dispatch.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-secondary">assignment</span>
+                  Ref: #TSK-8482 • #ORD-2025-9475
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">sports_motorsports</span>
+                  Elena Rostova (#AST-619)
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">navigation</span>
+                  Estimated Transit: 12 min
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 6: PHARMACY VERIFICATION / UPDATE -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(6)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed-dim flex items-center justify-center text-on-secondary-fixed-variant">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">EDI Stock Sync &amp; License Check</span>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container font-label-sm text-label-sm text-on-secondary-container font-semibold">100% Geo-Cataloged</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">WA State Board of Pharmacy Gateway • Lic #WA-9421 Valid</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">1 hour ago (13:30:00 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">EDI-855 inventory feed synchronized 2,410 accredited drug SKUs and verified night-hatch accessibility schedule.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-secondary">storefront</span>
+                  Ref: #DISP-9421-SEA
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+                  Board Verification Confirmed
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">inventory_2</span>
+                  2,410 SKU Delta Synced
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 7: USER REGISTRATION -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(7)">
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">User Identity Verification</span>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container/60 font-label-sm text-label-sm text-on-secondary-fixed-variant font-semibold">Tier-A Consent Signed</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">FIDO2 WebAuthn Enforced • Passkey Active</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">1h 45m ago (12:47:19 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">New patient verified identity via state driver's license biometric match and bound hardware security token.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-secondary">person</span>
+                  Ref: #PAT-11822 (Darius Vance-Cole)
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">security</span>
+                  FIDO2 Biometric Token
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">draw</span>
+                  e-Consent Form 409-B
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- EVENT 8: TEST DATA AUDIT NOTICE (ACADEMIC FIXTURE) -->
+<article class="event-card group relative bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer" onclick="selectEvent(8)">
+<!-- Warning Callout Banner -->
+<div class="mb-space-sm px-space-sm py-1 rounded-full bg-surface-container-high inline-flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">info</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold tracking-wide">TEST DATA — NOT A PARTICIPATING PHARMACY (ACADEMIC REGRESSION EVENT)</span>
+</div>
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[20px]">science</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-primary font-bold">Synthetic Dispatch Regression</span>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-high font-label-sm text-label-sm text-outline font-semibold">Isolated Non-Prod</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Sandbox Node #SANDBOX-002 • St. Jude Academic Research</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap bg-surface-container-low px-space-sm py-1 rounded-full">2 hours ago (12:30:00 UTC)</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-space-md">Synthetic routing simulation triggered for virtual stock allocation stress-test. Zero actual medication or physical courier units engaged.</p>
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm bg-surface-container-low/50 p-space-sm rounded-xl">
+<div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1 font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px] text-outline">dns</span>
+                  Ref: #SANDBOX-REG-002
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">memory</span>
+                  Automated CI Runner 42
+                </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">domain_verification</span>
+                  Academic Fixture Isolation
+                </span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:text-primary flex items-center gap-0.5">
+                Inspect Context <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</article>
+</div>
+<!-- VIEW STATE: EMPTY STATE -->
+<div class="hidden flex flex-col items-center justify-center p-space-xl bg-surface-container-lowest rounded-2xl shadow-sm text-center py-16" id="state-container-empty">
+<div class="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center text-outline mb-space-md">
+<span class="material-symbols-outlined text-[32px]">filter_list_off</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold mb-space-xs">No activity matches these filters</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mb-space-lg">We couldn't find any audit milestones for the selected criteria in the past 24 hours. Try expanding the timeframe or resetting category constraints.</p>
+<button class="px-space-lg py-2.5 rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-all shadow-sm" onclick="resetFilters()">
+            Clear Filters &amp; Show All Events
+          </button>
+</div>
+<!-- VIEW STATE: SKELETON LOADING -->
+<div class="hidden flex flex-col gap-space-md" id="state-container-skeleton">
+<div class="bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm animate-pulse flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container"></div>
+<div class="flex flex-col gap-1.5">
+<div class="w-48 h-4 bg-surface-container rounded-full"></div>
+<div class="w-32 h-3 bg-surface-container-high rounded-full"></div>
+</div>
+</div>
+<div class="w-24 h-4 bg-surface-container rounded-full"></div>
+</div>
+<div class="w-full h-8 bg-surface-container-low rounded-xl mt-2"></div>
+<div class="w-3/4 h-3 bg-surface-container rounded-full"></div>
+</div>
+<div class="bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm animate-pulse flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container"></div>
+<div class="flex flex-col gap-1.5">
+<div class="w-44 h-4 bg-surface-container rounded-full"></div>
+<div class="w-28 h-3 bg-surface-container-high rounded-full"></div>
+</div>
+</div>
+<div class="w-24 h-4 bg-surface-container rounded-full"></div>
+</div>
+<div class="w-full h-8 bg-surface-container-low rounded-xl mt-2"></div>
+<div class="w-2/3 h-3 bg-surface-container rounded-full"></div>
+</div>
+<div class="bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm animate-pulse flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container"></div>
+<div class="flex flex-col gap-1.5">
+<div class="w-52 h-4 bg-surface-container rounded-full"></div>
+<div class="w-36 h-3 bg-surface-container-high rounded-full"></div>
+</div>
+</div>
+<div class="w-24 h-4 bg-surface-container rounded-full"></div>
+</div>
+<div class="w-full h-8 bg-surface-container-low rounded-xl mt-2"></div>
+<div class="w-4/5 h-3 bg-surface-container rounded-full"></div>
+</div>
+</div>
+<!-- VIEW STATE: NETWORK DISCONNECT / OFFLINE -->
+<div class="hidden flex flex-col p-space-lg bg-surface-container-lowest rounded-2xl shadow-sm" id="state-container-offline">
+<div class="flex items-start gap-space-md p-space-md bg-tertiary-fixed/40 rounded-2xl text-on-tertiary-fixed mb-space-md">
+<span class="material-symbols-outlined text-[28px] text-tertiary">cloud_off</span>
+<div>
+<div class="font-title-md text-title-md font-bold text-tertiary">Network Disconnect Detected</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">Real-time event streaming is paused. Displaying immutable local ledger snapshot cached from 14:32:10 UTC. Automatic reconnection attempts in progress...</p>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-md bg-surface-container-low rounded-xl">
+<span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+              Attempting reconnect to wss://audit.medifind.health/stream (Retrying in 4s)
+            </span>
+<button class="font-label-sm text-label-sm text-secondary font-bold hover:underline" onclick="switchState('active')">Force Manual Reconnect</button>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: INTERACTIVE EVENT INSPECTOR & GOVERNANCE PANEL (4 of 12 cols, ~33%) -->
+<aside class="lg:col-span-4 sticky top-24 flex flex-col gap-space-md">
+<!-- Selected Event Inspector Card -->
+<div class="bg-surface-container-lowest p-space-lg rounded-2xl shadow-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-sm border-b-0">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Event Detail Inspector</span>
+<span class="font-title-md text-title-md text-primary font-bold" id="inspector-event-id">#EVT-2025-88412</span>
+</div>
+<span class="px-space-sm py-1 bg-secondary-container rounded-full font-label-sm text-label-sm text-on-secondary-container font-semibold">Selected</span>
+</div>
+<div class="p-space-sm bg-surface-container-low rounded-xl flex flex-col gap-1">
+<span class="font-label-lg text-label-lg text-primary font-bold" id="inspector-event-title">Delivery Completed (Dual-Key PIN)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant" id="inspector-event-summary">Order #ORD-2025-9481 fulfilled safely by Assistant Marcus Sterling.</span>
+</div>
+<!-- Audit Verification Metadata -->
+<div class="flex flex-col gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase tracking-wider">Cryptographic Integrity</span>
+<div class="flex flex-col gap-space-xs font-body-sm text-body-sm bg-surface-container-low/40 p-space-sm rounded-xl">
+<div class="flex justify-between items-start gap-2">
+<span class="text-on-surface-variant">SHA-256 Block Hash:</span>
+<span class="font-mono text-[11px] text-primary font-semibold text-right break-all">sha256:7f8a9e40...4b21</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span>Ledger Sequence:</span>
+<span class="font-semibold text-on-surface">Block #912,408</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span>Exact Timestamp:</span>
+<span class="font-semibold text-on-surface">May 20, 2025 • 14:32:10.491 UTC</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span>Ingress Gateway:</span>
+<span class="font-semibold text-on-surface">HealthNet Safe-Harbor Proxy</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span>Jurisdictional Node:</span>
+<span class="font-semibold text-on-surface">King County Health Node 04</span>
+</div>
+</div>
+</div>
+<!-- Associated Entities Breakdown -->
+<div class="flex flex-col gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase tracking-wider">Associated Entities</span>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">receipt_long</span>
+<span class="font-label-sm text-label-sm text-primary font-semibold">Order #ORD-2025-9481</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">assignment_ind</span>
+<span class="font-label-sm text-label-sm text-primary font-semibold">Assistant Task #TSK-8477</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">store</span>
+<span class="font-label-sm text-label-sm text-primary font-semibold">St. Jude Apothecary (#WA-9421)</span>
+</div>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- ZERO-KNOWLEDGE STRICT HIPAA SAFE-HARBOR NOTICE -->
+<div class="p-space-md rounded-2xl bg-secondary-container/30 flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-[22px] text-secondary shrink-0">verified_user</span>
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-primary font-bold">Zero-Secret Audit Policy (HIPAA / FDA Part 11)</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant leading-relaxed">In accordance with HIPAA Safe Harbor and FDA 21 CFR Part 11, passwords, password hashes, JWT session secrets, payment card numbers, UPI/CVV credentials, raw PIN values, and prescription clinical imaging are cryptographically excluded from event logs and administrative inspection.</p>
+</div>
+</div>
+<!-- Inspector Action Buttons -->
+<div class="flex flex-col gap-2 pt-space-xs">
+<button class="w-full py-2.5 px-space-md rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-sm" onclick="downloadReceipt()">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Download Cryptographic Receipt</span>
+</button>
+<button class="w-full py-2 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+<span>Inspect Associated Order #ORD-2025-9481</span>
+</button>
+<button class="w-full py-2 px-space-md rounded-full bg-transparent hover:bg-tertiary-fixed/30 text-tertiary-container font-label-md text-label-md transition-all flex items-center justify-center gap-2" onclick="flagEvent()">
+<span class="material-symbols-outlined text-[18px]">flag</span>
+<span>Flag for Clinical Compliance Review</span>
+</button>
+</div>
+</div>
+<!-- Quick Telemetry Mini-Card -->
+<div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[18px]">security</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-primary font-bold">Regulatory Sync Health</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">e-Rx Audits: 0 Non-Compliances</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-bold">Optimal</span>
+</div>
+</aside>
+</div>
+</div>
+<!-- Notification Toast Container (Dynamic Micro-Interaction) -->
+<div class="fixed bottom-6 right-6 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none z-50 bg-inverse-surface text-inverse-on-surface px-space-lg py-space-sm rounded-full shadow-lg flex items-center gap-2 font-label-md text-label-md" id="toast">
+<span class="material-symbols-outlined text-[18px] text-secondary-fixed">check_circle</span>
+<span id="toast-text">Cryptographic receipt generated.</span>
+</div>
+</div>
+<script>
+  let feedPaused = false;
+
+  function switchState(state) {
+    const activeCont = document.getElementById('state-container-active');
+    const emptyCont = document.getElementById('state-container-empty');
+    const skeletonCont = document.getElementById('state-container-skeleton');
+    const offlineCont = document.getElementById('state-container-offline');
+
+    activeCont.classList.add('hidden');
+    emptyCont.classList.add('hidden');
+    skeletonCont.classList.add('hidden');
+    offlineCont.classList.add('hidden');
+
+    const buttons = ['btn-state-active', 'btn-state-empty', 'btn-state-skeleton', 'btn-state-offline'];
+    buttons.forEach(bId => {
+      const b = document.getElementById(bId);
+      b.classList.remove('bg-primary', 'text-on-primary', 'font-semibold');
+      b.classList.add('text-on-surface-variant');
+    });
+
+    const activeBtn = document.getElementById('btn-state-' + state);
+    if (activeBtn) {
+      activeBtn.classList.add('bg-primary', 'text-on-primary', 'font-semibold');
+      activeBtn.classList.remove('text-on-surface-variant');
+    }
+
+    if (state === 'active') activeCont.classList.remove('hidden');
+    if (state === 'empty') emptyCont.classList.remove('hidden');
+    if (state === 'skeleton') skeletonCont.classList.remove('hidden');
+    if (state === 'offline') offlineCont.classList.remove('hidden');
+  }
+
+  function toggleFeedPause() {
+    feedPaused = !feedPaused;
+    const pauseText = document.getElementById('pause-text');
+    const pauseIcon = document.getElementById('pause-icon');
+    const pauseBtn = document.getElementById('feed-pause-btn');
+
+    if (feedPaused) {
+      pauseText.innerText = "Resume Feed";
+      pauseIcon.innerText = "play_arrow";
+      pauseBtn.classList.add('bg-tertiary-fixed', 'text-on-tertiary-fixed');
+      showToast("Live audit feed paused. Retaining active buffer.");
+    } else {
+      pauseText.innerText = "Pause Feed";
+      pauseIcon.innerText = "pause";
+      pauseBtn.classList.remove('bg-tertiary-fixed', 'text-on-tertiary-fixed');
+      showToast("Live streaming resumed.");
+    }
+  }
+
+  function setFilterCategory(btn, category) {
+    document.querySelectorAll('.category-pill').forEach(el => {
+      el.classList.remove('bg-primary', 'text-on-primary', 'font-semibold', 'shadow-sm');
+      el.classList.add('bg-surface-container-low', 'text-on-surface');
+      const badge = el.querySelector('span:last-child');
+      if (badge) {
+        badge.classList.remove('bg-white/20');
+        badge.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+      }
+    });
+
+    btn.classList.remove('bg-surface-container-low', 'text-on-surface');
+    btn.classList.add('bg-primary', 'text-on-primary', 'font-semibold', 'shadow-sm');
+    const badge = btn.querySelector('span:last-child');
+    if (badge) {
+      badge.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+      badge.classList.add('bg-white/20');
+    }
+
+    const statusEl = document.getElementById('active-filter-status');
+    if (category === 'all') {
+      statusEl.innerText = "Active Filters: None (Showing all real-time events)";
+      switchState('active');
+    } else if (category === 'security') {
+      statusEl.innerText = "Active Filters: Category 'System & Security' (14 events)";
+      switchState('active');
+    } else {
+      statusEl.innerText = `Active Filters: Category '${btn.querySelector('span').innerText}'`;
+      switchState('active');
+    }
+  }
+
+  function resetFilters() {
+    document.getElementById('audit-search-input').value = '';
+    const allPill = document.querySelector('.category-pill');
+    if (allPill) setFilterCategory(allPill, 'all');
+    showToast("Filters cleared. Displaying all operational milestones.");
+  }
+
+  function handleSearch(query) {
+    const statusEl = document.getElementById('active-filter-status');
+    if (query.trim().length > 0) {
+      statusEl.innerText = `Search Query: "${query}"`;
+      if (query.toLowerCase().includes('empty') || query.toLowerCase().includes('zero')) {
+        switchState('empty');
+      } else {
+        switchState('active');
+      }
+    } else {
+      statusEl.innerText = "Active Filters: None (Showing all real-time events)";
+    }
+  }
+
+  function selectEvent(id) {
+    document.querySelectorAll('.event-card').forEach(card => {
+      card.classList.remove('ring-2', 'ring-primary');
+    });
+    event.currentTarget.classList.add('ring-2', 'ring-primary');
+
+    const idMap = {
+      1: { id: "#EVT-2025-88412", title: "Delivery Completed (Dual-Key PIN)", summary: "Order #ORD-2025-9481 fulfilled safely by Assistant Marcus Sterling." },
+      2: { id: "#EVT-2025-88409", title: "Emergency Request Created (Priority Triage)", summary: "Urgent night-hatch allocation for Epinephrine Auto-Injector 0.3mg." },
+      3: { id: "#EVT-2025-88401", title: "Payment Completed (Settled $40.90)", summary: "Prescription formulary copay settled for Amoxicillin & Lipitor." },
+      4: { id: "#EVT-2025-88392", title: "Order Status Progressed (READY_FOR_PICKUP)", summary: "Pharmacist Elena Ross verified packaging and barcode compliance." },
+      5: { id: "#EVT-2025-88384", title: "Assistant Task Accepted (En Route)", summary: "Courier Elena Rostova dispatched to Beacon 24/7." },
+      6: { id: "#EVT-2025-88371", title: "EDI Stock Sync & License Check", summary: "WA State Board gateway validated 2,410 accredited drug SKUs." },
+      7: { id: "#EVT-2025-88360", title: "User Identity Verification (FIDO2 Active)", summary: "Biometric e-Consent signed by Darius Vance-Cole." },
+      8: { id: "#EVT-2025-88344", title: "Synthetic Dispatch Regression (Isolated)", summary: "Automated regression stress test in isolated sandbox." }
+    };
+
+    if (idMap[id]) {
+      document.getElementById('inspector-event-id').innerText = idMap[id].id;
+      document.getElementById('inspector-event-title').innerText = idMap[id].title;
+      document.getElementById('inspector-event-summary').innerText = idMap[id].summary;
+    }
+  }
+
+  function downloadReceipt() {
+    showToast("Cryptographic SHA-256 certificate downloaded.");
+  }
+
+  function flagEvent() {
+    showToast("Event flagged for Clinical Governance Board review.");
+  }
+
+  function triggerExportNotice() {
+    showToast("Exporting 14,892 verified audit logs to CSV...");
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toast-text');
+    toastText.innerText = message;
+    toast.classList.remove('translate-y-24', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+
+    setTimeout(() => {
+      toast.classList.remove('translate-y-0', 'opacity-100');
+      toast.classList.add('translate-y-24', 'opacity-0');
+    }, 2800);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      document.getElementById('audit-search-input').focus();
+    }
+  });
+</script></main><footer class="w-full bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="max-w-[1280px] mx-auto px-margin py-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex flex-wrap items-center justify-center md:justify-start gap-space-md"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[16px]">verified_user</span><span class="font-label-sm text-label-sm text-on-surface-variant">HIPAA SOC-2 Type II Certified</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[16px]">lock</span><span class="font-label-sm text-label-sm text-on-surface-variant">256-Bit e-Prescription Encryption</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[16px]">history_edu</span><span class="font-label-sm text-label-sm text-on-surface-variant">FDA 21 CFR Part 11 Audit Trail Active</span></div></div><div class="font-label-sm text-label-sm text-on-surface-variant text-center md:text-right">© 2025 MediFind AI Operations Suite v4.12.0. All clinical rights reserved.</div></div></footer></body></html>

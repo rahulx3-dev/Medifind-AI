@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#c1ebe1","on-surface-variant":"#414846","inverse-on-surface":"#e3f5ee","surface-container-highest":"#d5e6e0","on-primary":"#ffffff","tertiary-fixed":"#ffdad4","on-primary-fixed":"#00201b","inverse-surface":"#24332f","surface-container":"#e0f2eb","surface-container-high":"#dbece5","on-tertiary-container":"#ff8875","on-error-container":"#93000a","primary-fixed-dim":"#a6cfc5","secondary":"#2e685d","tertiary":"#5a0100","surface-container-lowest":"#ffffff","on-tertiary-fixed-variant":"#8a1c10","on-background":"#0f1e1b","on-tertiary-fixed":"#410100","on-secondary-fixed":"#00201b","secondary-fixed-dim":"#97d2c4","surface-variant":"#d5e6e0","secondary-container":"#b0ecdd","primary-container":"#1e453e","background":"#ecfdf7","surface-dim":"#cdded7","on-surface":"#0f1e1b","on-primary-container":"#8ab2a9","error-container":"#ffdad6","on-secondary-container":"#336c61","on-secondary":"#ffffff","surface":"#ecfdf7","primary":"#032f28","secondary-fixed":"#b3eee0","inverse-primary":"#a6cfc5","error":"#ba1a1a","on-secondary-fixed-variant":"#105045","tertiary-container":"#7e1208","on-primary-fixed-variant":"#274d46","surface-tint":"#3f655e","surface-bright":"#ecfdf7","outline":"#717976","tertiary-fixed-dim":"#ffb4a8","surface-container-low":"#e6f8f1","outline-variant":"#c0c8c5","on-tertiary":"#ffffff","on-error":"#ffffff"},borderRadius:{DEFAULT:"1rem",lg:"2rem",xl:"3rem",full:"9999px"},spacing:{"space-md":"1rem","space-lg":"1.5rem","gutter-mobile":"0.75rem","space-xl":"2rem","margin-mobile":"1rem","space-sm":"0.5rem",margin:"2rem","space-xs":"0.25rem",gutter:"1rem"},fontFamily:{"headline-lg-mobile":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],display:["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"title-md":["Plus Jakarta Sans"],"title-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"]},fontSize:{"headline-lg-mobile":["26px",{lineHeight:"34px",letterSpacing:"-0.01em",fontWeight:"700"}],"label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.02em",fontWeight:"500"}],display:["40px",{lineHeight:"48px",letterSpacing:"-0.02em",fontWeight:"700"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.01em",fontWeight:"600"}],"label-md":["12px",{lineHeight:"16px",letterSpacing:"0.02em",fontWeight:"600"}],"headline-md":["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],"headline-sm":["20px",{lineHeight:"28px",fontWeight:"600"}],"headline-lg":["32px",{lineHeight:"40px",letterSpacing:"-0.015em",fontWeight:"700"}],"body-md":["14px",{lineHeight:"20px",fontWeight:"400"}],"title-md":["16px",{lineHeight:"24px",fontWeight:"600"}],"title-lg":["18px",{lineHeight:"26px",fontWeight:"600"}],"body-sm":["12px",{lineHeight:"18px",fontWeight:"400"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(30,69,62,0.06)]"><div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-sm"><div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-primary-fixed"><span class="material-symbols-outlined text-[22px]">local_hospital</span></div><div class="flex flex-col"><span class="font-title-md text-title-md text-primary tracking-tight">MediFind AI</span><span class="font-label-sm text-label-sm text-on-surface-variant">Clinical Ops • System Core Architecture</span></div></div><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary font-semibold">US-West-2 Live Telemetry • HIPAA Compliant</span></div></div><nav class="hidden md:flex items-center gap-space-xs p-space-xs bg-surface-container-low rounded-full" data-active-classes="bg-primary-container text-on-primary font-label-md rounded-full shadow-[0_2px_8px_-2px_rgba(30,69,62,0.15)]"><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="loading-skeletons" href="#">Loading &amp; Skeletons</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="empty-error-states" href="#">Empty &amp; Error States</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="feedback-dialogs" href="#">Feedback &amp; Dialogs</a><a class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all duration-150" data-path="component-specs" href="#">Component Specs</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex flex-col text-right"><span class="font-label-md text-label-md text-primary font-semibold">Dr. Eleanor Vance</span><span class="font-label-sm text-label-sm text-on-surface-variant">Lead Architect</span></div><div class="relative flex items-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1ULDsmSsnlS0SW5a5w6K7mbcXDk5I_D5CjbfAm-zZe75nOoChh72DhFOMIKTzdPPqoJKULUtLdhhmt3sYveQz8QZk3sI4FjicC_-nSqXM8v1pqYU1GYcwR12Qrt-K6ivVR6bB0CByKmn8PS4l4IwIxIeFQWm1im5o9UzS9TaDYTKRxaG4vRGtQ8WQDuHh-ngOmVRc-XFIgwBoNpmDsOd8DzY1gB2cpRNIKIuI-78PKWESz3raZwWcJzhlY8XKWapFgNPTQQqEFfkog"/><span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-secondary ring-2 ring-surface"></span></div></div></div></header><main class="w-full pt-20 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<div class="max-w-7xl mx-auto px-margin py-space-xl w-full flex flex-col gap-space-xl">
+<!-- Design System Pattern Header & Audit Banner -->
+<div class="w-full flex flex-col lg:flex-row lg:items-end justify-between gap-space-lg pb-space-lg">
+<div class="flex flex-col gap-space-xs max-w-3xl">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-highest text-secondary font-label-md text-label-md">Clinical Pattern 03</span>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-label-md flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Universal Role Matrix: Patient • Pharmacist • Admin
+          </span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">SPEC: MED-DS-NOTIF-V4</span>
+</div>
+<p class="font-headline-lg text-headline-lg text-primary tracking-tight">Notification, Dialog &amp; Consequential Feedback Framework</p>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+          Strict deterministic feedback system designed for high-stress medical decisions, cold-chain logistical shifts, and regulatory confirmation patterns. Built to WCAG AAA standards with deliberate friction for irreversible actions.
+        </p>
+</div>
+<div class="flex items-center gap-space-md shrink-0">
+<div class="bg-surface-container-lowest shadow-[0_2px_8px_-2px_rgba(30,69,62,0.06)] rounded-lg p-space-md flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-primary">Zero Silent Failures</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Full audit trail telemetry logged</span>
+</div>
+</div>
+</div>
+</div>
+<!-- MAIN TWO-COLUMN WORKSPACE: Notification Center Drawer Preview & Consequential Modal -->
+<div class="w-full grid grid-cols-1 xl:grid-cols-12 gap-space-xl items-start">
+<!-- LEFT: Live Notification Center Panel (Width: 7 cols) -->
+<section class="xl:col-span-7 flex flex-col gap-space-md bg-surface-container-lowest rounded-lg p-space-lg shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06)]">
+<!-- Panel Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-title-lg text-title-lg text-primary">Notification Center</h2>
+<span class="px-space-xs py-0.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm font-semibold">2 New</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cross-node event stream • Live stream socket connected</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs self-end sm:self-center">
+<button class="px-space-sm py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary font-label-md text-label-md transition-colors flex items-center gap-1" id="markAllReadBtn">
+<span class="material-symbols-outlined text-[16px]">done_all</span>
+<span>Mark all read</span>
+</button>
+<button class="w-8 h-8 rounded-full bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-on-surface-variant transition-colors" title="Filter settings">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+</div>
+<!-- Filter Pill Chips -->
+<div class="flex items-center gap-space-xs overflow-x-auto py-1 no-scrollbar">
+<button class="filter-pill px-space-md py-1.5 rounded-full font-label-md text-label-md bg-primary text-on-primary shadow-sm flex items-center gap-1.5 whitespace-nowrap" data-filter="all">
+<span>All (6)</span>
+</button>
+<button class="filter-pill px-space-md py-1.5 rounded-full font-label-md text-label-md bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center gap-1.5 whitespace-nowrap" data-filter="fulfillment">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>Fulfillment (3)</span>
+</button>
+<button class="filter-pill px-space-md py-1.5 rounded-full font-label-md text-label-md bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center gap-1.5 whitespace-nowrap" data-filter="emergency">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span>
+<span>Emergency (1)</span>
+</button>
+<button class="filter-pill px-space-md py-1.5 rounded-full font-label-md text-label-md bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center gap-1.5 whitespace-nowrap" data-filter="system">
+<span>System (2)</span>
+</button>
+</div>
+<!-- Notification Feed List -->
+<div class="flex flex-col gap-space-sm pt-space-xs" id="notificationStream">
+<!-- 1. UNREAD: Emergency Night-Hatch -->
+<article class="p-space-md rounded-DEFAULT bg-tertiary-fixed/30 hover:bg-tertiary-fixed/40 transition-all shadow-[0_2px_8px_-2px_rgba(90,1,0,0.06)] flex gap-space-md items-start group">
+<div class="w-10 h-10 rounded-full bg-tertiary-container text-on-primary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">e911_emergency</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1 min-w-0">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-error shrink-0 animate-ping"></span>
+<span class="w-2 h-2 rounded-full bg-error shrink-0 -ml-3"></span>
+<span class="font-title-md text-title-md text-tertiary font-bold tracking-tight">Emergency Request Update (#EMG-4109)</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-tertiary-fixed-variant font-mono">1m ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">
+                Beacon 24/7 Dispensary night-hatch bay #04 allocated for Epinephrine. High priority access window unlocked for 30 minutes.
+              </p>
+<div class="flex items-center justify-between gap-space-sm pt-space-xs flex-wrap">
+<span class="font-label-sm text-label-sm text-tertiary font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">lock_open</span>
+                  Temporary Access Token Granted
+                </span>
+<button class="px-space-md py-1.5 rounded-full bg-tertiary-container hover:bg-tertiary text-on-primary font-label-md text-label-md transition-colors flex items-center gap-1 shadow-sm">
+<span>View Night-Hatch Access</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+<!-- 2. UNREAD: Reservation Confirmed -->
+<article class="p-space-md rounded-DEFAULT bg-surface-container-low hover:bg-surface-container transition-all shadow-[0_2px_8px_-2px_rgba(30,69,62,0.04)] flex gap-space-md items-start">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1 min-w-0">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
+<span class="font-title-md text-title-md text-primary font-bold tracking-tight">Reservation Confirmed (#RES-9481)</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">14m ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">
+                St. Jude Community Apothecary has locked your 2 items. Pharmacist allocation active. Ready in 15–30 mins.
+              </p>
+<div class="flex items-center justify-between gap-space-sm pt-space-xs flex-wrap">
+<span class="font-label-sm text-label-sm text-secondary font-medium">Amoxicillin 500mg (x1), Lipitor 20mg (x1)</span>
+<button class="px-space-md py-1.5 rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md transition-colors flex items-center gap-1">
+<span>View Reservation</span>
+<span class="material-symbols-outlined text-[16px]">east</span>
+</button>
+</div>
+</div>
+</article>
+<!-- 3. READ: Order Ready for Pickup -->
+<article class="p-space-md rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-low transition-all flex gap-space-md items-start opacity-95">
+<div class="w-10 h-10 rounded-full bg-surface-container text-secondary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">clinical_notes</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1 min-w-0">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<span class="font-title-md text-title-md text-primary">Order Ready for Pickup (#ORD-9478)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">1h ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Pharmacist Elena Ross, PharmD has completed inspection and tamper-proof bagging. Verification required at counter.
+              </p>
+<div class="flex items-center justify-between gap-space-sm pt-space-xs flex-wrap">
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary">pin</span>
+<span>Counter QR / PIN ready</span>
+</div>
+<button class="px-space-sm py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md transition-colors">
+                  Show Pickup PIN
+                </button>
+</div>
+</div>
+</article>
+<!-- 4. READ: Courier Cold-Chain Transit -->
+<article class="p-space-md rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-low transition-all flex gap-space-md items-start opacity-95">
+<div class="w-10 h-10 rounded-full bg-surface-container text-secondary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">ac_unit</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1 min-w-0">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<span class="font-title-md text-title-md text-primary">Assistant Delivery Update</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">2h ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Courier Marcus Sterling is 4 mins away with cold-chain pouch #P-108. Active temperature sensor reading: 3.9°C (Target 2–8°C).
+              </p>
+<div class="flex items-center justify-between gap-space-sm pt-space-xs flex-wrap">
+<div class="flex items-center gap-1.5 text-secondary font-label-sm text-label-sm bg-secondary-container/40 px-space-sm py-0.5 rounded-full">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Thermal Integrity 100% Guaranteed</span>
+</div>
+<button class="px-space-sm py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md transition-colors">
+                  Track Courier
+                </button>
+</div>
+</div>
+</article>
+<!-- 5. READ: Payment Settled -->
+<article class="p-space-md rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-low transition-all flex gap-space-md items-start opacity-85">
+<div class="w-10 h-10 rounded-full bg-surface-container text-secondary flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1 min-w-0">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<span class="font-title-md text-title-md text-primary">Payment Successful</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">5h ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Formulary copay ($40.90) settled via encrypted clearinghouse. Zero card numbers or CVV exposed. Claim reference: #CLM-88102.
+              </p>
+<div class="flex items-center justify-end gap-space-sm pt-space-xs">
+<button class="px-space-sm py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">download</span>
+<span>Download Receipt (PDF)</span>
+</button>
+</div>
+</div>
+</article>
+<!-- 6. READ: Pharmacy Inventory Sync -->
+<article class="p-space-md rounded-DEFAULT bg-surface-container-lowest hover:bg-surface-container-low transition-all flex gap-space-md items-start opacity-75">
+<div class="w-10 h-10 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1 min-w-0">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<span class="font-title-md text-title-md text-primary">Pharmacy Inventory Synchronized</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">Yesterday</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                EDI-855 sync completed across 2,410 catalog items with St. Jude Central Depot. Zero parity anomalies discovered.
+              </p>
+</div>
+</article>
+</div>
+</section>
+<!-- RIGHT: High-Stakes Confirmation Modal & Live Behavior Canvas (Width: 5 cols) -->
+<section class="xl:col-span-5 flex flex-col gap-space-lg">
+<!-- Interactive High-Stakes Dialog Box -->
+<div class="bg-surface-container-lowest rounded-lg p-space-lg shadow-[0_20px_40px_-8px_rgba(22,54,48,0.12)] flex flex-col gap-space-md relative overflow-hidden">
+<!-- Subtle warning ambient wash behind header -->
+<div class="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-tertiary-fixed opacity-40 blur-2xl pointer-events-none"></div>
+<!-- Dialog Badge & Esc Cue -->
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="w-8 h-8 rounded-full bg-tertiary-container text-on-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+</span>
+<span class="font-label-md text-label-md text-tertiary font-bold tracking-wider uppercase">Consequential Reversal</span>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-low px-2 py-0.5 rounded text-on-surface-variant font-mono font-label-sm text-label-sm">
+<kbd class="font-semibold text-primary">ESC</kbd>
+<span>to dismiss</span>
+</div>
+</div>
+<!-- Dialog Header & Body Copy -->
+<div class="flex flex-col gap-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-primary">Cancel this reservation?</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              Cancelling will release your reserved <strong class="text-on-surface">Amoxicillin 500mg</strong> and <strong class="text-on-surface">Lipitor 20mg</strong> back into St. Jude Community Apothecary's public inventory.
+            </p>
+</div>
+<!-- Consequence Checklist Card -->
+<div class="p-space-md rounded-DEFAULT bg-surface-container-low flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm text-primary font-semibold uppercase tracking-wider">System Impact Analysis:</span>
+<div class="flex items-start gap-space-xs text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px] text-tertiary shrink-0 mt-0.5">remove_circle_outline</span>
+<span>Pharmacy hold shelf space de-allocated immediately</span>
+</div>
+<div class="flex items-start gap-space-xs text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px] text-tertiary shrink-0 mt-0.5">remove_circle_outline</span>
+<span>Any active courier dispatch routing will be aborted</span>
+</div>
+<div class="flex items-start gap-space-xs text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">info</span>
+<span>Pre-authorized copay ($0.00 captured) will be automatically released</span>
+</div>
+</div>
+<!-- Dialog Decision Matrix Buttons -->
+<div class="flex flex-col sm:flex-row-reverse items-stretch sm:items-center gap-space-sm pt-space-xs">
+<!-- Safe Primary Action: Keep Reservation (Highest visual priority) -->
+<button class="flex-1 px-space-lg py-space-sm rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg transition-all shadow-[0_4px_12px_rgba(30,69,62,0.2)] flex items-center justify-center gap-space-xs" id="keepReservationBtn">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span>Keep Reservation</span>
+</button>
+<!-- Destructive Action: Deliberate confirm state -->
+<button class="px-space-md py-space-sm rounded-full bg-surface-container hover:bg-tertiary-fixed text-tertiary font-label-lg text-label-lg transition-all flex items-center justify-center gap-1.5 group" id="destructiveCancelBtn">
+<span class="material-symbols-outlined text-[18px] text-tertiary group-hover:scale-110 transition-transform">close</span>
+<span id="cancelBtnText">Yes, Cancel</span>
+</button>
+</div>
+<!-- Accessibility / Focus trap indicator -->
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm pt-space-xs">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">keyboard</span>
+<span>Tab trap active</span>
+</span>
+<span class="font-mono text-[11px] text-outline">ARIA-MODAL: TRUE</span>
+</div>
+</div>
+<!-- Telemetry Simulation Info Box -->
+<div class="p-space-md rounded-lg bg-surface-container flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[18px]">rule_folder</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-primary">Consequence Sandbox</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Test the 2-step destructive feedback loop</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm font-semibold px-space-sm py-1 rounded-full bg-surface-container-lowest text-secondary" id="sandboxFeedbackStatus">Standby</span>
+</div>
+</section>
+</div>
+<!-- ZONE 3: Inline Feedback & Non-Toast Error Patterns -->
+<section class="w-full flex flex-col gap-space-md">
+<div class="flex items-center justify-between gap-space-md flex-wrap">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-primary">Inline Feedback &amp; Deterministic States</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Persistent clinical banners that anchor into the layout rather than floating toasts that disappear.</p>
+</div>
+<span class="font-label-sm text-label-sm text-secondary bg-surface-container-highest px-space-sm py-1 rounded-full">
+          No Auto-Dismiss on Clinical Alerts
+        </span>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md">
+<!-- 3A. Success Feedback Card -->
+<div class="p-space-lg rounded-lg bg-surface-container-low shadow-[0_2px_8px_-2px_rgba(30,69,62,0.04)] flex flex-col justify-between gap-space-md">
+<div class="flex items-start gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">check_circle</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<h4 class="font-title-lg text-title-lg text-primary">Reservation Confirmed • Hold Active</h4>
+<span class="font-label-sm text-label-sm font-mono text-secondary bg-secondary-container px-space-xs py-0.5 rounded">T-MINUS 23H 45M</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">
+                Medicine hold active for 24 hours at <strong class="text-primary">St. Jude Community Apothecary</strong>. A confirmation SMS with pickup barcode has been sent to +1 (555) •••-8491.
+              </p>
+<div class="flex items-center gap-space-md pt-space-xs text-on-surface-variant font-label-sm text-label-sm flex-wrap">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">sms</span>
+<span>SMS Dispatched</span>
+</span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">barcode_scanner</span>
+<span>PIN: 9481-SAFE</span>
+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-end gap-space-sm border-t border-transparent pt-space-xs">
+<button class="px-space-md py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md transition-colors">
+              Manage SMS Settings
+            </button>
+<button class="px-space-md py-1.5 rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md transition-colors flex items-center gap-1">
+<span>View Barcode</span>
+<span class="material-symbols-outlined text-[16px]">qr_code_2</span>
+</button>
+</div>
+</div>
+<!-- 3B. Inline Error Card with Diagnostic Code and Retry -->
+<div class="p-space-lg rounded-lg bg-surface-container-lowest shadow-[0_2px_12px_-2px_rgba(186,26,26,0.08)] flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1.5 h-full bg-error"></div>
+<div class="flex items-start gap-space-md pl-1">
+<div class="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">wifi_off</span>
+</div>
+<div class="flex flex-col gap-space-xs flex-1">
+<div class="flex items-center justify-between gap-space-sm flex-wrap">
+<h4 class="font-title-lg text-title-lg text-tertiary">Unable to complete this action</h4>
+<span class="font-mono text-label-sm text-label-sm font-semibold text-error bg-error-container/60 px-space-xs py-0.5 rounded">ERR_RX_DISPATCH_TIMEOUT_504</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">
+                Check your connection and try again. The pharmacy telemetry gateway in St. Jude Apothecary did not acknowledge the handoff heartbeat in 8,000ms.
+              </p>
+<div class="flex items-center gap-space-md pt-space-xs text-on-surface-variant font-label-sm text-label-sm flex-wrap">
+<span class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">history</span>
+<span>Attempt 1 of 3</span>
+</span>
+<span class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">dns</span>
+<span>Gateway: Node-USW2-41</span>
+</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between gap-space-sm pt-space-xs pl-1 flex-wrap">
+<a class="font-label-md text-label-md text-secondary hover:underline flex items-center gap-1" href="#">
+<span>View System Status Dashboard</span>
+<span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</a>
+<div class="flex items-center gap-space-xs">
+<button class="px-space-md py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-colors">
+                Cancel Request
+              </button>
+<button class="px-space-md py-1.5 rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md transition-colors flex items-center gap-1" id="inlineRetryBtn">
+<span class="material-symbols-outlined text-[16px]" id="retryIcon">sync</span>
+<span id="retryLabel">Retry Handoff</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ZONE 4: Destructive Action Architecture Comparison Guide -->
+<section class="w-full flex flex-col gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<h2 class="font-headline-sm text-headline-sm text-primary">Destructive Action Hierarchy &amp; Friction Standards</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+          Structural visual comparison showcasing how buttons, friction mechanics, and dialog confirmation states prevent irreversible clinical data loss.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Spec Card 1: Standard Action -->
+<div class="p-space-lg rounded-lg bg-surface-container-lowest shadow-[0_2px_8px_-2px_rgba(30,69,62,0.04)] flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container font-label-sm text-label-sm text-secondary font-medium">Standard Affirmative</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">Tier 1</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-primary">Commit / Save Workflow</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Reversible or standard transactional writes. Immediate execution with optimistic state update and silent auto-recovery.
+            </p>
+<div class="p-space-md rounded-DEFAULT bg-surface-container-low flex flex-col gap-1 font-label-sm text-label-sm text-on-surface-variant">
+<span class="text-primary font-semibold">Visual Standard:</span>
+<span>Fill: Primary Sage (#1e453e)</span>
+<span>Radius: 9999px (Full pill)</span>
+<span>Interaction: Single click</span>
+</div>
+</div>
+<button class="w-full py-space-sm rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">save</span>
+<span>Save Inventory Changes</span>
+</button>
+</div>
+<!-- Spec Card 2: Secondary / Utility Action -->
+<div class="p-space-lg rounded-lg bg-surface-container-lowest shadow-[0_2px_8px_-2px_rgba(30,69,62,0.04)] flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container font-label-sm text-label-sm text-on-surface-variant font-medium">Secondary / Read</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">Tier 2</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-primary">Utility / Export</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Non-destructive side-effect actions. Download, view, search, export manifests, or switch views without impacting live database states.
+            </p>
+<div class="p-space-md rounded-DEFAULT bg-surface-container-low flex flex-col gap-1 font-label-sm text-label-sm text-on-surface-variant">
+<span class="text-primary font-semibold">Visual Standard:</span>
+<span>Fill: Surface container soft wash</span>
+<span>Text: Deep Primary (#032f28)</span>
+<span>Interaction: Single click</span>
+</div>
+</div>
+<button class="w-full py-space-sm rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md transition-colors flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+<span>Export Manifest CSV</span>
+</button>
+</div>
+<!-- Spec Card 3: Destructive Consequential Action -->
+<div class="p-space-lg rounded-lg bg-surface-container-lowest shadow-[0_4px_16px_-4px_rgba(90,1,0,0.1)] flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-tertiary-fixed opacity-40 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-space-sm py-0.5 rounded-full bg-tertiary-fixed font-label-sm text-label-sm text-tertiary font-bold">Consequential Irreversible</span>
+<span class="font-label-sm text-label-sm text-tertiary font-mono">Tier 3 Alert</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-tertiary">Revoke / Cancel Workflow</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              High-consequence revocation, medicine reallocation, or financial refunding. Always requires a two-step confirmation or typed phrase.
+            </p>
+<div class="p-space-md rounded-DEFAULT bg-surface-container-low flex flex-col gap-1 font-label-sm text-label-sm text-on-surface-variant">
+<span class="text-tertiary font-semibold">Visual Standard:</span>
+<span>Fill: Terracotta warning container</span>
+<span>Icon: Alert/Warning obligatory</span>
+<span>Interaction: 2-step friction arming</span>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<button class="w-full py-space-sm rounded-full bg-tertiary-fixed hover:bg-tertiary-container hover:text-on-primary text-tertiary font-label-md text-label-md transition-colors flex items-center justify-center gap-1.5" id="guideDestructiveTrigger">
+<span class="material-symbols-outlined text-[18px]">gavel</span>
+<span id="guideDestructiveLabel">Revoke Node Dispatch Authorization</span>
+</button>
+<span class="font-label-sm text-label-sm text-center text-on-surface-variant" id="guideDestructiveHint">Click to arm confirmation sequence</span>
+</div>
+</div>
+</div>
+</section>
+<!-- ZONE 5: Accessibility, Motion & Regulatory Compliance Bar -->
+<section class="w-full p-space-lg rounded-lg bg-surface-container flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[24px]">accessibility_new</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-sm flex-wrap">
+<h4 class="font-title-lg text-title-lg text-primary">Accessibility &amp; Motion Architecture Specifications</h4>
+<span class="font-label-sm text-label-sm px-space-xs py-0.5 rounded bg-surface-container-lowest text-secondary font-mono">WCAG 2.2 AAA</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Full keyboard trap compliance for modals, focus outlines with 3px emerald halo, colorblind-safe shape differentiation, and prefers-reduced-motion fallback hooks.
+          </p>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-space-md shrink-0">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Focus Halo</span>
+<span class="font-label-md text-label-md text-primary font-mono">3px #1E453E (0.24a)</span>
+</div>
+<div class="h-8 w-px bg-surface-container-highest hidden sm:block"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Contrast Ratio</span>
+<span class="font-label-md text-label-md text-secondary font-mono">&gt; 7.1:1 Preserved</span>
+</div>
+<div class="h-8 w-px bg-surface-container-highest hidden sm:block"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Motion Token</span>
+<span class="font-label-md text-label-md text-primary font-mono">180ms ease-out</span>
+</div>
+</div>
+</section>
+</div>
+</div>
+<script>
+  (function initFeedbackSystem() {
+    // 1. Notification Center Filter Pills
+    const filterPills = document.querySelectorAll('.filter-pill');
+    const stream = document.getElementById('notificationStream');
+    
+    if (filterPills.length && stream) {
+      filterPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          filterPills.forEach(p => {
+            p.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
+            p.classList.add('bg-surface-container-low', 'text-on-surface-variant');
+          });
+          pill.classList.remove('bg-surface-container-low', 'text-on-surface-variant');
+          pill.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
+
+          const filter = pill.getAttribute('data-filter');
+          const articles = stream.querySelectorAll('article');
+          
+          articles.forEach(art => {
+            if (filter === 'all') {
+              art.style.display = 'flex';
+            } else if (filter === 'emergency') {
+              art.style.display = art.innerText.includes('Emergency') ? 'flex' : 'none';
+            } else if (filter === 'fulfillment') {
+              art.style.display = (art.innerText.includes('Reservation') || art.innerText.includes('Order') || art.innerText.includes('Assistant')) ? 'flex' : 'none';
+            } else if (filter === 'system') {
+              art.style.display = (art.innerText.includes('Synchronized') || art.innerText.includes('Payment')) ? 'flex' : 'none';
+            }
+          });
+        });
+      });
+    }
+
+    // 2. Mark All Read Button
+    const markAllReadBtn = document.getElementById('markAllReadBtn');
+    if (markAllReadBtn) {
+      markAllReadBtn.addEventListener('click', () => {
+        const pingPills = document.querySelectorAll('.animate-ping');
+        pingPills.forEach(p => p.remove());
+        const unreadBadges = document.querySelectorAll('.w-2.h-2.rounded-full.bg-secondary, .w-2.h-2.rounded-full.bg-error');
+        unreadBadges.forEach(b => b.classList.add('opacity-0'));
+        markAllReadBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span><span>Done</span>';
+        markAllReadBtn.disabled = true;
+      });
+    }
+
+    // 3. High Stakes Dialog - Two Step Destructive Sequence
+    const destructiveBtn = document.getElementById('destructiveCancelBtn');
+    const cancelBtnText = document.getElementById('cancelBtnText');
+    const keepReservationBtn = document.getElementById('keepReservationBtn');
+    const sandboxStatus = document.getElementById('sandboxFeedbackStatus');
+    let cancelArmed = false;
+
+    if (destructiveBtn && cancelBtnText) {
+      destructiveBtn.addEventListener('click', () => {
+        if (!cancelArmed) {
+          cancelArmed = true;
+          cancelBtnText.innerText = 'Confirm Cancel?';
+          destructiveBtn.classList.remove('bg-surface-container', 'text-tertiary');
+          destructiveBtn.classList.add('bg-tertiary-container', 'text-on-primary', 'shadow-md');
+          if (sandboxStatus) {
+            sandboxStatus.innerText = 'Armed: Click once more to finalize';
+            sandboxStatus.classList.remove('text-secondary');
+            sandboxStatus.classList.add('text-error');
+          }
+        } else {
+          // Finalized
+          cancelBtnText.innerText = 'Aborted (#RES-9481)';
+          destructiveBtn.disabled = true;
+          if (sandboxStatus) {
+            sandboxStatus.innerText = 'Order Cancelled & Restocked';
+            sandboxStatus.classList.remove('text-error');
+            sandboxStatus.classList.add('text-on-surface-variant');
+          }
+        }
+      });
+    }
+
+    if (keepReservationBtn && destructiveBtn && cancelBtnText) {
+      keepReservationBtn.addEventListener('click', () => {
+        cancelArmed = false;
+        cancelBtnText.innerText = 'Yes, Cancel';
+        destructiveBtn.disabled = false;
+        destructiveBtn.classList.add('bg-surface-container', 'text-tertiary');
+        destructiveBtn.classList.remove('bg-tertiary-container', 'text-on-primary', 'shadow-md');
+        if (sandboxStatus) {
+          sandboxStatus.innerText = 'Active Hold Preserved';
+          sandboxStatus.classList.remove('text-error');
+          sandboxStatus.classList.add('text-secondary');
+        }
+      });
+    }
+
+    // 4. Inline Retry Simulator
+    const inlineRetryBtn = document.getElementById('inlineRetryBtn');
+    const retryIcon = document.getElementById('retryIcon');
+    const retryLabel = document.getElementById('retryLabel');
+
+    if (inlineRetryBtn && retryIcon && retryLabel) {
+      inlineRetryBtn.addEventListener('click', () => {
+        retryIcon.classList.add('animate-spin');
+        retryLabel.innerText = 'Re-establishing...';
+        inlineRetryBtn.disabled = true;
+
+        setTimeout(() => {
+          retryIcon.classList.remove('animate-spin');
+          retryIcon.innerText = 'check';
+          retryLabel.innerText = 'Handoff Succeeded';
+          inlineRetryBtn.classList.remove('bg-primary');
+          inlineRetryBtn.classList.add('bg-secondary');
+        }, 1200);
+      });
+    }
+
+    // 5. Destructive Guide Interactive Friction Arming
+    const guideTrigger = document.getElementById('guideDestructiveTrigger');
+    const guideLabel = document.getElementById('guideDestructiveLabel');
+    const guideHint = document.getElementById('guideDestructiveHint');
+    let guideArmed = false;
+
+    if (guideTrigger && guideLabel && guideHint) {
+      guideTrigger.addEventListener('click', () => {
+        if (!guideArmed) {
+          guideArmed = true;
+          guideLabel.innerText = 'CONFIRM REVOCATION (CRITICAL)';
+          guideHint.innerText = 'Mandatory Step 2/2: Action will halt active node';
+          guideHint.classList.add('text-error', 'font-semibold');
+        } else {
+          guideLabel.innerText = 'Authorization Terminated';
+          guideTrigger.disabled = true;
+          guideTrigger.classList.add('opacity-50');
+          guideHint.innerText = 'Audit token 0x9FD2 filed to immutable log';
+          guideHint.classList.remove('text-error');
+          guideHint.classList.add('text-on-surface-variant');
+        }
+      });
+    }
+  })();
+</script></main><footer class="w-full bg-surface-container-low mt-space-xl shadow-[0_-1px_6px_rgba(30,69,62,0.03)]"><div class="max-w-7xl mx-auto px-margin py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex flex-col items-center md:items-start gap-space-xs"><div class="flex items-center gap-space-sm"><span class="font-title-md text-title-md text-primary">MediFind AI Design System</span><span class="px-space-sm py-0.5 rounded-full bg-surface-container-highest font-label-sm text-label-sm text-secondary font-medium">v4.2.0-clinical</span></div><p class="font-body-sm text-body-sm text-on-surface-variant text-center md:text-left">Architectural blueprint and unified patterns for clinical diagnostic companions, pharmacology workflows, and health equity models.</p></div><div class="flex flex-wrap items-center justify-center gap-space-md"><div class="flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span><span class="font-label-sm text-label-sm text-on-surface">HIPAA Certified</span></div><div class="flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px] text-secondary">shield</span><span class="font-label-sm text-label-sm text-on-surface">SOC2 Type II</span></div><div class="flex items-center gap-space-xs px-space-sm py-space-xs bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px] text-secondary">lock</span><span class="font-label-sm text-label-sm text-on-surface">FDA 21 CFR Part 11</span></div></div></div><div class="max-w-7xl mx-auto px-margin py-space-md flex flex-col sm:flex-row items-center justify-between gap-space-sm"><span class="font-body-sm text-body-sm text-on-surface-variant">© 2025 MediFind AI Health Systems Inc. All clinical rights reserved.</span><div class="flex items-center gap-space-lg"><span class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">Security Protocol</span><span class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">Pharmacopeia Standard</span><span class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors">Audit Logs</span></div></div></footer></body></html>

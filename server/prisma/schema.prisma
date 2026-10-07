@@ -1,0 +1,278 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String
+  name           String
+  phone          String?
+  role           String          @default("PATIENT") // PATIENT, PHARMACIST, ASSISTANT, ADMIN
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  pharmacy       Pharmacy?
+  orders         Order[]
+  assistantTasks AssistantTask[]
+  notifications  Notification[]
+  prescriptions  Prescription[]
+  assistantProfile AssistantProfile?
+  addresses      PatientAddress[]
+  restockRequests RestockRequest[]
+}
+
+model AssistantProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio          String?
+  isActive     Boolean  @default(true)
+  isAvailable  Boolean  @default(true)
+  capabilities String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Pharmacy {
+  id                    String      @id @default(uuid())
+  name                  String
+  licenseNumber         String?     @unique
+  address               String
+  latitude              Float?
+  longitude             Float?
+  phone                 String
+  isOpen                Boolean     @default(true)
+  is24x7                Boolean     @default(false)
+  isVerified            Boolean     @default(true)
+  verificationStatus    String      @default("VERIFIED") // PENDING, VERIFIED, SUSPENDED, TEST
+  rating                Float?      @default(0.0)
+  openingHours          String      @default("8:00 AM - 10:00 PM")
+  googleMapsUrl         String?
+  emergencyAvailability Boolean     @default(false)
+  deliveryAvailable     Boolean     @default(false)
+  dataSource            String      @default("PHARMACY_PROVIDED")
+  managerId             String      @unique
+  manager               User        @relation(fields: [managerId], references: [id])
+  inventory             Inventory[]
+  orders                Order[]
+  restockRequests       RestockRequest[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model Medicine {
+  id                   String        @id @default(uuid())
+  brandName            String
+  genericName          String
+  dosageForm           String        // Tablet, Syrup, Injection, Capsule, Drops, Ointment
+  strength             String        // 500mg, 10mg, etc.
+  category             String        // Antibiotic, Analgesic, Antipyretic, Antidiabetic, Antihypertensive, etc.
+  manufacturer         String
+  isEmergency          Boolean       @default(false)
+  requiresPrescription Boolean       @default(true)
+  description          String?
+  sideEffects          String?
+  commonUses           String?
+  alternativeGenerics  String?       // JSON string or comma-separated
+  inventoryItems       Inventory[]
+  orderItems           OrderItem[]
+  restockRequests      RestockRequest[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+model Inventory {
+  id          String    @id @default(uuid())
+  pharmacyId  String
+  pharmacy    Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicineId  String
+  medicine    Medicine  @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  stock       Int?      @default(0)
+  price       Float?    @default(0.0)
+  status      String    @default("AVAILABLE") // AVAILABLE, OUT_OF_STOCK
+  batchNumber String?
+  expiryDate  DateTime?
+  dataSource  String    @default("PHARMACY_PROVIDED")
+  lastUpdated DateTime  @default(now())
+
+  @@unique([pharmacyId, medicineId])
+}
+
+model Prescription {
+  id                 String             @id @default(uuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalFileName   String
+  filePath           String
+  ocrRawText         String?
+  status             String             @default("PENDING") // PENDING, PROCESSED, VERIFIED, COMPLETED, FAILED
+  fileHash           String?
+  screeningStatus    String?            // NO_OBVIOUS_ISSUES, NEEDS_MANUAL_REVIEW, POTENTIALLY_SUSPICIOUS, UNABLE_TO_ASSESS
+  screeningResult    String?            // JSON string containing detailed checks and explanations
+  detectedMedicines  DetectedMedicine[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model DetectedMedicine {
+  id                  String       @id @default(uuid())
+  prescriptionId      String
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  rawName             String
+  matchedMedicineId   String?
+  matchedMedicineName String?
+  confidence          Float        @default(0.0)
+  dosage              String?
+  frequency           String?
+  duration            String?
+  quantity            Int          @default(1)
+  isConfirmed         Boolean      @default(false)
+  needsMapping        Boolean      @default(false)
+  evidenceSummary     String?
+  extractedQuantity   Int?
+  createdAt           DateTime     @default(now())
+}
+
+model Order {
+  id               String              @id @default(uuid())
+  orderNumber      String              @unique
+  userId           String
+  user             User                @relation(fields: [userId], references: [id])
+  pharmacyId       String
+  pharmacy         Pharmacy            @relation(fields: [pharmacyId], references: [id])
+  status           String              @default("PENDING") // PENDING, CONFIRMED, READY_FOR_PICKUP, COMPLETED, CANCELLED, REJECTED
+  orderType        String              @default("RESERVATION") // RESERVATION, ASSISTED_DELIVERY, EMERGENCY
+  fulfillmentType  String?             // PICKUP, DELIVERY, ASSISTANT_DELIVERY — set at checkout
+  assistantServiceType String?         // For ASSISTANT_DELIVERY: MEDICINE_COLLECTION | PHARMACY_VISIT | PHARMACY_COMPANION | MEDICINE_DELIVERY | DIGITAL_ASSISTANCE | PHARMACY_COMMS | RESTOCK_ASSISTANCE | PRESCRIPTION_ASSISTANCE
+  totalAmount      Float               @default(0.0)
+  medicineSubtotal Float?
+  deliveryFee      Float               @default(0.0)
+  platformFee      Float               @default(0.0)
+  deliveryAddress  String?             // Required for DELIVERY and ASSISTANT_DELIVERY
+  addressId        String?
+  address          PatientAddress?     @relation(fields: [addressId], references: [id])
+  selectedAssistantId String?          // Specifically booked Medicine Access Assistant
+  prescriptionId   String?
+  verificationPin  String?             // for collection/handover
+  notes            String?
+  items            OrderItem[]
+  assistantTask    AssistantTask?
+  statusHistory    OrderStatusHistory[]
+  payment          Payment?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+model PatientAddress {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String   @default("Home") // Home, Work, Other
+  recipientName String?
+  phone         String?
+  addressLine1  String
+  addressLine2  String?
+  landmark      String?
+  city          String   @default("Chengannur")
+  state         String   @default("Kerala")
+  postalCode    String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orders        Order[]
+}
+
+// Payment model — separate concern from Order.status
+// Status: PENDING | PAID | FAILED | REFUNDED
+// Method: ONLINE | COD
+model Payment {
+  id               String    @id @default(uuid())
+  orderId          String    @unique
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount           Float     // amount in INR (authoritative, backend-calculated)
+  currency         String    @default("INR")
+  method           String    @default("ONLINE") // ONLINE | COD
+  status           String    @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  gateway          String    @default("RAZORPAY")
+  gatewayOrderId   String?   // Razorpay order_id
+  gatewayPaymentId String?   // Razorpay payment_id (set on success)
+  gatewaySignature String?   // Razorpay signature (stored only if genuinely needed for audit; not logged)
+  failureReason    String?   // Safe non-sensitive reason string
+  createdAt        DateTime  @default(now())
+  paidAt           DateTime?
+  refundedAt       DateTime?
+  updatedAt        DateTime  @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  quantity   Int      @default(1)
+  unitPrice  Float?
+  subtotal   Float?
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model AssistantTask {
+  id              String    @id @default(uuid())
+  orderId         String    @unique
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assistantId     String?
+  assistant       User?     @relation(fields: [assistantId], references: [id])
+  status          String    @default("AVAILABLE") // AVAILABLE -> ACCEPTED -> COLLECTING -> IN_TRANSIT -> DELIVERED -> CONFIRMED
+  serviceType     String?   // MEDICINE_COLLECTION | PHARMACY_VISIT | PHARMACY_COMPANION | MEDICINE_DELIVERY | DIGITAL_ASSISTANCE | PHARMACY_COMMS | RESTOCK_ASSISTANCE | PRESCRIPTION_ASSISTANCE
+  acceptedAt      DateTime?
+  collectedAt     DateTime?
+  deliveredAt     DateTime?
+  deliveryAddress String?   // Patient/service destination; optional for non-delivery service types
+  serviceNote     String?   // Service-specific notes (replaces deliveryNotes semantically)
+  deliveryNotes   String?   // Retained for backward compatibility — maps to serviceNote for delivery tasks
+  handoverPin     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, ORDER_STATUS, EMERGENCY, ASSISTANT
+  isRead    Boolean  @default(false)
+  linkUrl   String?
+  createdAt DateTime @default(now())
+}
+
+model RestockRequest {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine  @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  pharmacyId String
+  pharmacy   Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  status     String    @default("ACTIVE") // ACTIVE, FULFILLED, CANCELLED
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([pharmacyId, medicineId, status])
+}
