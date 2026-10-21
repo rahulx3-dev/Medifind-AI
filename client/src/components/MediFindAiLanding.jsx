@@ -740,8 +740,8 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                 style={{ cursor: 'pointer' }}
                 title="MediFind AI Clinical Network"
               >
-                <SpinningLogoIcon size={40} />
-                <span style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: 16 }}>
+                <SpinningLogoIcon size={34} />
+                <span className="nf-brand-text" style={{ fontWeight: 700, letterSpacing: '-0.02em', fontSize: 16 }}>
                   MediFind <span style={{ color: '#10b981' }}>AI</span>
                 </span>
               </a>
@@ -773,7 +773,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                 {/* Theme Switcher Button */}
                 <button
                   type="button"
-                  className="nf-icon-btn"
+                  className="nf-icon-btn shrink-0"
                   onClick={toggleTheme}
                   aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                   title="Toggle Light/Dark Theme"
@@ -784,15 +784,16 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                   </svg>
                 </button>
 
-                {/* Main Nav CTA */}
-                <span className="nf-frame">
+                {/* Main Nav CTA - Responsive compact on mobile, full on sm+ */}
+                <span className="nf-frame shrink-0">
                   <button
                     type="button"
                     className="nf-btn nf-btn-dark"
                     onClick={onSignIn}
                     style={{ background: '#059669', color: '#ffffff', fontWeight: 600, border: 'none' }}
                   >
-                    <span>Sign In / Enter Portal</span>
+                    <span className="hidden sm:inline">Sign In / Enter Portal</span>
+                    <span className="sm:hidden text-xs">Sign In</span>
                     <ArrowIcon size={13} />
                   </button>
                 </span>
@@ -800,7 +801,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                 {/* 3-BAR HAMBURGER MENU BUTTON */}
                 <button
                   type="button"
-                  className="nf-icon-btn nf-menu-btn"
+                  className="nf-icon-btn nf-menu-btn shrink-0"
                   aria-expanded={menuOpen}
                   aria-label="Toggle Navigation Menu"
                   onClick={() => setMenuOpen(prev => !prev)}
@@ -813,9 +814,9 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                 >
                   <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
                     {menuOpen ? (
-                      <path d="M4 4l10 10M14 4l-10 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d="M4 4l10 10M14 4l-10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     ) : (
-                      <path d="M2.5 4.5h13M2.5 9h13M2.5 13.5h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d="M2.5 4.5h13M2.5 9h13M2.5 13.5h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     )}
                   </svg>
                 </button>
@@ -834,13 +835,17 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                   right: 0,
                   top: 'calc(100% + 8px)',
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                  gap: 8,
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+                  gap: 16,
                   padding: 16,
+                  maxHeight: 'calc(100vh - 80px)',
+                  overflowY: 'auto',
+                  WebkitOverflowScrolling: 'touch',
                   background: 'var(--nf-paper)',
                   border: '1px solid var(--nf-line-strong)',
                   boxShadow: 'var(--nf-shadow)',
-                  zIndex: 50,
+                  zIndex: 100,
+                  borderRadius: 6,
                   backdropFilter: 'blur(16px)'
                 }}
               >
@@ -1026,7 +1031,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
               <div className="nf-hero-ctas">
                 <button
                   type="button"
-                  className="nf-btn nf-btn-dark"
+                  className="nf-btn nf-btn-dark nf-hero-btn"
                   onClick={() => onNavigate('medicines')}
                   style={{ background: '#059669', color: '#ffffff' }}
                 >
@@ -1034,11 +1039,11 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                   <ArrowIcon size={14} />
                 </button>
 
-                <span className="nf-frame nf-frame-hover">
+                <span className="nf-frame nf-frame-hover nf-hero-btn-frame">
                   <CornerBrackets />
                   <button
                     type="button"
-                    className="nf-btn nf-btn-ghost"
+                    className="nf-btn nf-btn-ghost nf-hero-btn"
                     onClick={() => setDemoOpen(true)}
                   >
                     <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -1112,7 +1117,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
           </div>
 
           {/* Verified Kerala Pharmacy Partner Showcase Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginTop: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 20, marginTop: 32 }}>
             <div className="nf-frame nf-frame-hover">
               <CornerBrackets />
               <div className="nf-card" style={{ height: '100%', padding: '24px 20px', display: 'flex', flexDirection: 'column' }}>
@@ -1209,7 +1214,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
             subtitle="Four transparent, auditable stages ensuring zero medication mix-ups or delayed deliveries."
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 20 }}>
             {[
               {
                 step: '01',
@@ -1262,7 +1267,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
               subtitle="Book vetted healthcare professionals for bedside nursing, sterile wound dressing, vitals monitoring, and palliative care."
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 20 }}>
               {[
                 {
                   id: 'nursing',
@@ -1345,7 +1350,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                 type="button"
                 className="nf-btn nf-btn-dark"
                 onClick={() => onNavigate('healthcare')}
-                style={{ background: '#059669', color: '#ffffff', fontWeight: 600 }}
+                style={{ background: '#059669', color: '#ffffff', fontWeight: 600, maxWidth: '100%', whiteSpace: 'normal', height: 'auto', padding: '12px 18px', textAlign: 'center' }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>clinical_notes</span>
                 <span>Enter Healthcare Marketplace & Book Consultation</span>
@@ -1568,10 +1573,10 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
               Search verified Kerala dispensary inventory or upload your doctor's handwritten prescription for instant pharmacy stock matching.
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 28, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 28, flexWrap: 'wrap' }} className="nf-cta-btns">
               <button
                 type="button"
-                className="nf-btn"
+                className="nf-btn nf-cta-btn"
                 onClick={() => onNavigate('medicines')}
                 style={{ background: '#10b981', color: '#022c22', fontWeight: 700, padding: '12px 24px', fontSize: 14 }}
               >
@@ -1581,7 +1586,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
 
               <button
                 type="button"
-                className="nf-btn"
+                className="nf-btn nf-cta-btn"
                 onClick={onSignIn}
                 style={{ background: 'var(--nf-card)', color: 'var(--nf-ink)', border: '1px solid var(--nf-line-strong)', padding: '12px 24px', fontSize: 14 }}
               >
