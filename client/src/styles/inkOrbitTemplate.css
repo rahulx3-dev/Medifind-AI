@@ -393,12 +393,21 @@
     display: inline-flex !important;
   }
 
+  .nf-cta-text-desktop {
+    display: none !important;
+  }
+
+  .nf-cta-text-mobile {
+    display: inline !important;
+  }
+
   .nf-menu-btn {
     display: inline-grid !important;
     place-items: center !important;
     width: 34px !important;
     height: 34px !important;
     border-radius: 4px !important;
+    color: var(--nf-ink) !important;
   }
 
   /* Hero Section on Mobile */
@@ -594,5 +603,14 @@
     align-items: flex-start !important;
     gap: 10px !important;
     padding-top: 14px !important;
+  }
+}
+
+@media (min-width: 641px) {
+  .nf-cta-text-desktop {
+    display: inline !important;
+  }
+  .nf-cta-text-mobile {
+    display: none !important;
   }
 }

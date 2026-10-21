@@ -792,8 +792,8 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                     onClick={onSignIn}
                     style={{ background: '#059669', color: '#ffffff', fontWeight: 600, border: 'none' }}
                   >
-                    <span className="hidden sm:inline">Sign In / Enter Portal</span>
-                    <span className="sm:hidden text-xs">Sign In</span>
+                    <span className="nf-cta-text-desktop hidden sm:inline">Sign In / Enter Portal</span>
+                    <span className="nf-cta-text-mobile sm:hidden text-xs">Sign In</span>
                     <ArrowIcon size={13} />
                   </button>
                 </span>
@@ -808,15 +808,16 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
                   style={{
                     display: 'inline-grid',
                     placeItems: 'center',
+                    color: 'var(--nf-ink)',
                     background: menuOpen ? 'var(--nf-card)' : 'transparent',
                     borderColor: menuOpen ? 'var(--nf-line-strong)' : 'transparent'
                   }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true" style={{ display: 'block', color: 'var(--nf-ink)' }}>
                     {menuOpen ? (
-                      <path d="M4 4l10 10M14 4l-10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M4 4l10 10M14 4l-10 10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                     ) : (
-                      <path d="M2.5 4.5h13M2.5 9h13M2.5 13.5h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M2.5 4.5h13M2.5 9h13M2.5 13.5h13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                     )}
                   </svg>
                 </button>
