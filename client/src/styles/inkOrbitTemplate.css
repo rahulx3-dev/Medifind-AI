@@ -327,29 +327,71 @@
 @media (prefers-reduced-motion: reduce) { .ios-canvas { animation: none; } }
 
 /* ==========================================================================
-   COMPREHENSIVE MOBILE LAYOUT OVERRIDES (Viewport <= 640px)
+   CARD GRIDS & RESPONSIVE COMPONENT CLASSES (DESKTOP DEFAULT)
    ========================================================================== */
 
-@media (max-width: 640px) {
-  /* Zero horizontal blowout */
+.nf-pharmacy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+  margin-top: 28px;
+}
+
+.nf-workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.nf-services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.nf-card-icon-wrap {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.nf-card-icon {
+  font-size: 24px;
+  color: #10b981;
+}
+
+/* ==========================================================================
+   COMPREHENSIVE MOBILE & TABLET LAYOUT OVERRIDES (Viewport <= 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Zero horizontal blowout, natural comfortable mobile margins */
   .nf-root {
-    padding: 6px 8px 24px !important;
+    padding: 4px 10px 32px !important;
     overflow-x: hidden !important;
     max-width: 100vw !important;
   }
 
   .nf-shell {
-    gap: 14px !important;
+    gap: 16px !important;
     max-width: 100% !important;
   }
 
   /* Sticky Navbar on Mobile */
   .nf-nav {
-    top: 6px !important;
+    top: 4px !important;
   }
 
   .nf-navbar {
-    height: 52px !important;
+    height: 50px !important;
     padding: 0 8px 0 10px !important;
     gap: 6px !important;
     justify-content: space-between !important;
@@ -361,13 +403,12 @@
     flex-shrink: 0 !important;
   }
 
-  .nf-brand svg {
-    width: 28px !important;
+  .nf-brand img {
     height: 28px !important;
   }
 
   .nf-brand-text {
-    font-size: 14.5px !important;
+    font-size: 14px !important;
   }
 
   /* Nav Right Utilities */
@@ -384,9 +425,10 @@
 
   .nf-nav-end .nf-btn {
     padding: 6px 10px !important;
-    font-size: 12px !important;
+    font-size: 11.5px !important;
     gap: 4px !important;
     letter-spacing: -0.01em !important;
+    height: 32px !important;
   }
 
   .nf-nav-end .nf-frame {
@@ -404,10 +446,34 @@
   .nf-menu-btn {
     display: inline-grid !important;
     place-items: center !important;
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
     border-radius: 4px !important;
     color: var(--nf-ink) !important;
+  }
+
+  /* Mobile Drawer Menu */
+  .nf-mobile-menu-drawer,
+  .nf-mobile {
+    position: absolute !important;
+    left: 8px !important;
+    right: 8px !important;
+    top: calc(100% + 6px) !important;
+    width: calc(100% - 16px) !important;
+    max-height: calc(100vh - 76px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    padding: 14px 12px !important;
+    border-radius: 8px !important;
+    overflow-y: auto !important;
+    z-index: 100 !important;
+  }
+
+  .nf-mobile-menu-drawer button,
+  .nf-mobile button {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
   }
 
   /* Hero Section on Mobile */
@@ -418,35 +484,40 @@
   }
 
   .nf-hero-copy {
-    padding: 16px 0 16px !important;
+    padding: 12px 0 14px !important;
   }
 
   .nf-band {
-    padding: 14px 10px !important;
+    padding: 10px 10px !important;
   }
 
   .nf-h1 {
-    font-size: clamp(24px, 6.8vw, 36px) !important;
-    line-height: 1.12 !important;
+    font-size: clamp(22px, 6.2vw, 28px) !important;
+    line-height: 1.15 !important;
     letter-spacing: -0.025em !important;
   }
 
+  .nf-h1-acc {
+    min-height: 1.15em !important;
+  }
+
   .nf-hero-body {
-    padding: 14px 10px 0 !important;
+    padding: 12px 4px 0 !important;
   }
 
   .nf-lede {
-    font-size: 13.5px !important;
-    line-height: 1.55 !important;
+    font-size: 12.5px !important;
+    line-height: 1.5 !important;
     max-width: 100% !important;
+    color: var(--nf-soft) !important;
   }
 
   .nf-hero-ctas {
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
-    gap: 10px !important;
-    margin-top: 18px !important;
+    gap: 8px !important;
+    margin-top: 14px !important;
   }
 
   .nf-hero-btn-frame {
@@ -456,19 +527,24 @@
 
   .nf-hero-btn {
     width: 100% !important;
+    height: 40px !important;
     display: inline-flex !important;
     flex-direction: row !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 8px !important;
-    padding: 11px 16px !important;
-    font-size: 13px !important;
+    gap: 7px !important;
+    padding: 0 14px !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
     white-space: nowrap !important;
+    border-radius: 4px !important;
   }
 
   .nf-hero-btn svg {
     display: inline-block !important;
     flex-shrink: 0 !important;
+    width: 12px !important;
+    height: 12px !important;
     margin: 0 !important;
   }
 
@@ -479,149 +555,387 @@
 
   .nf-proof {
     flex-wrap: wrap !important;
-    gap: 8px !important;
-    margin-top: 20px !important;
-    font-size: 11.5px !important;
-    line-height: 1.4 !important;
+    gap: 6px !important;
+    margin-top: 14px !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
   }
 
+  .nf-proof-faces svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* Hero 3D Sculpture on Mobile: Compact & Sleek */
   .nf-art {
-    min-height: 280px !important;
-    height: 300px !important;
-    max-height: 340px !important;
+    min-height: 170px !important;
+    height: 185px !important;
+    max-height: 195px !important;
+    margin-top: 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--nf-line) !important;
   }
 
-  .nf-ticks {
-    font-size: 9px !important;
-    left: 8px !important;
-    right: 8px !important;
+  .nf-ticks,
+  .nf-art-hint,
+  .nf-art-seed {
+    display: none !important;
   }
 
-  .nf-art-hint {
-    font-size: 9px !important;
-    left: 8px !important;
-    right: 8px !important;
-    bottom: 8px !important;
-  }
-
-  /* Section Spacing & Headers */
+  /* Section Spacing & Headers on Mobile */
   .nf-sec-pad {
-    padding: 24px 10px !important;
+    padding: 22px 4px !important;
   }
 
   .nf-head {
-    margin-bottom: 22px !important;
-    gap: 10px !important;
+    margin-bottom: 14px !important;
+    gap: 6px !important;
+  }
+
+  .nf-tag {
+    font-size: 9.5px !important;
+    padding: 2px 7px !important;
+    letter-spacing: 0.05em !important;
   }
 
   .nf-h2 {
-    font-size: clamp(21px, 5.5vw, 30px) !important;
-    line-height: 1.15 !important;
+    font-size: 19px !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.02em !important;
   }
 
   .nf-sub {
-    font-size: 13px !important;
-    line-height: 1.5 !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+    margin-top: 2px !important;
   }
 
-  /* Bento Cards */
-  .nf-bento {
-    gap: 14px !important;
+  /* Marquee on Mobile */
+  .nf-marquee {
+    margin-top: 14px !important;
+    padding: 3px 0 !important;
+  }
+
+  .nf-marquee-row {
+    gap: 22px !important;
+  }
+
+  .nf-logo {
+    font-size: 11.5px !important;
+    gap: 5px !important;
+  }
+
+  .nf-logo .material-symbols-outlined {
+    font-size: 14px !important;
+  }
+
+  /* All Cards & Grids on Mobile */
+  .nf-pharmacy-grid,
+  .nf-workflow-grid,
+  .nf-services-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin-top: 14px !important;
+    width: 100% !important;
   }
 
   .nf-card {
-    padding: 16px 12px !important;
+    padding: 13px 12px !important;
+    gap: 8px !important;
+    border-radius: 6px !important;
+  }
+
+  .nf-card-icon-wrap {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 6px !important;
+  }
+
+  .nf-card-icon {
+    font-size: 19px !important;
+  }
+
+  .nf-card h3 {
+    font-size: 14.5px !important;
+    line-height: 1.25 !important;
+    margin: 4px 0 2px !important;
+  }
+
+  .nf-card p {
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .nf-card .nf-btn {
+    height: 35px !important;
+    padding: 0 12px !important;
+    font-size: 11.5px !important;
+    border-radius: 4px !important;
+  }
+
+  /* Bento Grid on Mobile */
+  .nf-bento {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .nf-wide {
+    width: 100% !important;
+  }
+
+  .nf-diagram {
+    max-height: 130px !important;
+    width: 100% !important;
   }
 
   .nf-wide-copy {
     grid-template-columns: 1fr !important;
-    gap: 10px !important;
-    padding: 0 12px 14px !important;
+    gap: 8px !important;
+    padding: 8px 10px 12px !important;
+  }
+
+  .nf-wide-copy h3 {
+    font-size: 12.5px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .nf-wide-copy p {
+    font-size: 11px !important;
+    line-height: 1.38 !important;
+  }
+
+  /* Telemetry box in Bento 2 */
+  .nf-telemetry-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    font-size: 10px !important;
   }
 
   /* Fulfillment Priority Toggle */
   .nf-toggle {
     width: 100% !important;
     grid-template-columns: 1fr 1fr !important;
+    padding: 2px !important;
+    border-radius: 4px !important;
   }
 
   .nf-toggle button {
-    padding: 8px 4px !important;
-    font-size: 11px !important;
+    padding: 6px 3px !important;
+    font-size: 10.5px !important;
     white-space: normal !important;
-    line-height: 1.25 !important;
+    line-height: 1.2 !important;
     text-align: center !important;
   }
 
-  /* Plans */
+  /* Plans / Fulfillment Options */
   .nf-plans {
-    gap: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
   }
 
   .nf-plan {
-    padding: 18px 14px !important;
+    padding: 14px 12px !important;
+    gap: 8px !important;
+    border-radius: 6px !important;
+  }
+
+  .nf-plan-name {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  .nf-badge {
+    font-size: 9.5px !important;
+    padding: 2px 6px !important;
+    border-radius: 3px !important;
+  }
+
+  .nf-plan-desc {
+    font-size: 11.5px !important;
+    line-height: 1.4 !important;
+    min-height: auto !important;
   }
 
   .nf-price {
-    font-size: 30px !important;
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
   }
 
-  /* Stats Grid */
-  .nf-stats {
-    margin-top: 18px !important;
+  .nf-price span {
+    font-size: 17px !important;
   }
 
-  .nf-stat {
-    padding: 12px 10px !important;
+  .nf-per {
+    font-size: 10.5px !important;
   }
 
-  .nf-stat-v {
-    font-size: 22px !important;
+  .nf-saving {
+    font-size: 10px !important;
+    min-height: auto !important;
+    margin-top: -4px !important;
   }
 
-  .nf-stat-l {
+  .nf-feats {
+    padding-top: 8px !important;
+    gap: 5px !important;
     font-size: 11px !important;
   }
 
-  /* FAQ Accordion */
+  .nf-feats svg {
+    width: 10px !important;
+    height: 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .nf-plan .nf-btn {
+    height: 36px !important;
+    padding: 0 12px !important;
+    font-size: 11.5px !important;
+    border-radius: 4px !important;
+    margin-top: 6px !important;
+  }
+
+  /* Stats Grid on Mobile */
+  .nf-about {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .nf-about-body {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+    max-width: 100% !important;
+  }
+
+  .nf-stats {
+    margin-top: 12px !important;
+    gap: 1px !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .nf-stat {
+    padding: 9px 8px !important;
+  }
+
+  .nf-stat-v {
+    font-size: 19px !important;
+    font-weight: 700 !important;
+  }
+
+  .nf-stat-l {
+    font-size: 10px !important;
+    margin-top: 2px !important;
+    line-height: 1.25 !important;
+  }
+
+  /* FAQ Accordion on Mobile */
+  .nf-faq {
+    margin-top: 4px !important;
+  }
+
   .nf-faq-q {
-    font-size: 13.5px !important;
-    padding: 14px 2px !important;
+    font-size: 12.5px !important;
+    padding: 10px 0 !important;
+    line-height: 1.35 !important;
   }
 
   .nf-faq-a p {
-    font-size: 12.5px !important;
-    padding: 0 8px 14px 2px !important;
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+    padding: 0 0 10px !important;
   }
 
-  /* Bottom Conversion CTA Banner */
+  /* Bottom Conversion CTA Banner on Mobile */
+  .nf-cta {
+    padding: 22px 12px !important;
+    border-radius: 6px !important;
+  }
+
+  .nf-cta .nf-h2 {
+    font-size: 18px !important;
+    line-height: 1.25 !important;
+  }
+
+  .nf-cta p {
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+    margin-top: 6px !important;
+  }
+
   .nf-cta-btns {
     flex-direction: column !important;
     width: 100% !important;
-    gap: 10px !important;
+    gap: 8px !important;
+    margin-top: 14px !important;
   }
 
   .nf-cta-btn {
     width: 100% !important;
+    height: 38px !important;
+    padding: 0 14px !important;
+    font-size: 12px !important;
     justify-content: center !important;
-    padding: 12px 16px !important;
+    border-radius: 4px !important;
   }
 
-  /* Footer */
+  /* Footer on Mobile */
   .nf-foot {
-    padding: 24px 12px 18px !important;
-    gap: 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 18px 8px 14px !important;
+    gap: 14px !important;
+  }
+
+  .nf-foot h4 {
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+    font-weight: 700 !important;
+  }
+
+  .nf-foot ul {
+    gap: 5px !important;
+    font-size: 11px !important;
+  }
+
+  .nf-foot-tag {
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+    margin-top: 6px !important;
   }
 
   .nf-foot-bar {
     flex-direction: column !important;
     align-items: flex-start !important;
-    gap: 10px !important;
-    padding-top: 14px !important;
+    gap: 8px !important;
+    font-size: 10.5px !important;
+    padding-top: 10px !important;
   }
 }
 
-@media (min-width: 641px) {
+@media (max-width: 480px) {
+  .nf-h1 {
+    font-size: 21px !important;
+  }
+
+  .nf-art {
+    height: 165px !important;
+    min-height: 150px !important;
+  }
+
+  .nf-card {
+    padding: 11px 10px !important;
+  }
+}
+
+@media (min-width: 769px) {
   .nf-cta-text-desktop {
     display: inline !important;
   }

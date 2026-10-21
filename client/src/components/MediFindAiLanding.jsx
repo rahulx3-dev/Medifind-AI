@@ -396,7 +396,7 @@ function BentoKeralaPharmacyRelay({ onNavigate }) {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: 11, color: 'var(--nf-muted)', margin: '8px 0' }}>
+          <div className="nf-telemetry-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: 11, color: 'var(--nf-muted)', margin: '8px 0' }}>
             <div>
               <span style={{ display: 'block', color: 'var(--nf-faint)', fontSize: 9.5 }}>LOCATION / LIC:</span>
               <span style={{ fontFamily: 'var(--nf-mono)', fontWeight: 600, color: 'var(--nf-soft)' }}>{p.license}</span>
@@ -829,24 +829,13 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
             ------------------------------------------------------------- */}
             {menuOpen && (
               <div
-                className="nf-mobile"
+                className="nf-mobile-menu-drawer nf-mobile"
                 style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 'calc(100% + 8px)',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-                  gap: 16,
-                  padding: 16,
-                  maxHeight: 'calc(100vh - 80px)',
-                  overflowY: 'auto',
-                  WebkitOverflowScrolling: 'touch',
                   background: 'var(--nf-paper)',
                   border: '1px solid var(--nf-line-strong)',
                   boxShadow: 'var(--nf-shadow)',
                   zIndex: 100,
-                  borderRadius: 6,
+                  borderRadius: 8,
                   backdropFilter: 'blur(16px)'
                 }}
               >
@@ -1118,21 +1107,23 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
           </div>
 
           {/* Verified Kerala Pharmacy Partner Showcase Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 20, marginTop: 32 }}>
+          <div className="nf-pharmacy-grid">
             <div className="nf-frame nf-frame-hover">
               <CornerBrackets />
-              <div className="nf-card" style={{ height: '100%', padding: '24px 20px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 28, color: '#10b981' }}>storefront</span>
+              <div className="nf-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="nf-card-icon-wrap">
+                    <span className="nf-card-icon material-symbols-outlined">storefront</span>
+                  </span>
                   <span style={{ fontSize: 10.5, padding: '3px 8px', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 4, fontWeight: 700, fontFamily: 'var(--nf-mono)' }}>
                     LICENSED PARTNER
                   </span>
                 </div>
-                <h3 style={{ fontSize: 18, marginTop: 12, marginBottom: 2 }}>Max Care Pharmacy</h3>
-                <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginBottom: 12, fontFamily: 'var(--nf-mono)' }}>
+                <h3>Max Care Pharmacy</h3>
+                <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginBottom: 8, fontFamily: 'var(--nf-mono)' }}>
                   Chengannur · Lic: KL-ALP-2023-0891
                 </div>
-                <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--nf-muted)', marginBottom: 16 }}>
+                <p>
                   Govt. Hospital Area, Chengannur, Kerala. Contact: +91 94471 23456. Operating 09:30 AM – 8:00 PM with comprehensive verified dispensary inventory active.
                 </p>
                 <div style={{ marginTop: 'auto' }}>
@@ -1151,18 +1142,20 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
 
             <div className="nf-frame nf-frame-hover">
               <CornerBrackets />
-              <div className="nf-card" style={{ height: '100%', padding: '24px 20px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 28, color: '#10b981' }}>storefront</span>
+              <div className="nf-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="nf-card-icon-wrap">
+                    <span className="nf-card-icon material-symbols-outlined">storefront</span>
+                  </span>
                   <span style={{ fontSize: 10.5, padding: '3px 8px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', borderRadius: 4, fontWeight: 700, fontFamily: 'var(--nf-mono)' }}>
                     LICENSED PARTNER
                   </span>
                 </div>
-                <h3 style={{ fontSize: 18, marginTop: 12, marginBottom: 2 }}>Karuna Medicals</h3>
-                <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginBottom: 12, fontFamily: 'var(--nf-mono)' }}>
+                <h3>Karuna Medicals</h3>
+                <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginBottom: 8, fontFamily: 'var(--nf-mono)' }}>
                   Chengannur · XI/567(1)
                 </div>
-                <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--nf-muted)', marginBottom: 16 }}>
+                <p>
                   XI/567(1), Chengannur, Kerala – 689121. Contact: +91 96057 18151. Operating 09:30 AM – 7:00 PM with comprehensive verified dispensary inventory active.
                 </p>
                 <div style={{ marginTop: 'auto' }}>
@@ -1215,7 +1208,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
             subtitle="Four transparent, auditable stages ensuring zero medication mix-ups or delayed deliveries."
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 20 }}>
+          <div className="nf-workflow-grid">
             {[
               {
                 step: '01',
@@ -1244,13 +1237,15 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
             ].map(item => (
               <div key={item.step} className="nf-frame nf-frame-hover">
                 <CornerBrackets />
-                <div className="nf-card" style={{ height: '100%', padding: '24px 20px' }}>
+                <div className="nf-card" style={{ height: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 26, color: '#10b981' }}>{item.icon}</span>
-                    <span style={{ fontFamily: 'var(--nf-mono)', fontSize: 13, color: 'var(--nf-faint)', fontWeight: 700 }}>{item.step}</span>
+                    <span className="nf-card-icon-wrap">
+                      <span className="nf-card-icon material-symbols-outlined">{item.icon}</span>
+                    </span>
+                    <span style={{ fontFamily: 'var(--nf-mono)', fontSize: 12, color: 'var(--nf-faint)', fontWeight: 700 }}>{item.step}</span>
                   </div>
-                  <h3 style={{ fontSize: 16, marginTop: 12 }}>{item.title}</h3>
-                  <p style={{ fontSize: 13, lineHeight: 1.6 }}>{item.desc}</p>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -1268,7 +1263,7 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
               subtitle="Book vetted healthcare professionals for bedside nursing, sterile wound dressing, vitals monitoring, and palliative care."
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 20 }}>
+            <div className="nf-services-grid">
               {[
                 {
                   id: 'nursing',
@@ -1309,23 +1304,25 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
               ].map(service => (
                 <div key={service.id} className="nf-frame nf-frame-hover">
                   <CornerBrackets />
-                  <div className="nf-card" style={{ height: '100%', padding: '24px 20px', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 28, color: '#10b981' }}>{service.icon}</span>
+                  <div className="nf-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="nf-card-icon-wrap">
+                        <span className="nf-card-icon material-symbols-outlined">{service.icon}</span>
+                      </span>
                       <span style={{ fontSize: 10, padding: '2px 8px', background: 'var(--nf-paper)', border: '1px solid var(--nf-line)', borderRadius: 4, fontFamily: 'var(--nf-mono)', color: 'var(--nf-soft)' }}>
                         {service.badge}
                       </span>
                     </div>
 
-                    <h3 style={{ fontSize: 17, marginTop: 14, marginBottom: 4 }}>{service.title}</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', padding: '3px 8px', borderRadius: 4, fontFamily: 'var(--nf-mono)' }}>
+                    <h3>{service.title}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', padding: '2px 7px', borderRadius: 4, fontFamily: 'var(--nf-mono)' }}>
                         {service.scope}
                       </span>
-                      <span style={{ fontSize: 11, color: 'var(--nf-muted)', fontFamily: 'var(--nf-mono)' }}>• {service.duration}</span>
+                      <span style={{ fontSize: 10.5, color: 'var(--nf-muted)', fontFamily: 'var(--nf-mono)' }}>• {service.duration}</span>
                     </div>
 
-                    <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--nf-muted)', marginBottom: 20 }}>
+                    <p>
                       {service.desc}
                     </p>
 
