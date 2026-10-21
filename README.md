@@ -1,40 +1,26 @@
 <div align="center">
 
-  <img src="https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=1200" alt="MediFind AI Hero Banner" width="100%" style="border-radius: 16px; max-height: 280px; object-fit: cover;" />
+# 🏥 MediFind AI
+### Intelligent Prescription-Assisted Medicine Discovery, Dispensary Availability & Secure Doorstep Relay
 
-  <br />
-  <br />
+**Department of Computer Science and Engineering**  
+**Providence College of Engineering, Chengannur, Kerala**
 
-  # 🏥 MediFind AI
-  ### *Intelligent Prescription-Assisted Medicine Discovery, Dispensary Availability & Secure Doorstep Relay*
+---
 
-  <p align="center">
-    <b>A full-stack, distributed healthcare platform designed to solve medicine accessibility fragmentation through local prescription OCR, multi-pharmacy inventory telemetry, and authenticated 4-digit PIN doorstep delivery.</b>
-  </p>
+[![React 19](https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%208-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Express.js](https://img.shields.io/badge/Backend-Express%205-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%7C%20Neon-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
+[![Prisma ORM](https://img.shields.io/badge/ORM-Prisma%205.22-2D3748?style=for-the-badge&logo=prisma)](https://prisma.io/)
+[![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20%7C%20Motion-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Tests](https://img.shields.io/badge/Tests-48%2F48%20Passing-success?style=for-the-badge)](server/test_phase1_assistant_redesign.js)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](LICENSE)
 
-  <p align="center">
-    <a href="#-quick-links">Quick Links</a> •
-    <a href="#-pilot-territory--participating-pharmacies">Participating Pharmacies</a> •
-    <a href="#-system-architecture">Architecture</a> •
-    <a href="#-portals--role-specifications">User Portals</a> •
-    <a href="#-ocr--lexicon-pipeline">OCR Pipeline</a> •
-    <a href="#-api-specification">API Reference</a> •
-    <a href="#-getting-started">Getting Started</a> •
-    <a href="#-deployment-guide">Deployment</a>
-  </p>
+<br />
 
-  <!-- Badges -->
-  <p align="center">
-    <img src="https://img.shields.io/badge/React-19.0.0-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
-    <img src="https://img.shields.io/badge/Vite-8.3.0-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" />
-    <img src="https://img.shields.io/badge/Node.js-v20%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
-    <img src="https://img.shields.io/badge/Express-5.x-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express 5" />
-    <img src="https://img.shields.io/badge/PostgreSQL-Neon_Cloud-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-    <img src="https://img.shields.io/badge/Prisma-5.22.0-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" />
-    <img src="https://img.shields.io/badge/TailwindCSS-Vanilla_Design-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
-    <img src="https://img.shields.io/badge/Tests-48%2F48_Passing-success?style=for-the-badge" alt="Test Suite" />
-    <img src="https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge" alt="License" />
-  </p>
+<p align="center">
+  <b>A full-stack, distributed healthcare platform designed to eliminate medicine availability fragmentation through local prescription OCR, multi-pharmacy inventory telemetry, and authenticated 4-digit PIN doorstep delivery.</b>
+</p>
 
 </div>
 
@@ -42,45 +28,49 @@
 
 ## 📑 Table of Contents
 
-- [Overview & Problem Statement](#-overview--problem-statement)
-- [Pilot Territory & Participating Pharmacies](#-pilot-territory--participating-pharmacies)
-- [System Architecture](#-system-architecture)
-- [Key Features](#-key-features)
-- [Portals & Role Specifications](#-portals--role-specifications)
-- [OCR & Indian Medicine Lexicon Pipeline](#-ocr--indian-medicine-lexicon-pipeline)
-- [Cryptographic PIN Handover Protocol](#-cryptographic-pin-handover-protocol)
-- [Database Schema (Prisma ORM)](#-database-schema-prisma-orm)
-- [API Specification](#-api-specification)
-- [Getting Started (Local Development)](#-getting-started-local-development)
-- [Environment Variables](#-environment-variables)
-- [Deployment Guide (Vercel + Render + Neon)](#-deployment-guide-vercel--render--neon)
-- [Automated Testing & Quality Assurance](#-automated-testing--quality-assurance)
-- [Security, Privacy & RBAC Guardrails](#-security-privacy--rbac-guardrails)
-- [Academic Context & Disclaimer](#-academic-context--disclaimer)
+1. [Overview & Problem Statement](#overview--problem-statement)
+2. [Pilot Territory & Participating Pharmacies](#pilot-territory--participating-pharmacies)
+3. [System Architecture](#system-architecture)
+4. [Key Features](#key-features)
+5. [Portals & Role Specifications](#portals--role-specifications)
+   - [Patient Access Portal](#1-patient-access-portal)
+   - [Supervising Pharmacist Portal](#2-supervising-pharmacist-portal)
+   - [Care Assistant Portal (Dual Tracks)](#3-care-assistant-portal)
+   - [Executive Administrator Portal](#4-executive-administrator-portal)
+6. [OCR & Indian Medicine Lexicon Pipeline](#ocr--indian-medicine-lexicon-pipeline)
+7. [Cryptographic PIN Handover Protocol](#cryptographic-pin-handover-protocol)
+8. [Database Schema (Prisma ORM)](#database-schema-prisma-orm)
+9. [REST API Specification](#rest-api-specification)
+10. [Local Development Setup](#local-development-setup)
+11. [Environment Variables](#environment-variables)
+12. [Cloud Production Deployment (Vercel + Render + Neon)](#cloud-production-deployment-vercel--render--neon)
+13. [Automated Testing & Quality Assurance](#automated-testing--quality-assurance)
+14. [Security, Privacy & RBAC Guardrails](#security-privacy--rbac-guardrails)
+15. [Academic Context & Institution](#academic-context--institution)
 
 ---
 
-## 🎯 Overview & Problem Statement
+## <a id="overview--problem-statement"></a> 🎯 Overview & Problem Statement
 
 ### The Problem
-In suburban and tier-2/tier-3 communities across India, finding prescribed medications remains a major hurdle for elderly, chronically ill, and rural patients:
-1. **Inventory Opacity**: Patients frequently visit 3 to 4 pharmacies in person before discovering where life-saving medicines (e.g., cardiac drugs, insulin, pediatric antibiotics) are actually in stock.
-2. **Prescription Legibility**: Handwritten clinical scripts are difficult for patients to decipher, leading to missed doses or incorrect brand purchases.
-3. **Physical Access Barriers**: Elderly patients or individuals without immediate personal transit struggle to reach dispensaries during active hours.
-4. **Lack of Cold-Chain & Handover Assurance**: Unregulated third-party couriers lack temperature-controlled handling and anti-fraud identity protocols.
+In suburban and tier-2/tier-3 communities across Kerala, finding prescribed medications remains a major hurdle for elderly, chronically ill, and rural patients:
+* **Inventory Opacity**: Patients frequently travel to 3 or 4 pharmacies in person before discovering where required medications (e.g., cardiac drugs, insulin, pediatric antibiotics) are in stock.
+* **Prescription Legibility**: Handwritten clinical scripts are notoriously difficult for patients to decipher, often leading to delayed treatment or incorrect purchases.
+* **Physical Mobility Constraints**: Elderly patients, postpartum mothers, or individuals without immediate personal transit struggle to reach dispensaries during active operating hours.
+* **Lack of Chain-of-Custody**: Generic third-party delivery options lack temperature-controlled handling and anti-fraud identity verification for scheduled medicines.
 
 ### The MediFind AI Solution
-**MediFind AI** delivers a unified, HIPAA-aware, zero-trust medicine accessibility network:
+**MediFind AI** provides a unified, HIPAA-aware, zero-trust medicine accessibility platform:
 * **Prescription Vision AI**: Scans doctor prescriptions using a localized, dual-engine ML OCR pipeline backed by an auxiliary lexicon of 1,000+ Indian medicine formulations.
-* **Telemetry Discovery**: Cross-matches verified medicines in real time against inventory databases of accredited participating pharmacies.
+* **Telemetry Discovery**: Cross-matches verified medicines in real time against live inventory at accredited participating pharmacies.
 * **Dual-Track Assistant Dispatch**: Coordinates certified local delivery partners (Track 1) and registered healthcare clinicians (Track 2) for rapid doorstep handovers.
 * **Zero-Leakage PIN Verification**: Guarantees medicines are released only upon cryptographic 4-digit PIN matching at the patient's doorstep.
 
 ---
 
-## 📍 Pilot Territory & Participating Pharmacies
+## <a id="pilot-territory--participating-pharmacies"></a> 📍 Pilot Territory & Participating Pharmacies
 
-MediFind AI is piloted across **Chengannur Taluk, Alappuzha District, Kerala, India**. The system connects to **two officially accredited, licensed participating dispensaries**:
+MediFind AI is piloted across **Chengannur Taluk, Alappuzha District, Kerala, India**. The platform is connected to **two officially licensed, participating dispensaries**:
 
 ```
                        ┌──────────────────────────────────────────────┐
@@ -104,9 +94,9 @@ MediFind AI is piloted across **Chengannur Taluk, Alappuzha District, Kerala, In
 
 ---
 
-## 🏗️ System Architecture
+## <a id="system-architecture"></a> 🏗️ System Architecture
 
-MediFind AI implements an asynchronous, client-server event-driven architecture with clean layer separation:
+MediFind AI implements an asynchronous, client-server architecture with clean layer separation:
 
 ```mermaid
 graph TD
@@ -148,7 +138,7 @@ graph TD
 
 ---
 
-## ✨ Key Features
+## <a id="key-features"></a> ✨ Key Features
 
 | Category | Feature | Description |
 | :--- | :--- | :--- |
@@ -168,23 +158,21 @@ graph TD
 
 ---
 
-## 👥 Portals & Role Specifications
+## <a id="portals--role-specifications"></a> 👥 Portals & Role Specifications
 
-MediFind AI features **4 discrete, customized portal workspaces**:
-
-### 1. 🧑‍⚕️ Patient Access Portal
+### 1. Patient Access Portal
 * **Prescription Upload & Review**: Upload prescriptions, trigger image enhancement, and verify extracted items with one-click dosage adjustments.
 * **Interactive Pharmacy Comparison**: Compare prices, distance, stock levels, and available pickup or delivery slots between Max Care Pharmacy and Karuna Medicals.
 * **Live Order Tracking**: Interactive step-by-step order journey: *Reserved → Pharmacist Verified → Assistant Dispatched → Doorstep Handover*.
 * **Digital PIN Security**: Reveals the private 4-digit PIN required to receive medication.
 
-### 2. 💊 Supervising Pharmacist Portal
+### 2. Supervising Pharmacist Portal
 * **Dispensary Work Queue**: Receive incoming orders and clinical review requests.
 * **Prescription Authenticity Audit**: View high-resolution authenticated prescription images with side-by-side medicine extraction lists.
 * **Stock Telemetry Control**: Update stock counts, flag shortages, and authorize counter releases.
 * **Tamper-Evident Packaging Verification**: Confirm physical packaging and validate PIN handovers.
 
-### 3. 🛵 Care Assistant Portal
+### 3. Care Assistant Portal
 ```
                   ┌──────────────────────────────────────────────┐
                   │       Assistant Registration Gateway         │
@@ -201,14 +189,12 @@ MediFind AI features **4 discrete, customized portal workspaces**:
 │ • 4-Digit Doorstep PIN Handover │             │ • Requires Admin Authorization  │
 └─────────────────────────────────┘             └─────────────────────────────────┘
 ```
-* **Track 1 (Medicine Access & Delivery Assistant)**:
-  * Open to community couriers. Focuses on rapid local transit, cold-chain handling, and PIN-secured handovers.
-* **Track 2 (Healthcare Professional Assistant)**:
-  * For certified nurses, clinicians, and physiotherapists. Tasks remain strictly gated in `PENDING` status until verified by the platform admin.
+* **Track 1 (Medicine Access & Delivery Assistant)**: Open to community couriers. Focuses on rapid local transit, cold-chain handling, and PIN-secured handovers.
+* **Track 2 (Healthcare Professional Assistant)**: For certified nurses, clinicians, and physiotherapists. Tasks remain strictly gated in `PENDING` status until verified by the platform admin.
 * **GPS Territory Selector**: Auto-detects Kerala coordinates with quick town presets (*Chengannur, Mavelikara, Haripad, Thiruvalla*).
 * **Interactive Profile**: View operational hub, transit mode, and direct contact tools for participating dispensaries.
 
-### 4. 🛡️ Executive Administrator Portal
+### 4. Executive Administrator Portal
 * **Operations Command Dashboard**: Live telemetry metrics displaying order counts, active relay tasks, and platform uptime.
 * **Verification Queue**: Audit and approve/reject pending healthcare professional credentials and council license numbers.
 * **Dispensary Governance**: Oversee partner pharmacy stock compliance, operational hours, and pricing integrity.
@@ -216,7 +202,7 @@ MediFind AI features **4 discrete, customized portal workspaces**:
 
 ---
 
-## 🔍 OCR & Indian Medicine Lexicon Pipeline
+## <a id="ocr--indian-medicine-lexicon-pipeline"></a> 🔍 OCR & Indian Medicine Lexicon Pipeline
 
 ```
 Raw Prescription Photo
@@ -242,7 +228,7 @@ Raw Prescription Photo
 
 ---
 
-## 🔐 Cryptographic PIN Handover Protocol
+## <a id="cryptographic-pin-handover-protocol"></a> 🔐 Cryptographic PIN Handover Protocol
 
 To prevent lost packages, misdeliveries, or medication theft, MediFind AI utilizes an encrypted **4-Digit OTP/PIN Handover Protocol**:
 
@@ -255,7 +241,7 @@ To prevent lost packages, misdeliveries, or medication theft, MediFind AI utiliz
 
 ---
 
-## 🗄️ Database Schema (Prisma ORM)
+## <a id="database-schema-prisma-orm"></a> 🗄️ Database Schema (Prisma ORM)
 
 The database runs on **Neon PostgreSQL** via Prisma. Key core relational models:
 
@@ -316,7 +302,7 @@ model Order {
 
 ---
 
-## 📡 API Specification
+## <a id="rest-api-specification"></a> 📡 REST API Specification
 
 ### Authentication & Profiles
 | Method | Endpoint | Role | Description |
@@ -357,7 +343,7 @@ model Order {
 
 ---
 
-## 💻 Getting Started (Local Development)
+## <a id="local-development-setup"></a> 💻 Local Development Setup
 
 ### 1. Prerequisites
 * **Node.js**: `v20.0.0+` or `v24.0.0+`
@@ -405,7 +391,7 @@ npm run dev
 
 ---
 
-## ⚙️ Environment Variables
+## <a id="environment-variables"></a> ⚙️ Environment Variables
 
 ### Backend (`server/.env`)
 | Variable | Required | Description | Example |
@@ -419,7 +405,7 @@ npm run dev
 
 ---
 
-## 🚀 Deployment Guide (Vercel + Render + Neon)
+## <a id="cloud-production-deployment-vercel--render--neon"></a> 🚀 Cloud Production Deployment (Vercel + Render + Neon)
 
 ```
 [User Browser]
@@ -463,7 +449,7 @@ npm run dev
 
 ---
 
-## 🧪 Automated Testing & Quality Assurance
+## <a id="automated-testing--quality-assurance"></a> 🧪 Automated Testing & Quality Assurance
 
 MediFind AI features comprehensive automated regression suites:
 
@@ -515,7 +501,7 @@ Phase 1 Verification Complete: 48 passed, 0 failed.
 
 ---
 
-## 🛡️ Security, Privacy & RBAC Guardrails
+## <a id="security-privacy--rbac-guardrails"></a> 🛡️ Security, Privacy & RBAC Guardrails
 
 * **Zero-Leakage Handover PIN**: Prevents medicine misplacement; releases medication only upon patient-authenticated 4-digit PIN verification.
 * **Non-Public Prescription Vault**: All uploaded scans are excluded from static public web directories. File streams require authenticated HTTP GET with user or dispensary ownership verification.
@@ -524,19 +510,21 @@ Phase 1 Verification Complete: 48 passed, 0 failed.
 
 ---
 
-## 📜 Academic Context & Disclaimer
+## <a id="academic-context--institution"></a> 🎓 Academic Context & Institution
 
-> **Academic Notice**: MediFind AI was developed as a final-year B.Tech Computer Science and Engineering project. It is intended for research, academic evaluation, and community healthcare logistics innovation. It does not replace certified medical consultation, prescribing physicians, or emergency dispatch services. All medicine disbursements require an authentic, signed prescription verified by a licensed pharmacist.
+* **Project**: Final Year B.Tech Capstone Project
+* **Institution**: **Providence College of Engineering, Chengannur**
+* **Department**: Department of Computer Science & Engineering
+* **Author / Developer**: [@rahulx3-dev](https://github.com/rahulx3-dev)
+* **Pilot Location**: Chengannur, Alappuzha District, Kerala, India
+* **Participating Community Dispensaries**:
+  * **Max Care Pharmacy** (Govt. Hospital Junction, Chengannur)
+  * **Karuna Medicals** (Near Private Bus Stand, Station Road, Chengannur)
+
+> **Academic Notice**: MediFind AI was developed as a final-year B.Tech Computer Science and Engineering project at Providence College of Engineering, Chengannur. It is intended for research, academic evaluation, and community healthcare logistics innovation. It does not replace certified medical consultation, prescribing physicians, or emergency dispatch services. All medicine disbursements require an authentic, signed prescription verified by a licensed pharmacist.
 
 ---
 
-## 👨‍💻 Maintainer & Acknowledgments
-
-* **Repository**: [https://github.com/rahulx3-dev/Medifind-AI](https://github.com/rahulx3-dev/Medifind-AI)
-* **Lead Author**: [@rahulx3-dev](https://github.com/rahulx3-dev)
-* **Academic Evaluation**: Department of Computer Science & Engineering
-* **Participating Dispensary Partners**: Max Care Pharmacy & Karuna Medicals (Chengannur)
-
 <div align="center">
-  <sub>Built with ❤️ for accessible healthcare logistics in Kerala.</sub>
+  <sub>Developed at <b>Providence College of Engineering, Chengannur</b> • Built with ❤️ for accessible healthcare logistics in Kerala.</sub>
 </div>
