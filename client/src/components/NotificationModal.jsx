@@ -95,7 +95,7 @@ export default function NotificationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-on-surface/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[1100] flex items-center justify-center p-2.5 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -106,29 +106,30 @@ export default function NotificationModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-xl bg-surface-container-lowest rounded-3xl p-6 sm:p-7 shadow-[0_20px_40px_-8px_rgba(22,54,48,0.22)] border border-outline-variant/30 flex flex-col gap-4 max-h-[85vh] overflow-hidden"
+        className="w-full max-w-xl bg-surface-container-lowest rounded-2xl sm:rounded-3xl p-3.5 sm:p-7 shadow-[0_20px_40px_-8px_rgba(22,54,48,0.22)] border border-outline-variant/30 flex flex-col gap-3 sm:gap-4 max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-surface-container gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 shadow-xs">
-              <span className="material-symbols-outlined text-xl">notifications</span>
+        <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-surface-container gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 shadow-xs">
+              <span className="material-symbols-outlined text-lg sm:text-xl">notifications</span>
             </div>
-            <div className="flex flex-col">
-              <h3 className="text-xl font-bold text-primary tracking-tight">Notification Center</h3>
-              <span className="text-xs text-on-surface-variant">
+            <div className="flex flex-col min-w-0">
+              <h3 className="text-base sm:text-xl font-bold text-primary tracking-tight truncate">Notification Center</h3>
+              <span className="hidden sm:block text-xs text-on-surface-variant truncate">
                 Live dispatch updates, order milestones &amp; safety triage alerts
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {notifications.length > 0 && onMarkAllRead && (
               <button
                 onClick={onMarkAllRead}
-                className="px-3 py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                 title="Mark all as read"
+                aria-label="Mark all as read"
               >
                 <span className="material-symbols-outlined text-base">done_all</span>
                 <span className="hidden sm:inline">Mark Read</span>
@@ -137,8 +138,9 @@ export default function NotificationModal({
             {notifications.length > 0 && onClearAll && (
               <button
                 onClick={onClearAll}
-                className="px-3 py-1.5 rounded-full bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                 title="Clear all notifications"
+                aria-label="Clear all notifications"
               >
                 <span className="material-symbols-outlined text-base">delete_sweep</span>
                 <span className="hidden sm:inline">Clear All</span>
@@ -146,7 +148,7 @@ export default function NotificationModal({
             )}
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-surface-container text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full hover:bg-surface-container text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer shrink-0"
               aria-label="Close"
             >
               <span className="material-symbols-outlined text-xl">close</span>

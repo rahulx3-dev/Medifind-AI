@@ -1065,7 +1065,7 @@ async function uploadPrescription(req, res) {
       executionTimeMs = Date.now() - ocrStartTime;
 
       if (!ocrResult || !ocrResult.success || !ocrResult.rawText || !ocrResult.rawText.trim()) {
-        const errorDetail = ocrResult?.error || 'OCR produced no readable text.';
+        const errorDetail = ocrResult?.error || 'Prescription uploaded. Automatic text extraction was unclear.';
         const sanitizedErr = String(errorDetail).replace(/[^\w\s.,;:?!-]/g, ' ').substring(0, 500);
 
         if (ocrClaim && ocrClaim.runId) {
@@ -1084,18 +1084,21 @@ async function uploadPrescription(req, res) {
         }
 
         const rxDelegate = prisma.prescription;
+        let updatedRx = prescription;
         if (rxDelegate && typeof rxDelegate.update === 'function') {
-          await rxDelegate.update({
+          updatedRx = await rxDelegate.update({
             where: { id: prescription.id },
-            data: { status: 'FAILED', ocrRawText: sanitizedErr }
+            data: { status: 'VERIFICATION_REQUIRED', ocrRawText: sanitizedErr }
           });
         }
 
-        return res.status(422).json({
-          success: false,
-          error: "We couldn't read this prescription clearly. Please upload a clearer image or add medicines manually.",
-          prescriptionId: prescription.id,
-          ocrText: ''
+        return res.json({
+          success: true,
+          prescription: updatedRx,
+          detectedItems: [],
+          ocrText: '',
+          confidence: 0,
+          warning: "We couldn't clearly detect printed text from this image. You can verify and select medications manually below."
         });
       }
 

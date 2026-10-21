@@ -1801,5 +1801,109 @@ html.dark textarea::placeholder,
   }
 }
 
+/* ==========================================================================
+   11. MOBILE MODAL, POPUP, AND DIALOG RESPONSIVE SYSTEM (<= 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* Backdrops: ensure flexible touch positioning without outer window clipping */
+  div[role="dialog"],
+  div[aria-modal="true"],
+  .fixed.inset-0.z-\[1100\],
+  .fixed.inset-0.z-\[1200\],
+  .fixed.inset-0.z-\[1250\],
+  .fixed.inset-0.z-\[1300\],
+  .fixed.inset-0.z-50 {
+    padding: 0.5rem !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Inner modal card boxes */
+  div[role="dialog"] > div,
+  div[role="dialog"] > motion\.div,
+  div[aria-modal="true"] > div,
+  .fixed.inset-0 > div[class*="rounded-3xl"],
+  .fixed.inset-0 > div[class*="rounded-2xl"],
+  .fixed.inset-0 > div[class*="max-w-"],
+  .modal-content,
+  .dialog-content {
+    width: 100% !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    margin: auto !important;
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Headers inside dialogs & popups */
+  div[role="dialog"] h2,
+  div[role="dialog"] h3,
+  div[aria-modal="true"] h2,
+  div[aria-modal="true"] h3 {
+    font-size: 1.1rem !important;
+    line-height: 1.35 !important;
+    word-break: break-word !important;
+  }
+
+  /* Subtitles & descriptions inside dialogs */
+  div[role="dialog"] p,
+  div[aria-modal="true"] p {
+    word-break: break-word !important;
+  }
+
+  /* Modal Action button matrix: stack vertically with full-width touch targets */
+  div[role="dialog"] .flex.flex-col.sm\:flex-row-reverse,
+  div[role="dialog"] .flex.items-center.justify-end,
+  div[aria-modal="true"] .flex.flex-col.sm\:flex-row-reverse,
+  div[aria-modal="true"] .flex.items-center.justify-end {
+    flex-direction: column-reverse !important;
+    width: 100% !important;
+    gap: 0.625rem !important;
+  }
+
+  div[role="dialog"] .flex.flex-col.sm\:flex-row-reverse > button,
+  div[role="dialog"] .flex.items-center.justify-end > button,
+  div[aria-modal="true"] .flex.flex-col.sm\:flex-row-reverse > button,
+  div[aria-modal="true"] .flex.items-center.justify-end > button {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+  }
+
+  /* Popover dropdowns and floating menus */
+  [role="menu"],
+  [role="listbox"],
+  .dropdown-menu,
+  .popover-content {
+    max-width: calc(100vw - 1rem) !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Ultra-compact modal padding for small phones */
+  div[role="dialog"] > div,
+  div[role="dialog"] > motion\.div,
+  div[aria-modal="true"] > div,
+  .fixed.inset-0 > div[class*="rounded-3xl"],
+  .fixed.inset-0 > div[class*="rounded-2xl"] {
+    padding: 0.875rem !important;
+    border-radius: 1rem !important;
+  }
+
+  div[role="dialog"] h2,
+  div[role="dialog"] h3 {
+    font-size: 1rem !important;
+  }
+}
+
 
 

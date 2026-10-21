@@ -35,8 +35,12 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // ─── Allowed MIME Types & Extensions ─────────────────────────────────────────
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
-const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+  'image/heic', 'image/heif', 'image/heif-sequence',
+  'image/bmp', 'image/tiff', 'application/octet-stream'
+]);
+const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.bmp', '.tiff']);
 
 // ─── Multer Storage ───────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
@@ -46,8 +50,8 @@ const storage = multer.diskStorage({
   filename: function (req, file, cb) {
     // Server-controlled filename — never trust original filename for path
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname).toLowerCase();
-    const safeExt = ALLOWED_EXTENSIONS.has(ext) ? ext : '.png';
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = ALLOWED_EXTENSIONS.has(ext) ? ext : '.jpg';
     cb(null, 'rx-' + uniqueSuffix + safeExt);
   }
 });
@@ -57,12 +61,15 @@ const fileFilter = function (req, file, cb) {
   const mimetype = file.mimetype ? file.mimetype.toLowerCase() : '';
   const ext = path.extname(file.originalname || '').toLowerCase();
 
-  if (ALLOWED_MIME_TYPES.has(mimetype) && ALLOWED_EXTENSIONS.has(ext)) {
+  const isImageMime = mimetype.startsWith('image/') || mimetype === 'application/octet-stream';
+  const hasImageExt = ALLOWED_EXTENSIONS.has(ext) || !ext;
+
+  if (isImageMime || hasImageExt) {
     cb(null, true); // Accept
   } else {
     cb(new multer.MulterError(
       'LIMIT_UNEXPECTED_FILE',
-      `Unsupported file type "${mimetype}" (${ext}). Only JPEG, PNG, and WEBP images are allowed.`
+      `Unsupported file type "${mimetype}" (${ext}). Please upload a valid prescription image.`
     ), false);
   }
 };

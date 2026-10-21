@@ -1163,13 +1163,14 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
     setError('');
     stopCamera();
 
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowed.includes(selectedFile.type)) {
-      setError('Please upload a clear JPEG, PNG, or WebP prescription image.');
+    const isImageMime = selectedFile.type ? selectedFile.type.startsWith('image/') : false;
+    const hasImageExt = /\.(jpe?g|png|webp|heic|heif|bmp|tiff)$/i.test(selectedFile.name || '');
+    if (!isImageMime && !hasImageExt && selectedFile.type) {
+      setError('Please upload a clear image (JPEG, PNG, WebP, or HEIC) of your prescription.');
       return;
     }
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('Prescription file exceeds 10 MB limit. Please compress or choose a file under 10MB.');
+    if (selectedFile.size > 15 * 1024 * 1024) {
+      setError('Prescription file exceeds 15 MB limit. Please compress or choose a file under 15MB.');
       return;
     }
 
@@ -1300,8 +1301,11 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
       // Clear hold duration (1.4s) at 100% so user can inspect verified extractions before moving to Step 3
       setTimeout(() => {
-        setStep(3); // Step 3: Prescription Verification (Screen ebfde8293be14e72aa1b7f0c6078b3d0)
-        showToast(`Prescription analyzed! ${items.length} candidate medication(s) identified.`, 'success');
+        if (data.warning) {
+          showToast(data.warning, 'info');
+        } else {
+          showToast(`Prescription analyzed! ${items.length} candidate medication(s) identified.`, 'success');
+        }
       }, 1400);
     } catch (err) {
       clearTimeout(abortTimeout);

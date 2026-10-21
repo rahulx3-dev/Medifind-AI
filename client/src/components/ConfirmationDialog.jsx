@@ -49,11 +49,11 @@ export default function ConfirmationDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-on-surface/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-[0_20px_40px_-8px_rgba(22,54,48,0.22)] border border-outline-variant/40 flex flex-col gap-5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-[0_20px_40px_-8px_rgba(22,54,48,0.22)] border border-outline-variant/40 flex flex-col gap-4 sm:gap-5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Subtle ambient wash */}
         <div
           className={`absolute -top-12 -right-12 w-44 h-44 rounded-full opacity-30 blur-2xl pointer-events-none ${
@@ -61,22 +61,22 @@ export default function ConfirmationDialog({
           }`}
         />
 
-        {/* Dialog Badge & ESC indicator */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        {/* Dialog Badge & Dismiss indicator */}
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 min-w-0">
             <span
-              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${
                 finalIsDestructive
                   ? 'bg-tertiary-container text-white'
                   : 'bg-secondary-container text-on-secondary-container'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">
+              <span className="material-symbols-outlined text-base sm:text-lg">
                 {finalIsDestructive ? 'warning' : 'verified_user'}
               </span>
             </span>
             <span
-              className={`text-xs font-bold tracking-wider uppercase ${
+              className={`text-xs font-bold tracking-wider uppercase truncate ${
                 finalIsDestructive ? 'text-tertiary' : 'text-secondary'
               }`}
             >
@@ -84,15 +84,24 @@ export default function ConfirmationDialog({
             </span>
           </div>
 
-          <div className="flex items-center gap-1 bg-surface-container-low px-2 py-0.5 rounded text-[11px] font-mono text-on-surface-variant">
-            <kbd className="font-semibold text-primary">ESC</kbd>
-            <span>to dismiss</span>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1 bg-surface-container-low px-2 py-0.5 rounded text-[11px] font-mono text-on-surface-variant">
+              <kbd className="font-semibold text-primary">ESC</kbd>
+              <span>to dismiss</span>
+            </div>
+            <button
+              onClick={onCancel}
+              className="w-7 h-7 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center sm:hidden"
+              aria-label="Close"
+            >
+              <span className="material-symbols-outlined text-base">close</span>
+            </button>
           </div>
         </div>
 
         {/* Dialog Header & Description */}
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-xl sm:text-2xl font-bold text-primary tracking-tight">
+          <h3 className="text-lg sm:text-2xl font-bold text-primary tracking-tight">
             {title}
           </h3>
           {message && (
