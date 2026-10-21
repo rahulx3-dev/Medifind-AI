@@ -589,11 +589,11 @@ export default function MedicineSearch({
     return (
       <article
         key={`card-${med.id}-${idx}`}
-        className="bg-white rounded-2xl p-3 sm:p-4 shadow-2xs hover:shadow-md transition-all border border-[#e2e8f0] hover:border-[#1b7058]/40 flex flex-col justify-between group h-full"
+        className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs hover:shadow-md transition-all border border-[#e2e8f0] hover:border-[#1b7058]/40 flex flex-col justify-between group h-full"
       >
         <div>
           {/* Product Visual Imagery Well */}
-          <div className="relative w-full h-24 sm:h-36 rounded-xl bg-[#f8fafc] border border-[#edf2f7] flex items-center justify-center mb-2.5 sm:mb-3 overflow-hidden p-2 sm:p-3 group-hover:bg-white group-hover:border-[#1b7058]/30 transition-all shadow-2xs">
+          <div className="relative w-full h-20 sm:h-36 rounded-lg sm:rounded-xl bg-[#f8fafc] border border-[#edf2f7] flex items-center justify-center mb-2 sm:mb-3 overflow-hidden p-1.5 sm:p-3 group-hover:bg-white group-hover:border-[#1b7058]/30 transition-all shadow-2xs">
             {imgUrl ? (
               <img
                 src={imgUrl}
@@ -608,12 +608,12 @@ export default function MedicineSearch({
             ) : null}
             <div
               style={{ display: imgUrl ? 'none' : 'flex' }}
-              className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-secondary-container/40 items-center justify-center text-secondary group-hover:scale-105 transition-transform"
+              className="w-8 h-8 sm:w-14 sm:h-14 rounded-full bg-secondary-container/40 items-center justify-center text-secondary group-hover:scale-105 transition-transform"
             >
-              <span className="material-symbols-outlined text-xl sm:text-3xl">medication</span>
+              <span className="material-symbols-outlined text-lg sm:text-3xl">medication</span>
             </div>
             {isRx && (
-              <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold bg-[#0a3d34]/90 text-white backdrop-blur-xs shadow-2xs">
+              <span className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-extrabold bg-[#0a3d34]/90 text-white backdrop-blur-xs shadow-2xs">
                 Rx
               </span>
             )}
@@ -624,50 +624,50 @@ export default function MedicineSearch({
             <h3 className="text-xs sm:text-base font-bold text-primary leading-tight line-clamp-1">
               {med.brandName}
             </h3>
-            <p className="text-[11px] sm:text-xs text-on-surface-variant font-medium">
+            <p className="text-[10px] sm:text-xs text-on-surface-variant font-medium">
               {packQuantity}
             </p>
           </div>
         </div>
 
         {/* Footer: Verified Price & Add / Stepper Button */}
-        <div className="mt-4 pt-3 border-t border-surface-container flex items-center justify-between gap-2">
+        <div className="mt-2.5 pt-2 sm:mt-4 sm:pt-3 border-t border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex flex-col">
-            <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
+            <span className="text-[9px] sm:text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
               {allowIndividual ? 'Strip MRP' : 'Price'}
             </span>
-            <span className="text-base font-bold text-primary">
+            <span className="text-sm sm:text-base font-bold text-primary">
               ₹{packPrice.toFixed(2)}
             </span>
             {allowIndividual && (
-              <span className="text-[10px] text-secondary font-medium">
-                ₹{unitPrice.toFixed(2)} / tablet
+              <span className="text-[9px] sm:text-[10px] text-secondary font-medium">
+                ₹{unitPrice.toFixed(2)} / tab
               </span>
             )}
           </div>
 
           {reqItem ? (
-            <div className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-full">
+            <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-1.5 bg-surface-container px-2 py-1 rounded-full w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity - 1)}
-                className="w-6 h-6 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container-high flex items-center justify-center transition-colors cursor-pointer"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container-high flex items-center justify-center transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined text-xs">remove</span>
               </button>
-              <span className="text-xs font-bold text-primary px-1">
+              <span className="text-[10px] sm:text-xs font-bold text-primary px-1">
                 {reqItem.quantity} {reqItem.saleUnit === 'TABLET' ? 'tab' : 'strip'}
               </span>
               <button
                 type="button"
                 onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity + 1)}
-                className="w-6 h-6 rounded-full bg-primary text-white hover:bg-primary-container flex items-center justify-center transition-colors cursor-pointer"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary text-white hover:bg-primary-container flex items-center justify-center transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined text-xs">add</span>
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
               {allowIndividual && (
                 <button
                   type="button"
@@ -686,7 +686,7 @@ export default function MedicineSearch({
                       triggerToast(`Added 1 tablet of ${med.brandName} (₹${unitPrice.toFixed(2)})`, 'success');
                     }
                   }}
-                  className="px-2.5 py-1.5 rounded-full bg-surface-container border border-primary/20 text-primary text-[11px] font-bold hover:bg-surface-container-high transition-all cursor-pointer active:scale-95"
+                  className="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-full bg-surface-container border border-primary/20 text-primary text-[10px] sm:text-[11px] font-bold hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 flex-1 sm:flex-none text-center"
                 >
                   +1 Tab
                 </button>
@@ -708,9 +708,9 @@ export default function MedicineSearch({
                     triggerToast(`Added ${med.brandName} (${allowIndividual ? 'Strip of ' + unitsPerPack : '1 Pack'}) to request.`, 'success');
                   }
                 }}
-                className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+                className="inline-flex items-center justify-center gap-1 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-primary hover:bg-primary-container text-white text-[10px] sm:text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95 flex-1 sm:flex-none text-center"
               >
-                <span className="material-symbols-outlined text-sm">add</span>
+                <span className="material-symbols-outlined text-xs sm:text-sm">add</span>
                 <span>{allowIndividual ? 'Strip' : 'Add'}</span>
               </button>
             </div>
@@ -980,21 +980,21 @@ export default function MedicineSearch({
         </div>
       )}
 
-      {/* Quick Actions Grid (5 cards with 5 distinct full-bleed generative gradient backgrounds) */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      {/* Quick Actions Rail on mobile / Grid on desktop */}
+      <section className="flex sm:grid overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 gap-2.5 sm:gap-3.5 sm:grid-cols-3 lg:grid-cols-5 no-scrollbar shrink-0">
         {/* 1. Upload Prescription Card - Celtics (soft-clover) */}
         <button
           type="button"
           onClick={() => onNavigateToPrescription ? onNavigateToPrescription() : onProceedToPharmacies()}
-          className="relative overflow-hidden p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+          className="relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-1.5 sm:gap-2 group cursor-pointer shadow-xs min-h-[110px] sm:min-h-[135px] justify-between bg-white dark:bg-[#0c1815] min-w-[140px] sm:min-w-0 flex-1 shrink-0"
         >
           <ChipGradientBg presetKey="celtics" />
-          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#132c24]/90 backdrop-blur-md border border-emerald-100 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
-            <span className="material-symbols-outlined text-xl">description</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 dark:bg-[#132c24]/90 backdrop-blur-md border border-emerald-100 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-lg sm:text-xl">description</span>
           </div>
           <div className="relative z-10 flex flex-col gap-0.5">
-            <strong className="text-sm sm:text-base font-bold text-emerald-950 dark:text-emerald-100 leading-tight">Upload prescription</strong>
-            <span className="text-xs text-emerald-800/90 dark:text-emerald-400 leading-tight font-medium">We read it and check stock</span>
+            <strong className="text-xs sm:text-base font-bold text-emerald-950 dark:text-emerald-100 leading-tight">Upload prescription</strong>
+            <span className="text-[10px] sm:text-xs text-emerald-800/90 dark:text-emerald-400 leading-tight font-medium">We read it and check stock</span>
           </div>
         </button>
 
@@ -1002,15 +1002,15 @@ export default function MedicineSearch({
         <button
           type="button"
           onClick={() => onNavigateToEmergency ? onNavigateToEmergency() : onProceedToPharmacies()}
-          className="relative overflow-hidden p-4 rounded-2xl border border-rose-200/80 dark:border-rose-900/50 hover:border-rose-400 dark:hover:border-rose-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+          className="relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-rose-200/80 dark:border-rose-900/50 hover:border-rose-400 dark:hover:border-rose-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-1.5 sm:gap-2 group cursor-pointer shadow-xs min-h-[110px] sm:min-h-[135px] justify-between bg-white dark:bg-[#0c1815] min-w-[140px] sm:min-w-0 flex-1 shrink-0"
         >
           <ChipGradientBg presetKey="full-circle" />
-          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#2c1318]/90 backdrop-blur-md border border-rose-100 dark:border-rose-800/40 text-rose-700 dark:text-rose-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
-            <span className="material-symbols-outlined text-xl">e911_emergency</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 dark:bg-[#2c1318]/90 backdrop-blur-md border border-rose-100 dark:border-rose-800/40 text-rose-700 dark:text-rose-300 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-lg sm:text-xl">e911_emergency</span>
           </div>
           <div className="relative z-10 flex flex-col gap-0.5">
-            <strong className="text-sm sm:text-base font-bold text-rose-950 dark:text-rose-100 leading-tight">Emergency pharmacy</strong>
-            <span className="text-xs text-rose-800/90 dark:text-rose-400 leading-tight font-medium">Open duty pharmacies now</span>
+            <strong className="text-xs sm:text-base font-bold text-rose-950 dark:text-rose-100 leading-tight">Emergency pharmacy</strong>
+            <span className="text-[10px] sm:text-xs text-rose-800/90 dark:text-rose-400 leading-tight font-medium">Open duty pharmacies now</span>
           </div>
         </button>
 
@@ -1018,15 +1018,15 @@ export default function MedicineSearch({
         <button
           type="button"
           onClick={() => onNavigateToHealthcare ? onNavigateToHealthcare('services') : onProceedToPharmacies()}
-          className="relative overflow-hidden p-4 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 hover:border-purple-400 dark:hover:border-purple-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+          className="relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-purple-200/80 dark:border-purple-900/50 hover:border-purple-400 dark:hover:border-purple-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-1.5 sm:gap-2 group cursor-pointer shadow-xs min-h-[110px] sm:min-h-[135px] justify-between bg-white dark:bg-[#0c1815] min-w-[140px] sm:min-w-0 flex-1 shrink-0"
         >
           <ChipGradientBg presetKey="endless-return" />
-          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#23132c]/90 backdrop-blur-md border border-purple-100 dark:border-purple-800/40 text-purple-800 dark:text-purple-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
-            <span className="material-symbols-outlined text-xl">home_health</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 dark:bg-[#23132c]/90 backdrop-blur-md border border-purple-100 dark:border-purple-800/40 text-purple-800 dark:text-purple-300 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-lg sm:text-xl">home_health</span>
           </div>
           <div className="relative z-10 flex flex-col gap-0.5">
-            <strong className="text-sm sm:text-base font-bold text-purple-950 dark:text-purple-100 leading-tight">Home healthcare</strong>
-            <span className="text-xs text-purple-800/90 dark:text-purple-400 leading-tight font-medium">Book nurse or clinician</span>
+            <strong className="text-xs sm:text-base font-bold text-purple-950 dark:text-purple-100 leading-tight">Home healthcare</strong>
+            <span className="text-[10px] sm:text-xs text-purple-800/90 dark:text-purple-400 leading-tight font-medium">Book nurse or clinician</span>
           </div>
         </button>
 
@@ -1034,15 +1034,15 @@ export default function MedicineSearch({
         <button
           type="button"
           onClick={() => onNavigateToHealthcare ? onNavigateToHealthcare('clinical-assistance') : onProceedToPharmacies()}
-          className="relative overflow-hidden p-4 rounded-2xl border border-teal-200/80 dark:border-teal-900/50 hover:border-teal-400 dark:hover:border-teal-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+          className="relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-teal-200/80 dark:border-teal-900/50 hover:border-teal-400 dark:hover:border-teal-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-1.5 sm:gap-2 group cursor-pointer shadow-xs min-h-[110px] sm:min-h-[135px] justify-between bg-white dark:bg-[#0c1815] min-w-[140px] sm:min-w-0 flex-1 shrink-0"
         >
           <ChipGradientBg presetKey="room-to-rise" />
-          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#132c28]/90 backdrop-blur-md border border-teal-100 dark:border-teal-800/40 text-teal-800 dark:text-teal-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
-            <span className="material-symbols-outlined text-xl">support_agent</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 dark:bg-[#132c28]/90 backdrop-blur-md border border-teal-100 dark:border-teal-800/40 text-teal-800 dark:text-teal-300 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-lg sm:text-xl">support_agent</span>
           </div>
           <div className="relative z-10 flex flex-col gap-0.5">
-            <strong className="text-sm sm:text-base font-bold text-teal-950 dark:text-teal-100 leading-tight">Clinical tele-help</strong>
-            <span className="text-xs text-teal-800/90 dark:text-teal-400 leading-tight font-medium">Pharmacist second opinion</span>
+            <strong className="text-xs sm:text-base font-bold text-teal-950 dark:text-teal-100 leading-tight">Clinical tele-help</strong>
+            <span className="text-[10px] sm:text-xs text-teal-800/90 dark:text-teal-400 leading-tight font-medium">Pharmacist second opinion</span>
           </div>
         </button>
 
@@ -1050,15 +1050,15 @@ export default function MedicineSearch({
         <button
           type="button"
           onClick={() => onNavigateToOrders ? onNavigateToOrders() : onProceedToPharmacies()}
-          className="relative overflow-hidden p-4 rounded-2xl border border-sky-200/80 dark:border-sky-900/50 hover:border-sky-400 dark:hover:border-sky-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+          className="relative overflow-hidden p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-sky-200/80 dark:border-sky-900/50 hover:border-sky-400 dark:hover:border-sky-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-1.5 sm:gap-2 group cursor-pointer shadow-xs min-h-[110px] sm:min-h-[135px] justify-between bg-white dark:bg-[#0c1815] min-w-[140px] sm:min-w-0 flex-1 shrink-0"
         >
           <ChipGradientBg presetKey="squared-away" />
-          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#13232c]/90 backdrop-blur-md border border-sky-100 dark:border-sky-800/40 text-sky-800 dark:text-sky-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
-            <span className="material-symbols-outlined text-xl">package_2</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 dark:bg-[#13232c]/90 backdrop-blur-md border border-sky-100 dark:border-sky-800/40 text-sky-800 dark:text-sky-300 flex items-center justify-center text-lg sm:text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-lg sm:text-xl">package_2</span>
           </div>
           <div className="relative z-10 flex flex-col gap-0.5">
-            <strong className="text-sm sm:text-base font-bold text-sky-950 dark:text-sky-100 leading-tight">Track &amp; reorder</strong>
-            <span className="text-xs text-sky-800/90 dark:text-sky-400 leading-tight font-medium">Real-time pickup &amp; delivery</span>
+            <strong className="text-xs sm:text-base font-bold text-sky-950 dark:text-sky-100 leading-tight">Track &amp; reorder</strong>
+            <span className="text-[10px] sm:text-xs text-sky-800/90 dark:text-sky-400 leading-tight font-medium">Real-time pickup &amp; delivery</span>
           </div>
         </button>
       </section>
@@ -1296,7 +1296,7 @@ export default function MedicineSearch({
                 onAction={handleResetAllFilters}
               />
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 sm:gap-5">
                 {displayedMedicines.map((med, idx) => renderMedicineCard(med, idx))}
               </div>
             )}

@@ -1616,4 +1616,190 @@ html.dark textarea::placeholder,
   opacity: 0.8 !important;
 }
 
+/* ==========================================================================
+   PORTAL MOBILE RESPONSIVE ENGINE (Screens <= 768px & <= 640px)
+   Normalizes element scale, typography, cards, and padding so all portal screens
+   feel like an authentic, sleek mobile application rather than oversized PC desktops.
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* 1. Global Viewport & Container Boundary Enforcement */
+  html, body {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    font-size: 14px;
+  }
+
+  #root,
+  main,
+  [data-barba="wrapper"],
+  [data-barba="container"] {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Portal container scaling - reclaim wasted screen margins */
+  .max-w-7xl,
+  div[style*="1280"],
+  div[style*="max-width: 1280"],
+  div[style*="maxWidth: 1280"] {
+    max-width: 100vw !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 2. Padding Normalization across all portal cards and panels */
+  .p-8 {
+    padding: 1rem !important;
+  }
+  .p-6 {
+    padding: 0.875rem !important;
+  }
+  .p-5 {
+    padding: 0.75rem !important;
+  }
+  .px-6, .px-8 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .py-6, .py-8 {
+    padding-top: 0.875rem !important;
+    padding-bottom: 0.875rem !important;
+  }
+  .gap-6 {
+    gap: 0.875rem !important;
+  }
+  .gap-8 {
+    gap: 1rem !important;
+  }
+
+  /* Inline styled cards with excessive desktop padding */
+  article[style*="padding:"],
+  section[style*="padding:"] {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+
+  /* 3. Scaled-down Border Radii for mobile ergonomics */
+  .rounded-3xl {
+    border-radius: 1.125rem !important;
+  }
+  .rounded-2xl {
+    border-radius: 0.875rem !important;
+  }
+
+  /* 4. Portal Typography Mobile Resizing (No oversized desktop headings) */
+  h1, .text-3xl, .text-4xl, [style*="fontSize: 28"], [style*="font-size: 28"] {
+    font-size: 1.35rem !important;
+    line-height: 1.25 !important;
+    letter-spacing: -0.015em !important;
+  }
+  h2, .text-2xl, [style*="fontSize: 24"], [style*="font-size: 24"] {
+    font-size: 1.15rem !important;
+    line-height: 1.3 !important;
+  }
+  h3, .text-xl, [style*="fontSize: 20"], [style*="font-size: 20"] {
+    font-size: 1.05rem !important;
+    line-height: 1.35 !important;
+  }
+  .text-lg, [style*="fontSize: 18"], [style*="font-size: 18"] {
+    font-size: 0.95rem !important;
+    line-height: 1.35 !important;
+  }
+
+  /* 5. Google Material Symbols Scaling */
+  .material-symbols-outlined.text-4xl {
+    font-size: 26px !important;
+  }
+  .material-symbols-outlined.text-3xl {
+    font-size: 22px !important;
+  }
+  .material-symbols-outlined.text-2xl {
+    font-size: 20px !important;
+  }
+
+  /* 6. Universal Table & Data View Protection */
+  table {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  table th, table td {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* 7. Modal & Dialogue Windows Constrained to Viewport */
+  .max-w-md, .max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl {
+    max-width: calc(100vw - 1.25rem) !important;
+    box-sizing: border-box !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* 8. Stat Cards & Metric Cards on Mobile */
+  .animated-stat-card {
+    padding: 0.75rem !important;
+    border-radius: 14px !important;
+  }
+
+  /* 9. Utility Scrollbar Hiding for Horizontal Rails */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+
+  /* 10. Fix search bars and filters from forcing horizontal scroll */
+  input[type="text"], input[type="search"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra compact viewports (360px - 440px smartphones) */
+  .p-8 {
+    padding: 0.875rem !important;
+  }
+  .p-6 {
+    padding: 0.75rem !important;
+  }
+  .p-5 {
+    padding: 0.625rem !important;
+  }
+  .px-4 {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+  }
+  .gap-4 {
+    gap: 0.625rem !important;
+  }
+  .\gap-3\.5, [class*="gap-3.5"] {
+    gap: 0.5rem !important;
+  }
+
+  /* Stepper numbers & small indicators */
+  .text-xs {
+    font-size: 0.725rem !important;
+  }
+
+  /* PIN verification inputs */
+  input[type="text"][maxlength="1"] {
+    width: 44px !important;
+    height: 52px !important;
+    font-size: 22px !important;
+    border-radius: 12px !important;
+  }
+}
+
+
 

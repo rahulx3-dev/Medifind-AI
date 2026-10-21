@@ -522,19 +522,19 @@ export default function HealthcareMarketplace({ onNavigate, initialSubTab = 'ser
       </div>
 
       {/* ── Marketplace Navigation Tabs ── */}
-      <div className="flex items-center justify-between border-b border-gray-200 pb-4 mb-8 flex-wrap gap-4">
-        <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl">
+      <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-6 sm:mb-8 flex-wrap gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-gray-100 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl overflow-x-auto max-w-full no-scrollbar flex-nowrap shrink-0">
           <button
             type="button"
             onClick={() => { handleTabChange('services'); setSelectedProfessional(null); }}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'services'
                 ? 'bg-[#032f28] text-white shadow-md'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span className="material-symbols-outlined text-base">medical_services</span>
-            <span>1. Clinical Services Catalogue</span>
+            <span className="material-symbols-outlined text-sm sm:text-base">medical_services</span>
+            <span>1. Services</span>
           </button>
 
           <button
@@ -543,26 +543,26 @@ export default function HealthcareMarketplace({ onNavigate, initialSubTab = 'ser
               handleTabChange('professionals');
               if (professionals.length === 0) fetchProfessionals(selectedService?.id);
             }}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'professionals'
                 ? 'bg-[#032f28] text-white shadow-md'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span className="material-symbols-outlined text-base">person_search</span>
-            <span>2. Approved Professionals</span>
+            <span className="material-symbols-outlined text-sm sm:text-base">person_search</span>
+            <span>2. Professionals</span>
           </button>
 
           <button
             type="button"
             onClick={() => { handleTabChange('my-appointments'); fetchMyAppointments(); }}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 relative ${
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 relative ${
               activeTab === 'my-appointments'
                 ? 'bg-[#032f28] text-white shadow-md'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span className="material-symbols-outlined text-base">calendar_month</span>
+            <span className="material-symbols-outlined text-sm sm:text-base">calendar_month</span>
             <span>My Appointments</span>
             {myAppointments.length > 0 && (
               <span className="bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full inline-flex items-center">
@@ -575,14 +575,14 @@ export default function HealthcareMarketplace({ onNavigate, initialSubTab = 'ser
           <button
             type="button"
             onClick={() => { handleTabChange('clinical-assistance'); fetchClinicalRequests(); }}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 relative ${
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 relative ${
               activeTab === 'clinical-assistance'
                 ? 'bg-[#032f28] text-white shadow-md'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span className="material-symbols-outlined text-base">clinical_notes</span>
-            <span>Clinical Assistance (Human)</span>
+            <span className="material-symbols-outlined text-sm sm:text-base">clinical_notes</span>
+            <span>Clinical Tele-Help</span>
             {clinicalRequests.length > 0 && (
               <span className="bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full inline-flex items-center">
                 <RollingNumber value={clinicalRequests.length} />

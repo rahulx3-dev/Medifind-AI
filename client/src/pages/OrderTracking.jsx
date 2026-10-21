@@ -1770,9 +1770,9 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
         </section>
 
         {/* Filter & Search Control Bar */}
-        <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
           {/* Search Input */}
-          <div style={{ position: 'relative', flex: 1, minWidth: 280, maxWidth: 440 }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 440, width: '100%' }}>
             <span className="material-symbols-outlined" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#717976', fontSize: 18 }}>
               search
             </span>
@@ -1797,7 +1797,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
           </div>
 
           {/* Filter Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', background: '#e0f2eb', padding: '0.35rem', borderRadius: 99 }}>
+          <div className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', background: '#e0f2eb', padding: '0.35rem', borderRadius: 99, maxWidth: '100%' }}>
             {[
               { id: 'ALL', label: 'All', count: orders.length },
               { id: 'ACTIVE', label: 'Active', count: activeOrdersCount },

@@ -488,7 +488,7 @@ function PrescriptionWorkflowStepper({
       {/* Stepper Navigation - Guaranteed 4 steps always visible */}
       <nav
         aria-label="Prescription workflow progress"
-        className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 w-full xl:w-auto overflow-x-auto py-1"
+        className="flex items-center gap-1.5 sm:gap-2 w-full xl:w-auto overflow-x-auto no-scrollbar py-1 shrink-0 flex-nowrap"
       >
         {steps.map((s, idx) => {
           const isCompleted = s.number < currentStep;

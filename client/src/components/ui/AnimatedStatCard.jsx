@@ -181,7 +181,7 @@ export default function AnimatedStatCard({
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       onClick={onClick}
-      className={className}
+      className={`animated-stat-card ${className || ''}`.trim()}
       style={{
         background: '#ffffff',
         borderRadius: 20,
