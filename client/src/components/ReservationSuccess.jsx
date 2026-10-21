@@ -1,27 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { subscribeToUpdates } from '../utils/realtimeUpdates';
+import CheckoutPage from './CheckoutPage';
+import FlowButton from './FlowButton';
 
 /**
- * ReservationSuccess — Stitch Screen `d137f4b77ed04a4582607e5dd71d43d6`
+ * ReservationSuccess — Live Dynamic Dispensary Reservation Screen
  *
- * Faithfully implements the exact Stitch Reservation Success screen:
- * - Success Hero Status Banner with Transmission Verified & Pharmacy Review in Progress badges
- * - Dynamic Reservation Reference token with 1-click copy
- * - Live Dispensing Timeline showing real PENDING order progression
- * - Pharmacy Summary & Financial Breakdown (₹0.00 charged online)
- * - Primary CTA to "View In-Flight Order Status" which directs to My Orders
+ * - Real-time subscription to order status updates (PENDING -> CONFIRMED -> READY_FOR_PICKUP)
+ * - Dynamic Hero Status Banner that morphs when pharmacy confirms reservation
+ * - Live Dispensing Timeline with active progression
+ * - Instant Checkout trigger allowing patient to choose fulfillment mode (Pickup / Assistant Delivery) and pay
  */
 export default function ReservationSuccess({
   order,
   pharmacy,
   items = [],
   onProceedToOrders,
+  onProceedToCheckout,
   onNavigateToCatalogue
 }) {
+  const [currentOrder, setCurrentOrder] = useState(order);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Reference code display
-  const refCode = order?.id
-    ? `#MND-${order.id.slice(0, 6).toUpperCase()}`
+  const targetOrderId = currentOrder?.id || order?.id;
+  const refCode = targetOrderId
+    ? `#MND-${targetOrderId.slice(0, 6).toUpperCase()}`
     : '#MND-7829-STJ';
 
   const copyRefCode = () => {
@@ -32,11 +37,76 @@ export default function ReservationSuccess({
     } catch (_) {}
   };
 
-  const estimatedTotal = order?.totalAmount || items.reduce((sum, item) => {
+  // Real-time synchronization: listen for pharmacy confirmation & poll order
+  useEffect(() => {
+    if (!targetOrderId) return;
+
+    const fetchLatestOrder = async () => {
+      const token = localStorage.getItem('medifind_token');
+      if (!token) return;
+      try {
+        const res = await fetch(`/api/orders/${targetOrderId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.order) {
+          setCurrentOrder(data.order);
+        }
+      } catch (_) {}
+    };
+
+    // Initial sync
+    fetchLatestOrder();
+
+    // Instant event reaction from same or other tabs
+    const unsub = subscribeToUpdates((event) => {
+      if (['ORDER_STATUS_UPDATED', 'PAYMENT_COMPLETED', 'FULFILLMENT_SELECTED'].includes(event?.type)) {
+        if (!event.payload?.orderId || event.payload?.orderId === targetOrderId) {
+          if (event.payload?.newStatus) {
+            setCurrentOrder(prev => ({
+              ...prev,
+              status: event.payload.newStatus
+            }));
+          }
+          fetchLatestOrder();
+        }
+      }
+    });
+
+    // Background heartbeat poll every 8s while waiting (paused if tab hidden)
+    const timer = setInterval(() => {
+      if (!document.hidden) {
+        fetchLatestOrder();
+      }
+    }, 8000);
+
+    return () => {
+      unsub();
+      clearInterval(timer);
+    };
+  }, [targetOrderId]);
+
+  const status = currentOrder?.status || 'PENDING';
+  const isConfirmed = status === 'CONFIRMED';
+  const isReady = status === 'READY_FOR_PICKUP';
+  const isCompleted = status === 'COMPLETED';
+  const isPaid = currentOrder?.payment?.status === 'PAID';
+  const isCounterPay = currentOrder?.payment?.method === 'COUNTER' || currentOrder?.payment?.method === 'PAY_AT_COUNTER';
+  const isCheckoutComplete = Boolean(currentOrder?.fulfillmentType) && (isPaid || isCounterPay);
+
+  const estimatedTotal = currentOrder?.totalAmount || items.reduce((sum, item) => {
     const price = Number(item.price != null ? item.price : (item.unitPrice != null ? item.unitPrice : 0));
     const qty = item.quantity || 1;
     return sum + (price * qty);
   }, 0);
+
+  const handleOpenCheckout = () => {
+    if (onProceedToCheckout) {
+      onProceedToCheckout(targetOrderId);
+    } else {
+      setShowCheckoutModal(true);
+    }
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 font-body-md text-on-surface">
@@ -47,7 +117,7 @@ export default function ReservationSuccess({
             <div className="relative shrink-0">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-secondary-container/20 flex items-center justify-center text-[#b3eee0]">
                 <span className="material-symbols-outlined text-4xl sm:text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  task_alt
+                  {isConfirmed ? 'check_circle' : isReady ? 'inventory_2' : 'task_alt'}
                 </span>
               </div>
               <span className="absolute inset-0 rounded-full ring-4 ring-secondary-container/30 animate-ping opacity-60 pointer-events-none" />
@@ -58,18 +128,47 @@ export default function ReservationSuccess({
                 <span className="px-3 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold tracking-wide">
                   TRANSMISSION VERIFIED
                 </span>
-                <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#ffdad4] text-[#410100] text-xs font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-[#7e1208] animate-ping" />
-                  PHARMACY REVIEW IN PROGRESS
-                </span>
+
+                {isConfirmed ? (
+                  <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#b0ecdd] text-[#00201b] text-xs font-bold shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-[#1b4d43] animate-pulse" />
+                    RESERVATION CONFIRMED BY DISPENSARY
+                  </span>
+                ) : isReady ? (
+                  <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#c1ebe1] text-[#00201b] text-xs font-bold shadow-xs">
+                    <span className="material-symbols-outlined text-sm">verified</span>
+                    READY FOR COUNTER PICKUP
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#ffdad4] text-[#410100] text-xs font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-[#7e1208] animate-ping" />
+                    PHARMACY REVIEW IN PROGRESS
+                  </span>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Reservation Request Successfully Transmitted!
+                {isConfirmed
+                  ? 'Reservation Confirmed & Stock Earmarked!'
+                  : isReady
+                  ? 'Medicines Ready for Counter Pickup!'
+                  : 'Reservation Request Successfully Transmitted!'}
               </h1>
 
               <p className="text-xs sm:text-sm text-[#e3f5ee]/90 max-w-2xl leading-relaxed">
-                Your medicine hold request has been routed directly to <strong className="text-[#b3eee0] font-semibold">{pharmacy?.name || 'the selected dispensary'}</strong>. The dispensary desk has received the verified prescription and is inspecting shelf stock.
+                {isConfirmed ? (
+                  <>
+                    <strong className="text-[#b3eee0] font-semibold">{pharmacy?.name || 'The dispensary'}</strong> has confirmed your prescription hold! Stock is secured at the counter. Please choose your fulfillment mode and payment to finalize.
+                  </>
+                ) : isReady ? (
+                  <>
+                    Your medicines are quarantined and staged for pickup at <strong className="text-[#b3eee0] font-semibold">{pharmacy?.name || 'the dispensary'}</strong>. Present your 4-digit PIN at the counter.
+                  </>
+                ) : (
+                  <>
+                    Your medicine hold request has been routed directly to <strong className="text-[#b3eee0] font-semibold">{pharmacy?.name || 'the selected dispensary'}</strong>. The dispensary desk has received the verified prescription and is inspecting shelf stock.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -92,8 +191,18 @@ export default function ReservationSuccess({
                 <span>{copied ? 'Copied!' : 'Copy'}</span>
               </button>
             </div>
+            {(currentOrder?.verificationPin || order?.verificationPin) && (
+              <div className="mt-2 pt-2 border-t border-white/20 flex items-center justify-between">
+                <span className="text-[10px] text-[#b3eee0] font-bold uppercase tracking-wider">Pickup PIN:</span>
+                <span className="text-base font-black font-mono tracking-widest text-[#00201b] bg-[#b3eee0] px-2.5 py-0.5 rounded-lg shadow-xs">
+                  {currentOrder?.verificationPin || order?.verificationPin}
+                </span>
+              </div>
+            )}
             <span className="text-[11px] text-[#e3f5ee]/70 mt-1">
-              Estimated Pharmacist Response: 15–30 mins
+              {isConfirmed
+                ? 'Status: Verified & Awaiting Checkout'
+                : 'Estimated Pharmacist Response: 15–30 mins'}
             </span>
           </div>
         </div>
@@ -103,6 +212,31 @@ export default function ReservationSuccess({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (7 cols): What Happens Next & Live Timeline */}
         <div className="lg:col-span-7 flex flex-col gap-5">
+          {/* Action Callout if Confirmed */}
+          {isConfirmed && !isCheckoutComplete && (
+            <div className="bg-[#ffffff] rounded-3xl p-5 border-2 border-[#2e685d] shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-full bg-[#e0f2eb] text-[#2e685d] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">shopping_cart_checkout</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#032f28]">Dispensary Approved Reservation!</h3>
+                  <p className="text-xs text-[#52605b] mt-0.5 leading-relaxed">
+                    Choose whether you will collect at counter or dispatch an Assistant, and finalize settlement.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenCheckout}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#2e685d] hover:bg-[#1e453e] text-white text-xs font-extrabold shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                <span>Choose Mode &amp; Pay</span>
+              </button>
+            </div>
+          )}
+
           {/* Live Dispensing Timeline Card */}
           <div className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm flex flex-col gap-5">
             <div className="flex items-center justify-between pb-3 border-b border-surface-container">
@@ -112,8 +246,8 @@ export default function ReservationSuccess({
                 </div>
                 <h2 className="text-base font-bold text-primary">Live Dispensing Timeline</h2>
               </div>
-              <span className="text-[11px] text-on-surface-variant font-mono">
-                Status: PENDING
+              <span className={`text-[11px] font-bold font-mono px-2.5 py-0.5 rounded-full ${isConfirmed ? 'bg-[#b0ecdd] text-[#00201b]' : 'bg-surface-container text-on-surface-variant'}`}>
+                Status: {status}
               </span>
             </div>
 
@@ -153,52 +287,81 @@ export default function ReservationSuccess({
                 </div>
               </div>
 
-              {/* Step 3: CURRENT IN PROGRESS */}
+              {/* Step 3: Pharmacist Inspection */}
               <div className="flex items-start gap-3.5 pb-6 relative">
-                <div className="absolute left-3.5 top-7 bottom-0 w-0.5 bg-surface-container-high" />
-                <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shrink-0 z-10 shadow-sm ring-4 ring-secondary-container/40">
-                  <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                <div className={`absolute left-3.5 top-7 bottom-0 w-0.5 ${isConfirmed ? 'bg-secondary-container' : 'bg-surface-container-high'}`} />
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 shadow-sm ${isConfirmed ? 'bg-secondary-container text-on-secondary-container font-bold text-xs' : 'bg-primary text-white ring-4 ring-secondary-container/40'}`}>
+                  {isConfirmed ? '✓' : <span className="material-symbols-outlined text-sm animate-spin">sync</span>}
                 </div>
-                <div className="flex flex-col gap-1 p-3.5 rounded-2xl bg-surface-container-low w-full border border-secondary/20">
+                <div className={`flex flex-col gap-1 p-3.5 rounded-2xl w-full border ${isConfirmed ? 'bg-[#e0f2eb]/60 border-[#2e685d]/30' : 'bg-surface-container-low border-secondary/20'}`}>
                   <div className="flex flex-wrap items-center justify-between gap-1">
                     <span className="text-xs font-bold text-primary">Pharmacist Inspection &amp; Physical Stock Hold</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-white font-medium animate-pulse">
-                      In Progress (15–30m)
-                    </span>
+                    {isConfirmed ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#2e685d] text-white font-bold">
+                        Stock Earmarked
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-white font-medium animate-pulse">
+                        In Progress (15–30m)
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    Dispensing pharmacist is reviewing medicine batches, verifying expiration seals, and placing items into a secure 24-hour reservation locker.
+                    {isConfirmed
+                      ? 'Pharmacist has inspected shelf stock, verified batch expiration dates, and earmarked your requested medicines.'
+                      : 'Dispensing pharmacist is reviewing medicine batches, verifying expiration seals, and placing items into a secure 24-hour reservation locker.'}
                   </p>
-                  <div className="flex items-center gap-1.5 text-[10px] text-secondary font-medium pt-0.5">
-                    <span className="material-symbols-outlined text-xs">verified</span>
-                    <span>NDC Physical Verification &amp; Pharmacist Clearance Active</span>
-                  </div>
                 </div>
               </div>
 
-              {/* Step 4: Upcoming */}
-              <div className="flex items-start gap-3.5 pb-6 relative opacity-60">
+              {/* Step 4: Mode Selection & Payment */}
+              <div className={`flex items-start gap-3.5 pb-6 relative ${isConfirmed ? 'opacity-100' : 'opacity-60'}`}>
                 <div className="absolute left-3.5 top-7 bottom-0 w-0.5 bg-surface-container-high" />
-                <div className="w-7 h-7 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0 z-10 text-xs">
-                  <span className="material-symbols-outlined text-sm">sms</span>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 text-xs ${isConfirmed ? 'bg-[#2e685d] text-white ring-4 ring-[#2e685d]/30' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                  <span className="material-symbols-outlined text-sm">shopping_cart_checkout</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-on-surface">Ready-for-Pickup Notification</span>
-                  <p className="text-[11px] text-on-surface-variant mt-0.5">
-                    You will receive an in-app notification and PIN code once the pharmacist confirms stock.
+                <div className="flex flex-col w-full">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-on-surface">Choose Fulfillment Mode &amp; Payment</span>
+                    {isConfirmed && !isCheckoutComplete && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ba1a1a] text-white font-bold animate-pulse">
+                        Action Required
+                      </span>
+                    )}
+                    {isCheckoutComplete && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#2e685d] text-white font-bold">
+                        Selected &amp; Confirmed
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                    {isCheckoutComplete
+                      ? `Fulfillment chosen: ${currentOrder?.fulfillmentType || 'Counter Pickup'}. Settlement confirmed.`
+                      : 'Select Counter Pickup or Medicine Access Assistant home delivery, and finalize settlement mode.'}
                   </p>
+                  {isConfirmed && !isCheckoutComplete && (
+                    <div className="mt-2 w-fit">
+                      <FlowButton
+                        size="sm"
+                        variant="primary"
+                        onClick={handleOpenCheckout}
+                      >
+                        Proceed to Checkout
+                      </FlowButton>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Step 5: Upcoming */}
-              <div className="flex items-start gap-3.5 relative opacity-60">
-                <div className="w-7 h-7 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0 z-10 text-xs">
-                  <span className="material-symbols-outlined text-sm">payments</span>
+              {/* Step 5: Final Collection */}
+              <div className={`flex items-start gap-3.5 relative ${isCheckoutComplete ? 'opacity-100' : 'opacity-60'}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 text-xs ${isReady ? 'bg-[#10b981] text-white' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                  <span className="material-symbols-outlined text-sm">verified_user</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-on-surface">In-Person Collection &amp; Payment</span>
+                  <span className="text-xs font-bold text-on-surface">PIN Verification &amp; Medicine Release</span>
                   <p className="text-[11px] text-on-surface-variant mt-0.5">
-                    Present your pickup PIN at the dispensary counter. <strong>₹0.00 charged online today.</strong>
+                    Present your 4-digit verification PIN upon counter pickup or assistant handover.
                   </p>
                 </div>
               </div>
@@ -212,8 +375,8 @@ export default function ReservationSuccess({
                 <span className="material-symbols-outlined text-xl">phonelink_ring</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-on-surface">Notification Channels Active</span>
-                <span className="text-[11px] text-on-surface-variant">Live updates enabled via In-App Alerts and Notifications Center</span>
+                <span className="text-xs font-bold text-on-surface">Real-Time Sync Active</span>
+                <span className="text-[11px] text-on-surface-variant">Live updates connected to dispensary queue and notification center</span>
               </div>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold shrink-0">
@@ -271,25 +434,41 @@ export default function ReservationSuccess({
             <div className="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col gap-1.5 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-on-surface-variant">Charged to Card Online:</span>
-                <span className="font-bold text-secondary font-mono text-sm">₹0.00</span>
+                <span className="font-bold text-secondary font-mono text-sm">
+                  {isPaid ? `₹${(currentOrder?.totalAmount || estimatedTotal).toFixed(2)} (PAID)` : '₹0.00'}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-on-surface-variant font-medium">Est. Copay Upon Collection:</span>
-                <span className="font-extrabold text-primary font-mono text-base">₹{estimatedTotal}</span>
+                <span className="text-on-surface-variant font-medium">Est. Total:</span>
+                <span className="font-extrabold text-primary font-mono text-base">₹{Number(estimatedTotal || 0).toFixed(2)}</span>
               </div>
               <span className="text-[10px] text-outline pt-1 border-t border-outline-variant/20">
-                Final amount verified and settled in-person at the counter.
+                {isPaid
+                  ? 'Payment completed via Razorpay escrow.'
+                  : 'Final amount settled via chosen checkout method or at counter.'}
               </span>
             </div>
 
             {/* Primary Action Buttons */}
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="flex flex-col gap-2.5 pt-2">
+              {/* Highlighted Checkout Button when Confirmed */}
+              {isConfirmed && !isCheckoutComplete && (
+                <FlowButton
+                  fullWidth
+                  size="lg"
+                  variant="primary"
+                  onClick={handleOpenCheckout}
+                >
+                  Proceed to Checkout &amp; Choose Mode
+                </FlowButton>
+              )}
+
               <button
                 type="button"
                 onClick={onProceedToOrders}
-                className="w-full py-3.5 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+                className={`w-full py-3 rounded-full font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 ${isConfirmed && !isCheckoutComplete ? 'bg-surface-container hover:bg-surface-container-high text-primary' : 'bg-primary hover:bg-primary-container text-white'}`}
               >
-                <span>View In-Flight Order Status</span>
+                <span>View Full Order Journey</span>
                 <span className="material-symbols-outlined text-base">arrow_forward</span>
               </button>
 
@@ -298,7 +477,7 @@ export default function ReservationSuccess({
                   <button
                     type="button"
                     onClick={onNavigateToCatalogue}
-                    className="flex-1 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-xs transition-colors"
+                    className="flex-1 py-2 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-xs transition-colors"
                   >
                     Medicine Catalogue
                   </button>
@@ -306,7 +485,7 @@ export default function ReservationSuccess({
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="flex-1 py-2.5 rounded-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface-variant hover:text-primary text-xs font-semibold shadow-xs flex items-center justify-center gap-1 transition-colors"
+                  className="flex-1 py-2 rounded-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface-variant hover:text-primary text-xs font-semibold shadow-xs flex items-center justify-center gap-1 transition-colors"
                 >
                   <span className="material-symbols-outlined text-sm">print</span>
                   <span>Print Slip</span>
@@ -316,6 +495,20 @@ export default function ReservationSuccess({
           </div>
         </div>
       </div>
+
+      {/* Embedded Checkout Modal */}
+      {showCheckoutModal && (
+        <CheckoutPage
+          orderId={targetOrderId}
+          onClose={() => setShowCheckoutModal(false)}
+          onPaymentSuccess={() => {
+            setShowCheckoutModal(false);
+            if (onProceedToOrders) {
+              onProceedToOrders();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CheckoutPage from '../components/CheckoutPage';
+import FlowButton from '../components/FlowButton';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import RadialOrbitalTimeline from '../components/RadialOrbitalTimeline';
 import { SkeletonMap } from '../components/LoadingSkeleton';
 import ErrorState from '../components/ErrorState';
-import EmptyState from '../components/EmptyState';
+import { broadcastUpdate, useRealtimeRefresh, subscribeToUpdates } from '../utils/realtimeUpdates';
+import PatientClarificationCard from '../components/PatientClarificationCard';
+import AnimatedStatCard from '../components/ui/AnimatedStatCard';
+import RollingNumber from '../components/ui/RollingNumber';
 const FulfillmentMapBox = React.lazy(() => import('../components/FulfillmentMapBox'));
 
 const STATUS_CONFIG = {
@@ -59,9 +63,10 @@ function calculateOrderPricing(ord) {
     }, 0);
   }
 
+  const medSubtotal = calculatedMedSubtotal;
   const medicineSubtotal = (ord.medicineSubtotal != null && Number(ord.medicineSubtotal) > 0)
     ? Number(ord.medicineSubtotal)
-    : calculatedMedSubtotal;
+    : medSubtotal;
 
   const deliveryFee = Number(ord.deliveryFee) || 0;
   const platformFee = Number(ord.platformFee) || 0;
@@ -94,6 +99,24 @@ function StatusBadge({ status }) {
 
 function PaymentBadge({ payment }) {
   if (!payment) return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: '#e0f2eb', color: '#717976', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99 }}>Payment Uninitiated</span>;
+  if (payment.method === 'COUNTER' || payment.method === 'PAY_AT_COUNTER') {
+    return (
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.3rem',
+        background: '#e0f2eb',
+        color: '#2e685d',
+        fontSize: 11,
+        fontWeight: 700,
+        padding: '3px 10px',
+        borderRadius: 99
+      }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>storefront</span>
+        Pay at Counter
+      </span>
+    );
+  }
   const cfg = PAYMENT_CONFIG[payment.status] || PAYMENT_CONFIG.PENDING;
   return (
     <span style={{
@@ -113,7 +136,7 @@ function PaymentBadge({ payment }) {
   );
 }
 
-export default function OrderTracking({ initialOrderId = null, initialCheckoutOrderId = null, onNavigate }) {
+export default function OrderTracking({ initialOrderId = null, initialCheckoutOrderId = null, onClearInitialOrderId = () => {}, onNavigate }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -125,8 +148,15 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
   const [searchQuery, setSearchQuery] = useState('');
   const [cancellingOrderId, setCancellingOrderId] = useState(null);
   const [actionFeedback, setActionFeedback] = useState(null);
-  const [assistantFlowSimulate, setAssistantFlowSimulate] = useState(false);
   const [confirmingReceipt, setConfirmingReceipt] = useState(false);
+
+  // Synchronous tracking refs to eliminate stale closure resurrecting detail view on background refresh
+  const selectedOrderIdRef = useRef(selectedOrderId);
+  const initialOrderIdConsumedRef = useRef(Boolean(selectedOrderId));
+
+  useEffect(() => {
+    selectedOrderIdRef.current = selectedOrderId;
+  }, [selectedOrderId]);
 
   const handleOpenCheckout = (orderId) => {
     setCheckoutOrderId(orderId);
@@ -136,23 +166,33 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
   };
 
   const handleCloseCheckout = () => {
+    const closedOrderId = checkoutOrderId;
     setCheckoutOrderId(null);
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/checkout/')) {
       window.history.pushState(null, '', '/');
     }
-    fetchOrders(checkoutOrderId);
+    fetchOrders(closedOrderId);
+    if (closedOrderId) {
+      fetchOrderDetails(closedOrderId);
+    }
+    broadcastUpdate('CHECKOUT_CLOSED', { orderId: closedOrderId });
   };
 
   const handlePaymentSuccess = () => {
+    const paidOrderId = checkoutOrderId;
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/checkout/')) {
       window.history.pushState(null, '', '/');
     }
-    fetchOrders(checkoutOrderId);
+    fetchOrders(paidOrderId);
+    if (paidOrderId) {
+      fetchOrderDetails(paidOrderId);
+    }
+    broadcastUpdate('PAYMENT_COMPLETED', { orderId: paidOrderId });
   };
 
-  const fetchOrderDetails = useCallback(async (orderId) => {
+  const fetchOrderDetails = useCallback(async (orderId, isBackground = false) => {
     if (!orderId) return;
-    setLoadingDetails(true);
+    if (!isBackground) setLoadingDetails(true);
     const token = localStorage.getItem('medifind_token');
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
@@ -163,15 +203,17 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
         setSelectedOrderDetails(data.order);
       }
     } catch (err) {
-      console.error('Failed to load order details:', err);
+      if (!isBackground) console.error('Failed to load order details:', err);
     } finally {
-      setLoadingDetails(false);
+      if (!isBackground) setLoadingDetails(false);
     }
   }, []);
 
-  const fetchOrders = useCallback(async (targetSelectId = null) => {
-    setLoading(true);
-    setError(null);
+  const fetchOrders = useCallback(async (targetSelectId = null, isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+      setError(null);
+    }
     const token = localStorage.getItem('medifind_token');
     try {
       const res = await fetch('/api/orders', {
@@ -182,30 +224,70 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
         const orderList = data.orders || [];
         setOrders(orderList);
 
-        // '__clear__' sentinel means: refresh list without re-selecting anything
+        // Explicit '__clear__' sentinel: list refresh with no active selection
         if (targetSelectId === '__clear__') return;
 
-        const selId = targetSelectId || selectedOrderId || initialOrderId;
-        if (selId) {
+        // Determine selection without resurrecting back-navigated orders
+        let selId = targetSelectId;
+        if (!selId && selectedOrderIdRef.current) {
+          selId = selectedOrderIdRef.current;
+        } else if (!selId && !initialOrderIdConsumedRef.current && initialOrderId) {
+          selId = initialOrderId;
+          initialOrderIdConsumedRef.current = true;
+        }
+
+        // Only select and fetch details if the user hasn't explicitly navigated back to the list
+        if (selId && selectedOrderIdRef.current !== null) {
           const found = orderList.find(o => o.id === selId);
           if (found) {
             setSelectedOrderId(found.id);
-            fetchOrderDetails(found.id);
+            selectedOrderIdRef.current = found.id;
+            fetchOrderDetails(found.id, isBackground);
           }
         }
       } else {
-        setError(data.error || 'Failed to load orders.');
+        if (!isBackground) setError(data.error || 'Failed to load orders.');
       }
     } catch (err) {
-      setError('Network communication error. Unable to retrieve orders.');
+      if (!isBackground) setError('Network communication error. Unable to retrieve orders.');
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
-  }, [selectedOrderId, initialOrderId, fetchOrderDetails]);
+  }, [initialOrderId, fetchOrderDetails]);
 
   useEffect(() => {
     fetchOrders(initialOrderId);
-  }, [initialOrderId]);
+  }, [initialOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Subscribe to instant order status change events for immediate optimistic UI reaction
+  useEffect(() => {
+    const unsub = subscribeToUpdates((event) => {
+      if (['ORDER_STATUS_UPDATED', 'PAYMENT_COMPLETED', 'FULFILLMENT_SELECTED', 'ORDER_CREATED'].includes(event?.type)) {
+        const { orderId, newStatus } = event.payload || {};
+        if (orderId && newStatus) {
+          setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+          setSelectedOrderDetails(prev => {
+            if (prev && prev.id === orderId) {
+              return { ...prev, status: newStatus };
+            }
+            return prev;
+          });
+        }
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Real-time automatic background refresh (heartbeat + event triggers)
+  useRealtimeRefresh({
+    onRefresh: () => {
+      fetchOrders(null, true);
+      if (selectedOrderIdRef.current) {
+        fetchOrderDetails(selectedOrderIdRef.current, true);
+      }
+    },
+    interval: 10000
+  });
 
   useEffect(() => {
     if (!actionFeedback) return;
@@ -214,6 +296,8 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
   }, [actionFeedback]);
 
   const handleOpenTracking = (order) => {
+    selectedOrderIdRef.current = order.id;
+    initialOrderIdConsumedRef.current = true;
     setSelectedOrderId(order.id);
     setSelectedOrderDetails(order);
     fetchOrderDetails(order.id);
@@ -221,10 +305,11 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
   };
 
   const handleBackToList = () => {
+    selectedOrderIdRef.current = null;
+    initialOrderIdConsumedRef.current = true;
     setSelectedOrderId(null);
     setSelectedOrderDetails(null);
-    // Pass '__clear__' sentinel so fetchOrders does NOT re-select the previously
-    // viewed order via its stale closure value of selectedOrderId.
+    onClearInitialOrderId?.();
     fetchOrders('__clear__');
   };
 
@@ -242,14 +327,19 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
       });
       const data = await res.json();
       if (data.success) {
-        setActionFeedback({ type: 'success', message: 'Order reservation cancelled successfully.' });
+        setActionFeedback({ type: 'success', message: 'Order reservation cancelled successfully. Allocated inventory hold released.' });
+        setTimeout(() => setActionFeedback(null), 5000);
         setCancellingOrderId(null);
         fetchOrders(orderId);
+        fetchOrderDetails(orderId);
+        broadcastUpdate('ORDER_CANCELLED', { orderId });
       } else {
         setActionFeedback({ type: 'error', message: data.error || 'Failed to cancel order.' });
+        setTimeout(() => setActionFeedback(null), 6000);
       }
     } catch (err) {
       setActionFeedback({ type: 'error', message: 'Network error cancelling order.' });
+      setTimeout(() => setActionFeedback(null), 6000);
     }
   };
 
@@ -269,6 +359,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
         setActionFeedback({ type: 'success', message: 'Receipt confirmed successfully! Service completed.' });
         fetchOrders(orderId);
         fetchOrderDetails(orderId);
+        broadcastUpdate('ORDER_COMPLETED', { orderId });
       } else {
         setActionFeedback({ type: 'error', message: data.error || 'Failed to confirm receipt.' });
       }
@@ -276,6 +367,36 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
       setActionFeedback({ type: 'error', message: 'Network error confirming receipt.' });
     } finally {
       setConfirmingReceipt(false);
+    }
+  };
+
+  const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
+
+  const handleSubmitFollowUp = async (orderId, followUpState) => {
+    if (!orderId || !followUpState) return;
+    setSubmittingFollowUp(true);
+    const token = localStorage.getItem('medifind_token');
+    try {
+      const res = await fetch(`/api/orders/${orderId}/follow-up`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ followUpState })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionFeedback({ type: 'success', message: `Follow-up status recorded: ${followUpState.replace(/_/g, ' ')}` });
+        fetchOrders(orderId, true);
+        fetchOrderDetails(orderId, false);
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Failed to record follow-up status.' });
+      }
+    } catch (err) {
+      setActionFeedback({ type: 'error', message: 'Network error submitting follow-up status.' });
+    } finally {
+      setSubmittingFollowUp(false);
     }
   };
 
@@ -316,16 +437,18 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
     const isRejected = detailOrder.status === 'REJECTED';
     const isTerminal = isCancelled || isRejected;
     const isPaid = detailOrder.payment?.status === 'PAID';
+    const isCounterPay = detailOrder.payment?.method === 'COUNTER' || detailOrder.payment?.method === 'PAY_AT_COUNTER';
+    const isCheckoutComplete = Boolean(detailOrder.fulfillmentType) && (isPaid || isCounterPay);
 
     // 4 PIN Digits — strictly from server verificationPin, never fallback to fabricated PIN
     const pinStr = (!isTerminal && detailOrder.verificationPin) ? detailOrder.verificationPin : '';
     const pinDigits = pinStr ? pinStr.padEnd(4, '0').slice(0, 4).split('') : ['—', '—', '—', '—'];
 
-    // Journey Steps: 1: Confirmation, 2: Payment, 3: Preparing, 4: Ready, 5: Completed
+    // Journey Steps: 1: Confirmation, 2: Checkout / Payment, 3: Preparing, 4: Ready, 5: Completed
     let currentStepIndex = 1;
     if (isPending) currentStepIndex = 1;
-    else if (isConfirmed && !isPaid) currentStepIndex = 2;
-    else if (isConfirmed && isPaid) currentStepIndex = 3;
+    else if (isConfirmed && !isCheckoutComplete) currentStepIndex = 2;
+    else if (isConfirmed && isCheckoutComplete) currentStepIndex = 3;
     else if (isReady) currentStepIndex = 4;
     else if (isCompleted) currentStepIndex = 5;
     else if (isTerminal) currentStepIndex = 0;
@@ -404,21 +527,282 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
             </div>
           </div>
 
-          {/* PRIMARY ACTION SYSTEM: Prominent Unambiguous Next Action Hero (Stitch Screen f93a243ff9114238bcdca6e5ef837fc7) */}
-          <section style={{
-            background: 'linear-gradient(135deg, #032f28 0%, #1e453e 50%, #173731 100%)',
-            color: '#ffffff',
-            borderRadius: 24,
-            padding: '2rem',
-            boxShadow: '0 12px 36px rgba(3,47,40,0.18)',
-            marginBottom: '2rem',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '2rem', alignItems: 'center' }}>
+          {/* Gate 5 Immediate Urgent Care Guidance Banner */}
+          {detailOrder.orderType === 'EMERGENCY' && (
+            <div style={{
+              background: '#fff8f6',
+              border: '2px solid #ba1a1a',
+              borderRadius: 20,
+              padding: '1.25rem 1.5rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '1rem',
+              boxShadow: '0 4px 16px rgba(186,26,26,0.1)'
+            }}>
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: '#ffdad6',
+                color: '#93000a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 26 }}>e911_emergency</span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: '#93000a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Immediate Emergency Clinical Guidance
+                  </span>
+                  <span style={{ background: '#ba1a1a', color: '#ffffff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 99 }}>
+                    CRITICAL
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, color: '#410002', margin: '0.35rem 0 0.5rem 0', lineHeight: 1.5 }}>
+                  This order involves critical/emergency medication. <strong>Do not wait for dispensary response or pickup if symptoms are worsening.</strong> If experiencing chest pain, acute breathlessness, sudden numbness, or anaphylaxis, immediately contact national ambulance services (<strong>108 / 112</strong>) or visit the nearest trauma emergency center.
+                </p>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 12, fontWeight: 700, color: '#ba1a1a' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>call</span>
+                  <span>Ambulance Direct: 108 • National Emergency: 112</span>
+                </div>
+              </div>
+            </div>
+          )}
 
-              {/* Action Context (7 cols) */}
-              <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {/* Gate 5 Pharmacy Responsiveness & Patient Status Bar */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            background: '#ffffff',
+            borderRadius: 16,
+            padding: '0.85rem 1.25rem',
+            marginBottom: '1.25rem',
+            border: '1px solid #c0c8c5',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#414846' }}>Status Line:</span>
+
+              {/* Pharmacy Responsiveness */}
+              {detailOrder.pharmacyResponseStatus === 'PHARMACY_UNRESPONSIVE' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#ffdad6', color: '#93000a', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>timer_off</span>
+                  Dispensary Unresponsive (&gt;15 mins)
+                </span>
+              ) : detailOrder.pharmacyResponseStatus === 'AWAITING_PHARMACY_RESPONSE' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#e0f2eb', color: '#2e685d', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>hourglass_top</span>
+                  Awaiting Dispensary Confirmation
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#e0f2eb', color: '#032f28', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>store</span>
+                  Dispensary Responded
+                </span>
+              )}
+
+              {/* Patient Purchase Status */}
+              {detailOrder.patientPurchaseStatus === 'AWAITING_PATIENT_PURCHASE' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#fff3d6', color: '#7a4f00', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>shopping_cart_checkout</span>
+                  Awaiting Patient Purchase
+                </span>
+              ) : detailOrder.patientPurchaseStatus === 'PURCHASED' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#b0ecdd', color: '#336c61', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
+                  Purchased
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#f0f4f2', color: '#717976', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>cancel</span>
+                  Not Purchased
+                </span>
+              )}
+
+              {/* Follow-up State Tag */}
+              {detailOrder.followUpState && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#d7e3ff', color: '#003366', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>feedback</span>
+                  Follow-up: {detailOrder.followUpState.replace(/_/g, ' ')}
+                </span>
+              )}
+            </div>
+
+            {/* Resume Prescription Workflow link if order is linked to a prescription */}
+            {detailOrder.prescriptionId && (
+              <a
+                href={`/prescriptions/upload?id=${detailOrder.prescriptionId}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  color: '#2e685d',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textDecoration: 'none'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>receipt_long</span>
+                <span>View / Resume Prescription Slip &rarr;</span>
+              </a>
+            )}
+          </div>
+
+          {/* Gate 5 Patient Follow-Up Feedback Card */}
+          {(isTerminal || isPending || detailOrder.pharmacyResponseStatus === 'PHARMACY_UNRESPONSIVE' || detailOrder.followUpState) && (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: 20,
+              padding: '1.25rem 1.5rem',
+              marginBottom: '1.25rem',
+              border: '1px solid #c0c8c5',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>rate_review</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#032f28' }}>
+                    Patient Follow-Up &amp; Procurement Status
+                  </span>
+                </div>
+                {detailOrder.followUpState && (
+                  <span style={{ background: '#b0ecdd', color: '#336c61', padding: '0.2rem 0.65rem', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                    Recorded: {detailOrder.followUpState.replace(/_/g, ' ')}
+                  </span>
+                )}
+              </div>
+
+              <p style={{ fontSize: 12, color: '#414846', margin: 0 }}>
+                {detailOrder.pharmacyResponseStatus === 'PHARMACY_UNRESPONSIVE'
+                  ? 'The dispensary has not responded within 15 minutes. Help us assist you by letting us know your status:'
+                  : isCancelled
+                  ? 'Your reservation was cancelled. Please let us know if you obtained these medicines elsewhere:'
+                  : isRejected
+                  ? 'The pharmacy could not fulfill this request. How would you like to proceed?'
+                  : 'Please keep your procurement status updated to help coordinate care:'}
+              </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.25rem' }}>
+                <button
+                  onClick={() => handleSubmitFollowUp(detailOrder.id, 'PURCHASED_HERE')}
+                  disabled={submittingFollowUp || detailOrder.followUpState === 'PURCHASED_HERE'}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: 99,
+                    border: '1px solid #2e685d',
+                    background: detailOrder.followUpState === 'PURCHASED_HERE' ? '#2e685d' : '#e0f2eb',
+                    color: detailOrder.followUpState === 'PURCHASED_HERE' ? '#ffffff' : '#032f28',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: detailOrder.followUpState === 'PURCHASED_HERE' ? 'default' : 'pointer',
+                    opacity: submittingFollowUp ? 0.6 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>storefront</span>
+                  <span>Purchased Here</span>
+                </button>
+
+                <button
+                  onClick={() => handleSubmitFollowUp(detailOrder.id, 'PURCHASED_ELSEWHERE')}
+                  disabled={submittingFollowUp || detailOrder.followUpState === 'PURCHASED_ELSEWHERE'}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: 99,
+                    border: '1px solid #c0c8c5',
+                    background: detailOrder.followUpState === 'PURCHASED_ELSEWHERE' ? '#032f28' : '#ffffff',
+                    color: detailOrder.followUpState === 'PURCHASED_ELSEWHERE' ? '#ffffff' : '#414846',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: detailOrder.followUpState === 'PURCHASED_ELSEWHERE' ? 'default' : 'pointer',
+                    opacity: submittingFollowUp ? 0.6 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>local_pharmacy</span>
+                  <span>Purchased Elsewhere</span>
+                </button>
+
+                <button
+                  onClick={() => handleSubmitFollowUp(detailOrder.id, 'NOT_PURCHASED')}
+                  disabled={submittingFollowUp || detailOrder.followUpState === 'NOT_PURCHASED'}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: 99,
+                    border: '1px solid #ffdad6',
+                    background: detailOrder.followUpState === 'NOT_PURCHASED' ? '#ba1a1a' : '#fff8f6',
+                    color: detailOrder.followUpState === 'NOT_PURCHASED' ? '#ffffff' : '#93000a',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: detailOrder.followUpState === 'NOT_PURCHASED' ? 'default' : 'pointer',
+                    opacity: submittingFollowUp ? 0.6 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
+                  <span>Did Not Purchase</span>
+                </button>
+
+                <button
+                  onClick={() => handleSubmitFollowUp(detailOrder.id, 'NEEDS_MORE_HELP')}
+                  disabled={submittingFollowUp || detailOrder.followUpState === 'NEEDS_MORE_HELP'}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: 99,
+                    border: '1px solid #ffd8e4',
+                    background: detailOrder.followUpState === 'NEEDS_MORE_HELP' ? '#b01050' : '#fff0f5',
+                    color: detailOrder.followUpState === 'NEEDS_MORE_HELP' ? '#ffffff' : '#b01050',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: detailOrder.followUpState === 'NEEDS_MORE_HELP' ? 'default' : 'pointer',
+                    opacity: submittingFollowUp ? 0.6 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>medical_services</span>
+                  <span>Needs Clinical Help</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Prescription Clarification Alert / Action Card */}
+          <PatientClarificationCard
+            orderId={detailOrder.id}
+            pharmacyName={detailOrder.pharmacy?.name}
+            onClarificationSubmitted={() => fetchOrderDetails(detailOrder.id, true)}
+          />
+
+          {/* PRIMARY ACTION SYSTEM: Prominent Unambiguous Next Action Hero (Stitch Screen f93a243ff9114238bcdca6e5ef837fc7) */}
+          <section
+            className="p-5 sm:p-8 rounded-3xl mb-8 relative overflow-hidden text-white"
+            style={{
+              background: 'linear-gradient(135deg, #032f28 0%, #1e453e 50%, #173731 100%)',
+              boxShadow: '0 12px 36px rgba(3,47,40,0.18)'
+            }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+
+              {/* Action Context (7 cols on desktop, full width on mobile) */}
+              <div className="lg:col-span-7 flex flex-col gap-3">
                 <div style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -436,7 +820,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                 </div>
 
                 <h2 style={{ fontSize: 32, fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
-                  {isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Ready for Pickup' : isPending ? 'Awaiting Pharmacy Confirmation' : (isConfirmed && !isPaid) ? 'Action Required: Payment Pending' : isCompleted ? 'Dispensation Completed' : 'Prescription Staged & Packing'}
+                  {isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Ready for Pickup' : isPending ? 'Awaiting Pharmacy Confirmation' : (isConfirmed && !isPaid && !isCounterPay) ? 'Reservation Approved: Choose Mode & Pay' : isCompleted ? 'Dispensation Completed' : 'Medicines Staged & Packing'}
                 </h2>
 
                 <p style={{ fontSize: 15, color: '#c1ebe1', margin: 0, lineHeight: 1.5, maxWidth: 540 }}>
@@ -448,8 +832,8 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                     ? 'Your prescription medicines have been verified, packaged, and quarantined at the dispensary counter. You can collect your order now.'
                     : isPending
                     ? 'The licensed pharmacist is reviewing your prescription and confirming stock allocation.'
-                    : (isConfirmed && !isPaid)
-                    ? 'Pharmacy has verified stock availability. Complete secure escrow payment to trigger packing.'
+                    : (isConfirmed && !isPaid && !isCounterPay)
+                    ? 'The pharmacy has verified and earmarked your medicines! Please select your fulfillment mode (Counter Pickup or Assistant Delivery) and payment method to proceed.'
                     : isCompleted
                     ? 'Medicines have been handed over and authenticated via secure PIN verification.'
                     : 'Your order is confirmed and currently being batch packaged in a temperature-controlled dispensary bay.'}
@@ -466,7 +850,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', padding: '0.85rem 1rem', borderRadius: 14, maxWidth: 540 }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#c1ebe1', marginTop: 1 }}>verified_user</span>
                     <p style={{ fontSize: 12, color: '#c1ebe1', margin: 0, lineHeight: 1.4 }}>
-                      Show this PIN and your valid Government/Clinical ID to <strong style={{ color: '#ffffff' }}>Dr. Sarah Vance, PharmD</strong> at <strong style={{ color: '#ffffff' }}>Counter 2</strong>.
+                      Show this PIN and your valid Government/Clinical ID to the <strong style={{ color: '#ffffff' }}>Supervising Dispensing Pharmacist</strong> at the <strong style={{ color: '#ffffff' }}>Dispensation Counter</strong>.
                     </p>
                   </div>
                 )}
@@ -497,27 +881,39 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                     </button>
                   )}
 
-                  {isConfirmed && !isPaid && (
-                    <button
+                  {detailOrder.isParentOrder ? (
+                    <div style={{ background: '#e0f2eb', color: '#032f28', padding: '0.65rem 1.25rem', borderRadius: 99, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>call_split</span>
+                      <span>Split Order: Checkout each dispensary order individually below</span>
+                    </div>
+                  ) : isConfirmed && !isCheckoutComplete && (
+                    <FlowButton
+                      size="lg"
+                      variant="primary"
                       onClick={() => handleOpenCheckout(detailOrder.id)}
+                    >
+                      Choose Mode &amp; Proceed to Pay
+                    </FlowButton>
+                  )}
+
+                  {isConfirmed && isCounterPay && (
+                    <div
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.4rem',
                         padding: '0.75rem 1.5rem',
                         borderRadius: 99,
-                        background: '#c1ebe1',
-                        color: '#00201b',
-                        border: 'none',
+                        background: '#e0f2eb',
+                        color: '#2e685d',
                         fontSize: 13,
                         fontWeight: 800,
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#032f28' }}>credit_card</span>
-                      <span>Proceed to Checkout (Razorpay Test)</span>
-                    </button>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>storefront</span>
+                      <span>Pay at Counter Selected</span>
+                    </div>
                   )}
 
                   <a
@@ -565,7 +961,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                     </a>
                   )}
 
-                  {detailOrder.status === 'PENDING' && (
+                  {['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP'].includes(detailOrder.status) && !isPaid && !isTerminal && (
                     <button
                       onClick={() => setCancellingOrderId(detailOrder.id)}
                       style={{
@@ -589,8 +985,8 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                 </div>
               </div>
 
-              {/* Distinct 4-Digit Pickup PIN Card (5 cols) */}
-              <div style={{ gridColumn: 'span 5', display: 'flex', justifyContent: 'center' }}>
+              {/* Distinct 4-Digit Pickup PIN Card (5 cols on desktop, full width on mobile) */}
+              <div className="lg:col-span-5 flex justify-center w-full">
                 <div style={{
                   width: '100%',
                   maxWidth: 360,
@@ -657,6 +1053,145 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
               </div>
             </div>
           </section>
+
+          {/* Gate 4: Participating Dispensary Child Orders Section for Multi-Pharmacy Split Order */}
+          {detailOrder.isParentOrder && (
+            <section style={{
+              background: '#ffffff',
+              borderRadius: 24,
+              padding: '1.75rem',
+              boxShadow: '0 2px 12px rgba(3,47,40,0.04)',
+              border: '1.5px solid #b0ecdd',
+              marginBottom: '2rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid #e0f2eb', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#032f28', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8ab2a9' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 22 }}>call_split</span>
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: '#032f28', margin: 0 }}>
+                      Participating Dispensary Orders ({detailOrder.childOrders?.length || 0})
+                    </h3>
+                    <p style={{ fontSize: 12, color: '#414846', margin: 0 }}>
+                      Independent inventory confirmation, checkout, and handover PIN for each dispensary
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ background: '#e0f2eb', color: '#032f28', padding: '0.35rem 0.85rem', borderRadius: 99, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>account_balance_wallet</span>
+                  <span>Single ₹2.00 Platform Fee Ledger Enforced</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                {(detailOrder.childOrders || []).map((child, idx) => {
+                  const childIsPaid = child.payment?.status === 'PAID';
+                  const childIsCounter = child.payment?.method === 'COUNTER' || child.payment?.method === 'PAY_AT_COUNTER';
+                  const childCheckoutDone = Boolean(child.fulfillmentType) && (childIsPaid || childIsCounter);
+                  const childCanCheckout = child.status === 'CONFIRMED' && !childCheckoutDone;
+                  const childFee = Number(child.platformFee) || 0;
+
+                  return (
+                    <div
+                      key={child.id || idx}
+                      style={{
+                        background: '#f8faf9',
+                        border: '1px solid #c0c8c5',
+                        borderRadius: 18,
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '1rem'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: '#2e685d', background: '#e0f2eb', padding: '2px 8px', borderRadius: 99 }}>
+                            Dispensary #{idx + 1}
+                          </span>
+                          <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#032f28' }}>
+                            Ref #{child.orderNumber}
+                          </span>
+                        </div>
+
+                        <h4 style={{ fontSize: 16, fontWeight: 800, color: '#032f28', margin: '0 0 0.25rem 0' }}>
+                          {child.pharmacy?.name || 'Local Community Dispensary'}
+                        </h4>
+                        <p style={{ fontSize: 12, color: '#414846', margin: '0 0 0.75rem 0' }}>
+                          {child.pharmacy?.address || 'Dispensary Address'}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                          <StatusBadge status={child.status} />
+                          <PaymentBadge payment={child.payment} />
+                        </div>
+
+                        {/* Items */}
+                        <div style={{ background: '#ffffff', border: '1px solid #e0f2eb', borderRadius: 12, padding: '0.65rem 0.85rem', marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#717976', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                            Allocated Medicines
+                          </div>
+                          {(child.items || []).map((it, iIdx) => (
+                            <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#032f28', marginBottom: '0.2rem' }}>
+                              <span>{it.medicine?.brandName || it.brandName || 'Medicine'}</span>
+                              <strong style={{ color: '#2e685d' }}>×{it.quantity}</strong>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Financials */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: '#414846', padding: '0.5rem 0', borderTop: '1px solid #e0f2eb', borderBottom: '1px solid #e0f2eb' }}>
+                          <div>
+                            Subtotal: <strong style={{ color: '#032f28' }}>{child.medicineSubtotal != null ? `₹${Number(child.medicineSubtotal).toFixed(2)}` : 'MRP'}</strong>
+                          </div>
+                          <div style={{ color: childFee > 0 ? '#032f28' : '#2e685d', fontWeight: 600 }}>
+                            Fee: {childFee > 0 ? `₹${childFee.toFixed(2)}` : '₹0.00 (Sibling covered)'}
+                          </div>
+                        </div>
+
+                        {child.verificationPin && (
+                          <div style={{ marginTop: '0.75rem', background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 12, padding: '0.6rem', textAlign: 'center' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#414846', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Dispensary Handover PIN
+                            </div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 24, fontWeight: 800, color: '#032f28', letterSpacing: '0.2em' }}>
+                              {child.verificationPin}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Checkout action */}
+                      <div>
+                        {childCanCheckout ? (
+                          <FlowButton
+                            fullWidth
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleOpenCheckout(child.id)}
+                          >
+                            Proceed to Checkout ({child.pharmacy?.name?.slice(0, 16) || 'Dispensary'})
+                          </FlowButton>
+                        ) : childCheckoutDone ? (
+                          <div style={{ textAlign: 'center', color: '#2e685d', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.4rem 0' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check_circle</span>
+                            <span>Fulfillment &amp; Checkout Confirmed</span>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', color: '#717976', fontSize: 12, fontStyle: 'italic', padding: '0.4rem 0' }}>
+                            Awaiting dispensary confirmation before checkout
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* MAIN VISUAL TIMELINE: "Your Medicine Journey" (Stitch Stepper) */}
           <section style={{
@@ -868,11 +1403,11 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
             )}
           </section>
 
-          {/* FULFILLMENT DEDICATED VISUAL & CONTEXT (Two-column layout: 7 cols left, 5 cols right) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem', marginBottom: '2rem', alignItems: 'start' }}>
+          {/* FULFILLMENT DEDICATED VISUAL & CONTEXT (Two-column layout: 7 cols left, 5 cols right on desktop, stacked on mobile) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-start">
 
             {/* Left Column: Pharmacy Collection Details & Visual Map Anchor (7 cols) */}
-            <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="lg:col-span-7 flex flex-col gap-6">
               <section style={{ background: '#ffffff', borderRadius: 24, padding: '1.75rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 10px rgba(3,47,40,0.04)' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                   <div>
@@ -965,14 +1500,14 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                       <strong>STATUS:</strong>
                       <span>Participating Pharmacy (Chengannur)</span>
                     </div>
-                    <span style={{ fontWeight: 700, color: '#2e685d' }}>Academic Project Partner</span>
+                    <span style={{ fontWeight: 700, color: '#2e685d' }}>Verified Clinical Partner</span>
                   </div>
                 )}
               </section>
             </div>
 
             {/* Right Column: Status History & Prescribed Package Summary (5 cols) */}
-            <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="lg:col-span-5 flex flex-col gap-6">
 
               {/* Order Status History (Audit Log) */}
               <section style={{ background: '#ffffff', borderRadius: 24, padding: '1.5rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 10px rgba(3,47,40,0.04)' }}>
@@ -1089,7 +1624,9 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                         {pricing.platformFee > 0 && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#52605c' }}>
                             <span>Platform Fee</span>
-                            <span style={{ fontWeight: 700, color: '#032f28' }}>₹{pricing.platformFee.toFixed(2)}</span>
+                            <span style={{ fontWeight: 700, color: '#032f28' }}>
+                              <RollingNumber prefix="₹" value={pricing.platformFee.toFixed(2)} />
+                            </span>
                           </div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#52605c' }}>
@@ -1110,9 +1647,11 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                             </span>
                           </div>
                           <span style={{ fontWeight: 900, color: '#032f28', fontSize: 20 }}>
-                            {pricing.medicineSubtotal != null
-                              ? `₹${pricing.totalAmount.toFixed(2)}`
-                              : 'MRP / counter pricing at pharmacy'}
+                            {pricing.medicineSubtotal != null ? (
+                              <RollingNumber prefix="₹" value={pricing.totalAmount.toFixed(2)} />
+                            ) : (
+                              'MRP / counter pricing at pharmacy'
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1122,103 +1661,6 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
               </section>
             </div>
           </div>
-
-          {/* BOTTOM ASSISTANT SERVICE DEMONSTRATION / EXPLANATORY BOX */}
-          <section style={{ background: '#e0f2eb', borderRadius: 24, padding: '1.75rem', boxShadow: '0 2px 8px rgba(3,47,40,0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid #d5e6e0', paddingBottom: '1rem', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#032f28', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 22 }}>swap_horizontal_circle</span>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 800, color: '#032f28', margin: 0 }}>Medicine Access Assistant Architecture</h3>
-                    <span style={{ fontSize: 10, fontWeight: 700, background: '#2e685d', color: '#ffffff', padding: '0.15rem 0.55rem', borderRadius: 99 }}>Tandem Subsystem</span>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#414846', margin: '0.2rem 0 0 0' }}>
-                    Looking for Assistant Service? When selected, AssistantTask progression runs in tandem: <strong style={{ color: '#032f28' }}>Available → Accepted → In Progress → Handover → Confirmed</strong>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Mode Toggle Trigger */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#ffffff', padding: '0.25rem', borderRadius: 99, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <button
-                  onClick={() => setAssistantFlowSimulate(false)}
-                  style={{
-                    padding: '0.35rem 0.95rem',
-                    borderRadius: 99,
-                    border: 'none',
-                    background: !assistantFlowSimulate ? '#032f28' : 'transparent',
-                    color: !assistantFlowSimulate ? '#ffffff' : '#414846',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Counter Pickup (Active)
-                </button>
-                <button
-                  onClick={() => setAssistantFlowSimulate(true)}
-                  style={{
-                    padding: '0.35rem 0.95rem',
-                    borderRadius: 99,
-                    border: 'none',
-                    background: assistantFlowSimulate ? '#032f28' : 'transparent',
-                    color: assistantFlowSimulate ? '#ffffff' : '#414846',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Simulate Assistant Service Flow
-                </button>
-              </div>
-            </div>
-
-            {/* 6 Step Progression Pipeline */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
-              {(() => {
-                const sType = detailOrder?.assistantServiceType || detailOrder?.assistantTask?.serviceType;
-                const isDelivery = sType === 'MEDICINE_DELIVERY';
-                const isCollection = sType === 'MEDICINE_COLLECTION';
-
-                const steps = isDelivery ? [
-                  { step: 1, title: 'Available', desc: 'Task broadcast to fleet' },
-                  { step: 2, title: 'Accepted', desc: 'Assistant assigned' },
-                  { step: 3, title: 'Collecting', desc: 'Pickup at pharmacy' },
-                  { step: 4, title: 'In Transit', desc: 'En route to destination' },
-                  { step: 5, title: 'Delivered', desc: 'Arrived at delivery address' },
-                  { step: 6, title: 'Confirmed', desc: 'Handover PIN verified' }
-                ] : isCollection ? [
-                  { step: 1, title: 'Available', desc: 'Task broadcast to fleet' },
-                  { step: 2, title: 'Accepted', desc: 'Assistant assigned' },
-                  { step: 3, title: 'Collecting', desc: 'Pickup at pharmacy' },
-                  { step: 4, title: 'In Transit', desc: 'Ready for handover' },
-                  { step: 5, title: 'Delivered', desc: 'Ready at handover point' },
-                  { step: 6, title: 'Confirmed', desc: 'Handover PIN verified' }
-                ] : [
-                  { step: 1, title: 'Available', desc: 'Task broadcast to fleet' },
-                  { step: 2, title: 'Accepted', desc: 'Assistant assigned' },
-                  { step: 3, title: 'Collecting', desc: 'Service initiated' },
-                  { step: 4, title: 'In Transit', desc: 'Assistance in progress' },
-                  { step: 5, title: 'Delivered', desc: 'Assistance rendered' },
-                  { step: 6, title: 'Confirmed', desc: 'Service confirmed with PIN' }
-                ];
-
-                return steps.map(p => (
-                  <div key={p.step} style={{ background: '#ffffff', borderRadius: 12, padding: '0.75rem', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#dbece5', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#032f28', marginBottom: '0.35rem' }}>
-                      {p.step}
-                    </span>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>{p.title}</div>
-                    <div style={{ fontSize: 10, color: '#717976', marginTop: '0.15rem' }}>{p.desc}</div>
-                  </div>
-                ));
-              })()}
-            </div>
-          </section>
-
         </div>
 
         {/* Razorpay Checkout Modal */}
@@ -1274,58 +1716,56 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
           {/* 4 Metric Summary Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
             {/* Metric 1: Active Orders */}
-            <div style={{ background: '#ffffff', borderRadius: 20, padding: '1.25rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 8px rgba(3,47,40,0.04)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#b0ecdd', color: '#2e685d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 24 }}>timelapse</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#032f28', lineHeight: 1 }}>{activeOrdersCount}</div>
-                  <div style={{ fontSize: 12, color: '#717976', marginTop: '0.25rem' }}>Active Orders</div>
-                </div>
-              </div>
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: '#2e685d' }}></div>
-            </div>
+            <AnimatedStatCard
+              icon="timelapse"
+              value={activeOrdersCount}
+              label="Active Orders"
+              iconBg="#b0ecdd"
+              iconColor="#2e685d"
+              accentColor="#2e685d"
+              barWidth="100%"
+              delay={0}
+              refreshKey={orders.length}
+            />
 
             {/* Metric 2: Awaiting Confirmation */}
-            <div style={{ background: '#ffffff', borderRadius: 20, padding: '1.25rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 8px rgba(3,47,40,0.04)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#e0f2eb', color: '#717976', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 24 }}>hourglass_empty</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#032f28', lineHeight: 1 }}>{pendingCount}</div>
-                  <div style={{ fontSize: 12, color: '#717976', marginTop: '0.25rem' }}>Awaiting Confirmation</div>
-                </div>
-              </div>
-            </div>
+            <AnimatedStatCard
+              icon="hourglass_empty"
+              value={pendingCount}
+              label="Awaiting Confirmation"
+              iconBg="#e0f2eb"
+              iconColor="#717976"
+              accentColor="#717976"
+              hasBottomBar={false}
+              delay={0.06}
+              refreshKey={orders.length}
+            />
 
             {/* Metric 3: Ready for Pickup */}
-            <div style={{ background: '#ffffff', borderRadius: 20, padding: '1.25rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 8px rgba(3,47,40,0.04)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#c1ebe1', color: '#032f28', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 24 }}>storefront</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#032f28', lineHeight: 1 }}>{readyCount}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#2e685d', marginTop: '0.25rem' }}>Ready for Pickup</div>
-                </div>
-              </div>
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: '#c1ebe1' }}></div>
-            </div>
+            <AnimatedStatCard
+              icon="storefront"
+              value={readyCount}
+              label="Ready for Pickup"
+              iconBg="#c1ebe1"
+              iconColor="#032f28"
+              accentColor="#c1ebe1"
+              barWidth="100%"
+              delay={0.12}
+              refreshKey={orders.length}
+            />
 
             {/* Metric 4: Completed */}
-            <div style={{ background: '#ffffff', borderRadius: 20, padding: '1.25rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 8px rgba(3,47,40,0.04)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#dbece5', color: '#414846', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 24 }}>task_alt</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#032f28', lineHeight: 1 }}>{completedCount}</div>
-                  <div style={{ fontSize: 12, color: '#717976', marginTop: '0.25rem' }}>Completed</div>
-                </div>
-              </div>
-            </div>
+            <AnimatedStatCard
+              icon="task_alt"
+              value={completedCount}
+              label="Completed"
+              iconBg="#dbece5"
+              iconColor="#414846"
+              accentColor="#2e685d"
+              hasBottomBar={false}
+              delay={0.18}
+              refreshKey={orders.length}
+            />
           </div>
         </section>
 
@@ -1340,7 +1780,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search order reference or pharmacy..."
+              placeholder="Search"
               style={{
                 width: '100%',
                 padding: '0.65rem 1rem 0.65rem 2.65rem',
@@ -1349,6 +1789,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                 border: '1px solid #c0c8c5',
                 fontSize: 13,
                 color: '#032f28',
+                fontWeight: 700,
                 outline: 'none',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
               }}
@@ -1358,11 +1799,11 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
           {/* Filter Pills */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', background: '#e0f2eb', padding: '0.35rem', borderRadius: 99 }}>
             {[
-              { id: 'ALL', label: `All (${orders.length})` },
-              { id: 'ACTIVE', label: `Active (${activeOrdersCount})` },
-              { id: 'COMPLETED', label: `Completed (${completedCount})` },
-              { id: 'CANCELLED', label: `Cancelled (${cancelledCount})` },
-              { id: 'REJECTED', label: `Rejected (${rejectedCount})` }
+              { id: 'ALL', label: 'All', count: orders.length },
+              { id: 'ACTIVE', label: 'Active', count: activeOrdersCount },
+              { id: 'COMPLETED', label: 'Completed', count: completedCount },
+              { id: 'CANCELLED', label: 'Cancelled', count: cancelledCount },
+              { id: 'REJECTED', label: 'Rejected', count: rejectedCount }
             ].map(f => (
               <button
                 key={f.id}
@@ -1376,10 +1817,16 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
                 }}
               >
-                {f.label}
+                <span>{f.label}</span>
+                <span style={{ opacity: 0.9 }}>
+                  (<RollingNumber value={f.count} />)
+                </span>
               </button>
             ))}
           </div>
@@ -1462,6 +1909,8 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
             {filteredOrders.map(ord => {
               const isReady = ord.status === 'READY_FOR_PICKUP';
               const isConfirmed = ord.status === 'CONFIRMED';
+              const isCancelled = ord.status === 'CANCELLED';
+              const isRejected = ord.status === 'REJECTED';
               const isPaid = ord.payment?.status === 'PAID';
               const pin = ord.verificationPin;
 
@@ -1469,12 +1918,15 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                 <article
                   key={ord.id}
                   style={{
-                    background: '#ffffff',
+                    background: isCancelled ? '#fafafa' : '#ffffff',
                     borderRadius: 20,
-                    border: '1px solid #e0f2eb',
-                    boxShadow: '0 2px 10px rgba(3,47,40,0.04)',
+                    border: isCancelled ? '1px dashed #d1d5db' : '1px solid #e0f2eb',
+                    boxShadow: isCancelled ? 'none' : '0 2px 10px rgba(3,47,40,0.04)',
                     overflow: 'hidden',
-                    position: 'relative'
+                    position: 'relative',
+                    opacity: isCancelled ? 0.65 : 1,
+                    filter: isCancelled ? 'grayscale(25%)' : 'none',
+                    transition: 'opacity 0.2s ease, filter 0.2s ease'
                   }}
                 >
                   <div style={{
@@ -1483,7 +1935,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                     left: 0,
                     bottom: 0,
                     width: 6,
-                    background: isReady ? '#2e685d' : isConfirmed ? '#336c61' : '#c0c8c5'
+                    background: isCancelled ? '#9ca3af' : isReady ? '#2e685d' : isConfirmed ? '#336c61' : '#c0c8c5'
                   }} />
 
                   {/* Top Metadata Header Strip */}
@@ -1503,6 +1955,39 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                       </span>
                       <StatusBadge status={ord.status} />
                       <PaymentBadge payment={ord.payment} />
+                      {ord.isParentOrder && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#032f28',
+                          color: '#8ab2a9',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 99
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>call_split</span>
+                          <span>Multi-Pharmacy Split Order ({ord.childOrders?.length || 0} Dispensaries)</span>
+                        </span>
+                      )}
+                      {ord.parentOrder && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#e0f2eb',
+                          color: '#032f28',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          border: '1px solid #b0ecdd'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#2e685d' }}>link</span>
+                          <span>Part of Split #{ord.parentOrder.orderNumber}</span>
+                        </span>
+                      )}
                       {ord.fulfillmentType === 'ASSISTANT_DELIVERY' && (
                         <span style={{
                           display: 'inline-flex',
@@ -1520,6 +2005,74 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                           <span>Medicine Access Assistant: {getAssistantServiceLabel(ord.assistantServiceType || ord.assistantTask?.serviceType)}</span>
                         </span>
                       )}
+                      {ord.orderType === 'EMERGENCY' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#ffdad6',
+                          color: '#93000a',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          border: '1px solid #ffb4a8'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#ba1a1a' }}>emergency</span>
+                          <span>Emergency / Urgent Care</span>
+                        </span>
+                      )}
+                      {ord.pharmacyResponseStatus === 'PHARMACY_UNRESPONSIVE' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#ffdad6',
+                          color: '#93000a',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          border: '1px solid #ffb4a8'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#ba1a1a' }}>timer_off</span>
+                          <span>Dispensary Unresponsive (&gt;15m)</span>
+                        </span>
+                      )}
+                      {ord.patientPurchaseStatus === 'AWAITING_PATIENT_PURCHASE' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#fff3d6',
+                          color: '#7a4f00',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          border: '1px solid #ffe082'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>shopping_cart_checkout</span>
+                          <span>Awaiting Checkout</span>
+                        </span>
+                      )}
+                      {ord.followUpState && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#d7e3ff',
+                          color: '#003366',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          border: '1px solid #b4c8f5'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>feedback</span>
+                          <span>Follow-up: {ord.followUpState.replace(/_/g, ' ')}</span>
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: '#717976' }}>•</span>
                       <span style={{ fontSize: 12, color: '#717976' }}>
                         {new Date(ord.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -1530,85 +2083,180 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                     {pin && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#ffffff', padding: '0.3rem 0.85rem', borderRadius: 99, border: '1px solid #c0c8c5', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>pin</span>
-                        <span style={{ fontSize: 11, color: '#717976', fontWeight: 600 }}>Secure PIN:</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: '#032f28', fontFamily: 'monospace', letterSpacing: '0.1em' }}>
-                          {pin}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#032f28', fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                          PIN: <RollingNumber value={pin} />
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Middle Content Split */}
-                  <div style={{ padding: '1.5rem 1.5rem 1.5rem 1.75rem', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem', alignItems: 'center' }}>
-
-                    {/* Pharmacy & Items (8 cols) */}
-                    <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 12, background: '#e6f8f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#032f28', flexShrink: 0 }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 22 }}>local_pharmacy</span>
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#032f28', margin: 0 }}>
-                              {ord.pharmacy?.name || 'Local Community Dispensary'}
-                            </h3>
-                            <span style={{ fontSize: 11, color: '#2e685d', fontWeight: 700, background: '#e0f2eb', padding: '0.1rem 0.5rem', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>navigation</span>
-                              0.8 km
+                  {/* Body Content (12-Col Responsive Grid) */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6">
+                    {/* Pharmacy & Items (8 cols on desktop) */}
+                    <div className="col-span-1 md:col-span-8 flex flex-col gap-3">
+                      {ord.isParentOrder && ord.childOrders?.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#032f28', fontWeight: 800, fontSize: 14 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>call_split</span>
+                              <span>Participating Dispensaries ({ord.childOrders.length}):</span>
+                            </div>
+                            <span style={{ fontSize: 11, color: '#2e685d', fontWeight: 700, background: '#e0f2eb', padding: '2px 8px', borderRadius: 99 }}>
+                              Single ₹2.00 Platform Fee Ledger Enforced
                             </span>
                           </div>
-                          <p style={{ fontSize: 12, color: '#414846', margin: '0.2rem 0 0 0' }}>
-                            {ord.pharmacy?.address || 'Dispensary Location'}
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Assistant Service Pill for Assistant Fulfillment */}
-                      {ord.fulfillmentType === 'ASSISTANT_DELIVERY' && (
-                        <div style={{
-                          background: '#e0f2eb',
-                          borderRadius: 12,
-                          padding: '0.65rem 1rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: '0.5rem',
-                          border: '1px solid #b0ecdd'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: 13 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>support_agent</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                            {ord.childOrders.map((child, cIdx) => {
+                              const childIsPaid = child.payment?.status === 'PAID';
+                              const childIsCounter = child.payment?.method === 'COUNTER' || child.payment?.method === 'PAY_AT_COUNTER';
+                              const childCheckoutDone = Boolean(child.fulfillmentType) && (childIsPaid || childIsCounter);
+                              const childCanCheckout = child.status === 'CONFIRMED' && !childCheckoutDone;
+                              const childFee = Number(child.platformFee) || 0;
+
+                              return (
+                                <div
+                                  key={child.id || cIdx}
+                                  style={{
+                                    background: '#f8faf9',
+                                    border: '1px solid #d5e6e0',
+                                    borderRadius: 14,
+                                    padding: '0.75rem 1rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.5rem'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>local_pharmacy</span>
+                                      <strong style={{ fontSize: 13, color: '#032f28' }}>{child.pharmacy?.name || 'Local Dispensary'}</strong>
+                                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#717976' }}>#{child.orderNumber}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                      <StatusBadge status={child.status} />
+                                      <PaymentBadge payment={child.payment} />
+                                      {child.verificationPin && (
+                                        <span style={{ fontSize: 11, background: '#ffffff', border: '1px solid #c0c8c5', padding: '1px 6px', borderRadius: 6, fontFamily: 'monospace', fontWeight: 700, color: '#032f28', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                          PIN: <RollingNumber value={child.verificationPin} />
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: 12 }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                      {(child.items || []).map((it, idx) => (
+                                        <span key={idx} style={{ background: '#ffffff', border: '1px solid #c0c8c5', padding: '1px 8px', borderRadius: 99, color: '#032f28', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                          {it.medicine?.brandName || it.brandName || 'Medicine'} ×<RollingNumber value={it.quantity} />
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                      <span style={{ color: '#717976', fontSize: 11 }}>
+                                        Fee: {childFee > 0 ? `₹${childFee.toFixed(2)}` : '₹0.00 (Sibling covered)'}
+                                      </span>
+                                      {childCanCheckout && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenCheckout(child.id)}
+                                          style={{
+                                            padding: '0.35rem 0.85rem',
+                                            borderRadius: 99,
+                                            background: '#032f28',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem'
+                                          }}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>shopping_cart_checkout</span>
+                                          <span>Checkout ({child.pharmacy?.name?.slice(0, 15) || 'Dispensary'})</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 12, background: '#e6f8f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#032f28', flexShrink: 0 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 22 }}>local_pharmacy</span>
+                            </div>
                             <div>
-                              <span style={{ fontWeight: 800, display: 'block', fontSize: 12, color: '#032f28' }}>Medicine Access Assistant</span>
-                              <span style={{ color: '#1e453e', fontWeight: 700, fontSize: 13 }}>
-                                {getAssistantServiceLabel(ord.assistantServiceType || ord.assistantTask?.serviceType)}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#032f28', margin: 0 }}>
+                                  {ord.pharmacy?.name || 'Local Community Dispensary'}
+                                </h3>
+                                <span style={{ fontSize: 11, color: '#2e685d', fontWeight: 700, background: '#e0f2eb', padding: '0.1rem 0.5rem', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 12 }}>navigation</span>
+                                  0.8 km
+                                </span>
+                              </div>
+                              <p style={{ fontSize: 12, color: '#414846', margin: '0.2rem 0 0 0' }}>
+                                {ord.pharmacy?.address || 'Dispensary Location'}
+                              </p>
                             </div>
                           </div>
-                          {ord.deliveryAddress && !['DIGITAL_ASSISTANCE', 'PRESCRIPTION_ASSISTANCE', 'PHARMACY_COMMS'].includes(ord.assistantServiceType || ord.assistantTask?.serviceType) && (
-                            <div style={{ fontSize: 11, color: '#414846', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#2e685d' }}>location_on</span>
-                              <span>{ord.deliveryAddress}</span>
+
+                          {/* Assistant Service Pill for Assistant Fulfillment */}
+                          {ord.fulfillmentType === 'ASSISTANT_DELIVERY' && (
+                            <div style={{
+                              background: '#e0f2eb',
+                              borderRadius: 12,
+                              padding: '0.65rem 1rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem',
+                              border: '1px solid #b0ecdd'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: 13 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>support_agent</span>
+                                <div>
+                                  <span style={{ fontWeight: 800, display: 'block', fontSize: 12, color: '#032f28' }}>Medicine Access Assistant</span>
+                                  <span style={{ color: '#1e453e', fontWeight: 700, fontSize: 13 }}>
+                                    {getAssistantServiceLabel(ord.assistantServiceType || ord.assistantTask?.serviceType)}
+                                  </span>
+                                </div>
+                              </div>
+                              {ord.deliveryAddress && !['DIGITAL_ASSISTANCE', 'PRESCRIPTION_ASSISTANCE', 'PHARMACY_COMMS'].includes(ord.assistantServiceType || ord.assistantTask?.serviceType) && (
+                                <div style={{ fontSize: 11, color: '#414846', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#2e685d' }}>location_on</span>
+                                  <span>{ord.deliveryAddress}</span>
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
-                      )}
 
-                      {/* Items Preview */}
-                      <div style={{ background: '#f5faf8', borderRadius: 14, padding: '0.75rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {(ord.items || []).map((it, idx) => (
-                          <div key={idx} style={{ background: '#ffffff', border: '1px solid #c0c8c5', borderRadius: 99, padding: '0.25rem 0.75rem', fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <span style={{ fontWeight: 700, color: '#032f28' }}>
-                              {it.medicine?.brandName || it.medicine?.name || it.name || 'Medicine'}
-                            </span>
-                            <span style={{ color: '#717976' }}>×{it.quantity}</span>
+                          {/* Items Preview */}
+                          <div style={{ background: '#f5faf8', borderRadius: 14, padding: '0.75rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {(ord.items || []).map((it, idx) => (
+                              <div key={idx} style={{ background: '#ffffff', border: '1px solid #c0c8c5', borderRadius: 99, padding: '0.25rem 0.75rem', fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span style={{ fontWeight: 700, color: '#032f28' }}>
+                                  {it.medicine?.brandName || it.medicine?.name || it.name || 'Medicine'}
+                                </span>
+                                <span style={{ color: '#717976', display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
+                                  ×<RollingNumber value={it.quantity} />
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </>
+                      )}
                     </div>
 
-                    {/* Actions & Total (4 cols) */}
-                    <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.75rem', borderLeft: '1px solid #e6f8f1', paddingLeft: '1.5rem' }}>
+                    {/* Actions & Total (4 cols on desktop) */}
+                    <div className="col-span-1 md:col-span-4 flex flex-col items-start md:items-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-[#e6f8f1] md:pl-6">
                       <div style={{ textAlign: 'right' }}>
                         {(() => {
                           const { totalAmount } = calculateOrderPricing(ord);
@@ -1621,7 +2269,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                                 {isCompleted ? 'Total Amount' : (isPreCheckout ? 'Order Value' : (isPaid ? 'Total Paid' : 'Total Price'))}
                               </span>
                               <span style={{ fontSize: 22, fontWeight: 800, color: '#032f28' }}>
-                                ₹{totalAmount.toFixed(2)}
+                                <RollingNumber prefix="₹" value={totalAmount.toFixed(2)} />
                               </span>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', marginTop: '0.25rem' }}>
                                 <span style={{
@@ -1675,53 +2323,66 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                           <span>Track Fulfillment Journey</span>
                         </button>
 
-                        {isConfirmed && !isPaid && (
-                          <button
-                            onClick={() => handleOpenCheckout(ord.id)}
-                            style={{
-                              width: '100%',
-                              padding: '0.55rem 1rem',
-                              borderRadius: 99,
-                              background: '#c1ebe1',
-                              color: '#00201b',
-                              border: 'none',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem'
-                            }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>credit_card</span>
-                            <span>Checkout &amp; Pay</span>
-                          </button>
-                        )}
+                        {(() => {
+                          if (ord.isParentOrder) {
+                            return (
+                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.45rem 0.65rem', fontSize: 11, color: '#166534', fontWeight: 600, textAlign: 'center' }}>
+                                Split aggregate order: checkout each participating dispensary individually above.
+                              </div>
+                            );
+                          }
 
-                        {ord.status === 'PENDING' && (
-                          <button
-                            onClick={() => setCancellingOrderId(ord.id)}
-                            style={{
-                              width: '100%',
-                              padding: '0.5rem 1rem',
-                              borderRadius: 99,
-                              background: '#ffdad6',
-                              color: '#93000a',
-                              border: 'none',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem'
-                            }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>cancel</span>
-                            <span>Cancel Reservation</span>
-                          </button>
-                        )}
+                          const ordIsPaid = ord.payment?.status === 'PAID';
+                          const ordIsCounter = ord.payment?.method === 'COUNTER' || ord.payment?.method === 'PAY_AT_COUNTER';
+                          const ordIsCheckoutComplete = Boolean(ord.fulfillmentType) && (ordIsPaid || ordIsCounter);
+
+                          if (ord.status === 'CONFIRMED' && !ordIsCheckoutComplete) {
+                            return (
+                              <FlowButton
+                                fullWidth
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleOpenCheckout(ord.id)}
+                              >
+                                Proceed to Checkout
+                              </FlowButton>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {(() => {
+                          const ordIsPaid = ord.payment?.status === 'PAID';
+                          const ordIsTerminal = ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(ord.status);
+                          const canCancel = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP'].includes(ord.status) && !ordIsPaid && !ordIsTerminal;
+
+                          if (canCancel) {
+                            return (
+                              <button
+                                onClick={() => setCancellingOrderId(ord.id)}
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem 1rem',
+                                  borderRadius: 99,
+                                  background: '#ffdad6',
+                                  color: '#93000a',
+                                  border: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.35rem'
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>cancel</span>
+                                <span>Cancel Reservation</span>
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                   </div>

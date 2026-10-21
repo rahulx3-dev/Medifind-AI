@@ -12,7 +12,7 @@ import mapHeroImg from '../assets/map_hero_bg.jpg';
  * - Staggered reveal: map → badge → heading → subtitle → buttons → stats → pin
  * - Parallax depth scrubbing for depth effect while scrolling through
  */
-export default function ParallaxTransition({ onProceed }) {
+export default function ParallaxTransition({ onProceed, onBack }) {
   const parallaxRef = useRef(null);
 
   useEffect(() => {
@@ -211,16 +211,27 @@ export default function ParallaxTransition({ onProceed }) {
                 Bridging emergency medicine relays and verified pharmacy networks across Kerala with real-time transit routing.
               </p>
 
-              {/* Action Button — Styled after the translucent "Open >" button */}
-              <div className="hero2-animate-item flex flex-wrap items-center gap-4">
+              {/* Action Buttons */}
+              <div className="hero2-animate-item flex flex-wrap items-center gap-3">
+                {onBack && (
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-white font-medium text-sm backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">arrow_back</span>
+                    <span>Back to 3D Globe</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={onProceed}
-                  className="group inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-white font-medium text-sm backdrop-blur-md shadow-lg hover:shadow-emerald-500/20 hover:border-emerald-400/50 transition-all duration-200 active:scale-95 cursor-pointer"
+                  className="group inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-bold text-sm shadow-lg hover:shadow-emerald-500/20 transition-all duration-200 active:scale-95 cursor-pointer"
                 >
-                  <span className="font-semibold tracking-wide">Open Portal</span>
+                  <span>Sign In / Enter Portal</span>
                   <span className="material-symbols-outlined text-lg transition-transform group-hover:translate-x-1">
-                    chevron_right
+                    arrow_forward
                   </span>
                 </button>
 
@@ -265,26 +276,28 @@ export default function ParallaxTransition({ onProceed }) {
 
         </div>
 
-        {/* Bottom Smooth Fade into Verification & Auth Section */}
+        {/* Bottom Smooth Fade into Background */}
         <div
-          className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-20"
+          className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none z-20"
           style={{
             background: 'linear-gradient(to bottom, transparent 0%, rgba(1, 26, 21, 0.7) 60%, #011a15 100%)'
           }}
         />
 
-        {/* Scroll prompt anchor */}
+        {/* Return to Globe Navigation Anchor */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
-          <button
-            type="button"
-            onClick={onProceed}
-            className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-300 transition-colors text-xs font-medium cursor-pointer"
-          >
-            <span>Scroll or click to verify access</span>
-            <span className="material-symbols-outlined text-base animate-bounce">
-              keyboard_arrow_down
-            </span>
-          </button>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-300 transition-colors text-xs font-medium cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">
+                keyboard_arrow_up
+              </span>
+              <span>Back to 3D Globe</span>
+            </button>
+          )}
         </div>
       </section>
     </div>

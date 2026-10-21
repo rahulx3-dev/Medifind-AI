@@ -1,4 +1,5 @@
 const { calculateDistance } = require('./distance');
+const { getReferencePricing, calculateUnitPrice } = require('./referencePricing');
 
 /**
  * MediFind AI — Explainable Multi-Criteria Pharmacy Ranking Engine
@@ -20,7 +21,7 @@ const { calculateDistance } = require('./distance');
  * medicine stock as the primary criterion. 24x7 status contributes to the
  * operationalScore (15%) and does NOT override medicine availability.
  *
- * Distance decay calibrated for Kerala (Chengannur/Alappuzha region):
+ * Distance decay calibrated for Kerala (Chengannur region):
  *   Town-to-town distances: 5–25 km.
  *   Decay: 100 - (distanceKm * 5) → zero score at 20 km.
  *   (Previously: * 15, calibrated for dense Bangalore 1–6 km range.)
@@ -28,6 +29,92 @@ const { calculateDistance } = require('./distance');
  * travelTimeMins is intentionally NOT computed or returned.
  * Haversine distance is straight-line only; ETA claims would be inaccurate.
  */
+
+function verifyClinicalEquivalence(req, invMed) {
+  if (!invMed) {
+    return {
+      isMatch: false,
+      reason: 'Dispensary catalogue record lacks clinical medicine details: cannot verify equivalence.'
+    };
+  }
+
+  // 1. Active ingredient (genericName) verification
+  const reqGen = (req.genericName || '').toLowerCase().trim();
+  const invGen = (invMed.genericName || '').toLowerCase().trim();
+  if (reqGen && invGen) {
+    if (reqGen !== invGen) {
+      return {
+        isMatch: false,
+        reason: `Active ingredient mismatch: prescribed "${req.genericName}" vs inventory "${invMed.genericName}". Different ingredients cannot be substituted.`
+      };
+    }
+  } else if (reqGen && !invGen) {
+    return {
+      isMatch: false,
+      reason: `Active ingredient missing in catalogue record: prescribed "${req.genericName}" cannot be verified for clinical equivalence.`
+    };
+  } else if (!reqGen && invGen) {
+    return {
+      isMatch: false,
+      reason: 'Prescription medicine active ingredient is missing or unverified: cannot assume clinical equivalence.'
+    };
+  }
+
+  // 2. Strength verification (Gate 3.2 Hardening)
+  const reqRawStr = (req.strength || '').trim();
+  const invRawStr = (invMed.strength || '').trim();
+
+  if (reqRawStr && invRawStr) {
+    const reqStr = reqRawStr.toLowerCase().replace(/\s+/g, '');
+    const invStr = invRawStr.toLowerCase().replace(/\s+/g, '');
+    if (reqStr !== invStr) {
+      return {
+        isMatch: false,
+        reason: `Strength mismatch: prescribed "${req.strength}" vs inventory "${invMed.strength}". Different strengths are clinically non-equivalent.`
+      };
+    }
+  } else if (reqRawStr && !invRawStr) {
+    return {
+      isMatch: false,
+      reason: `Strength missing in catalogue record: prescribed "${req.strength}" cannot be verified for clinical equivalence.`
+    };
+  } else if (!reqRawStr && invRawStr) {
+    return {
+      isMatch: false,
+      reason: 'Prescription medicine strength is missing or unverified: cannot assume clinical equivalence.'
+    };
+  } else if (!reqRawStr && !invRawStr) {
+    return {
+      isMatch: false,
+      reason: 'Medicine strength is missing in both prescription and catalogue records: cannot assume clinical equivalence.'
+    };
+  }
+
+  // 3. Dosage form verification
+  const reqForm = (req.dosageForm || '').toLowerCase().trim();
+  const invForm = (invMed.dosageForm || '').toLowerCase().trim();
+
+  if (reqForm && invForm) {
+    if (reqForm !== invForm) {
+      return {
+        isMatch: false,
+        reason: `Dosage form mismatch: prescribed "${req.dosageForm}" vs inventory "${invMed.dosageForm}". Different formulations are clinically non-equivalent.`
+      };
+    }
+  } else if (reqForm && !invForm) {
+    return {
+      isMatch: false,
+      reason: `Dosage form missing in catalogue record: prescribed "${req.dosageForm}" cannot be verified for clinical equivalence.`
+    };
+  } else if (!reqForm && invForm) {
+    return {
+      isMatch: false,
+      reason: 'Prescription dosage form is missing or unverified: cannot assume clinical equivalence.'
+    };
+  }
+
+  return { isMatch: true, reason: null };
+}
 
 function rankPharmaciesForMedicines({
   pharmacies,
@@ -52,37 +139,124 @@ function rankPharmaciesForMedicines({
     const itemStockDetails = [];
 
     requestedItems.forEach((req) => {
-      const inventoryItem = pharmacy.inventory?.find(
-        (inv) => inv.medicineId === req.medicineId
-      );
+      const inventoryItem = pharmacy.inventory?.find((inv) => {
+        if (req.medicineId && inv.medicineId === req.medicineId) return true;
+        const brand = (req.brandName || req.prescribedName || '').trim().toLowerCase();
+        if (brand && (inv.medicine?.brandName || '').trim().toLowerCase() === brand) return true;
+        return false;
+      });
 
       const availableStock = inventoryItem?.stock ?? null;
-      const unitPrice = inventoryItem?.price ?? null;
+      const rawPrice = inventoryItem?.price;
+
+      // Authoritative per-tablet/per-unit pricing
+      const medBrand = inventoryItem?.medicine?.brandName || req.brandName || req.prescribedName;
+      const medGen = inventoryItem?.medicine?.genericName || req.genericName;
+      const ref = getReferencePricing(medBrand, medGen);
+
+      let unitPrice = null;
+      if (ref && ref.unitPrice != null) {
+        unitPrice = ref.unitPrice;
+      } else if (rawPrice != null && rawPrice > 0) {
+        if (ref?.unitsPerPack && ref.unitsPerPack > 1 && Math.abs(rawPrice - (ref.publishedMrp || 0)) < 0.1) {
+          unitPrice = calculateUnitPrice(rawPrice, ref.unitsPerPack);
+        } else {
+          unitPrice = rawPrice;
+        }
+      }
       const neededQty = req.quantity || 1;
 
+      // Clinical attribute verification (Gate 3 & Gate 3.2 Hardening):
+      // Require exact active ingredient, strength, and dosage form when clinical attributes are present.
+      const hasClinicalAttrs = Boolean(req.genericName || req.strength || req.dosageForm || req.prescriptionItemId);
+      let isClinicalMismatch = false;
+      let mismatchReason = null;
+
+      if (hasClinicalAttrs) {
+        const check = verifyClinicalEquivalence(req, inventoryItem?.medicine);
+        if (!check.isMatch) {
+          isClinicalMismatch = true;
+          mismatchReason = check.reason;
+        }
+      }
+
       // Authoritative status check:
-      // Real participating pharmacy inventory has status = 'AVAILABLE' or 'OUT_OF_STOCK'
-      const isAvailable = inventoryItem?.status === 'AVAILABLE' ||
-        (inventoryItem?.status !== 'OUT_OF_STOCK' && (inventoryItem?.stock || 0) > 0);
+      // Medicine is available only if inventory record exists with stock > 0, not explicitly OUT_OF_STOCK, and clinically matching.
+      const isAvailable = Boolean(
+        !isClinicalMismatch &&
+        inventoryItem &&
+        (inventoryItem.stock != null ? inventoryItem.stock > 0 : inventoryItem.status === 'AVAILABLE') &&
+        inventoryItem.status !== 'OUT_OF_STOCK'
+      );
       const hasFullQty = isAvailable && (availableStock === null || availableStock >= neededQty);
+
+      // Determine item availability classification
+      let itemStatus = 'OUT_OF_STOCK';
+      if (isClinicalMismatch) {
+        itemStatus = 'CLINICAL_MISMATCH';
+      } else if (!inventoryItem) {
+        itemStatus = 'UNAVAILABLE';
+      } else if (availableStock === null) {
+        itemStatus = 'UNKNOWN';
+      } else if (inventoryItem.status === 'OUT_OF_STOCK' || availableStock === 0) {
+        itemStatus = 'OUT_OF_STOCK';
+      } else if (availableStock >= neededQty && inventoryItem.status === 'AVAILABLE') {
+        itemStatus = 'AVAILABLE';
+      } else if (availableStock > 0 && availableStock < neededQty && inventoryItem.status === 'AVAILABLE') {
+        itemStatus = 'INSUFFICIENT_STOCK';
+      } else {
+        itemStatus = 'UNKNOWN';
+      }
+
+      // Exact brand vs generic classification
+      let matchClassification = 'EXACT_CATALOGUE_MATCH';
+      if (isClinicalMismatch) {
+        matchClassification = 'CLINICAL_MISMATCH';
+      } else if (inventoryItem?.medicine) {
+        const invBrand = (inventoryItem.medicine.brandName || '').toLowerCase().trim();
+        const reqBrand = (req.brandName || req.prescribedName || '').toLowerCase().trim();
+        if (reqBrand && invBrand === reqBrand) {
+          matchClassification = 'EXACT_BRAND_MATCH';
+        } else if (req.genericName && inventoryItem.medicine.genericName &&
+                   req.genericName.toLowerCase().trim() === inventoryItem.medicine.genericName.toLowerCase().trim()) {
+          matchClassification = 'SAME_GENERIC_DIFFERENT_BRAND';
+        }
+      }
+
+      const itemSubtotal = (unitPrice != null && isAvailable)
+        ? Number((unitPrice * neededQty).toFixed(2))
+        : null;
 
       if (isAvailable) {
         matchedItemsCount++;
         if (hasFullQty) fullQtyMatches++;
-        if (unitPrice != null) {
-          totalEstimatedCost += unitPrice * neededQty;
+        if (itemSubtotal != null) {
+          totalEstimatedCost += itemSubtotal;
         }
       }
 
       itemStockDetails.push({
+        prescriptionItemId: req.prescriptionItemId || null,
         medicineId: req.medicineId,
+        prescribedName: req.prescribedName || req.brandName || 'Prescription Medicine',
         medicineName: inventoryItem?.medicine?.brandName || req.brandName || 'Unknown',
+        genericName: inventoryItem?.medicine?.genericName || req.genericName || null,
+        strength: inventoryItem?.medicine?.strength || req.strength || null,
+        dosageForm: inventoryItem?.medicine?.dosageForm || req.dosageForm || null,
         requestedQty: neededQty,
         availableStock,
         unitPrice,
+        itemSubtotal,
+        pricingUnit: ref?.pricingUnit || (inventoryItem?.medicine?.dosageForm === 'Tablet' ? 'per tablet' : inventoryItem?.medicine?.dosageForm === 'Capsule' ? 'per capsule' : 'per unit'),
+        packSize: ref?.packSize || null,
+        publishedMrp: ref?.publishedMrp || null,
+        unitsPerPack: ref?.unitsPerPack || 1,
+        hasVerifiedPrice: unitPrice != null,
         inStock: isAvailable,
         fullStock: hasFullQty,
-        status: inventoryItem?.status || (isAvailable ? 'AVAILABLE' : 'OUT_OF_STOCK'),
+        status: itemStatus,
+        matchClassification,
+        mismatchReason: isClinicalMismatch ? mismatchReason : null,
         // Inventory freshness — stockLastUpdated from DB lastUpdated field
         stockLastUpdated: inventoryItem?.lastUpdated ?? null
       });
@@ -91,6 +265,18 @@ function rankPharmaciesForMedicines({
     const totalRequested = requestedItems.length || 1;
     const availabilityRatio = (fullQtyMatches + (matchedItemsCount - fullQtyMatches) * 0.5) / totalRequested;
     const availabilityScore = Math.round(availabilityRatio * 100);
+
+    // Pricing completeness tracking (Gate 3)
+    const inStockItems = itemStockDetails.filter(it => it.inStock);
+    const inStockPricedCount = inStockItems.filter(it => it.unitPrice != null).length;
+    const unpricedInStockCount = inStockItems.length - inStockPricedCount;
+    const isTotalCostComplete = fullQtyMatches === totalRequested && inStockItems.length === totalRequested && unpricedInStockCount === 0 && totalRequested > 0;
+    const pricingStatus = isTotalCostComplete ? 'COMPLETE' : (inStockPricedCount > 0 ? 'INCOMPLETE' : 'UNPRICED');
+    const pricingNote = isTotalCostComplete
+      ? 'Complete verified prescription cost estimate.'
+      : (inStockPricedCount > 0
+          ? `Estimated subtotal is incomplete: ${unpricedInStockCount} in-stock item(s) have unlisted dispensary prices.`
+          : 'Prescription cost is unknown: dispensary has not listed unit prices for these items.');
 
     // 3. Proximity Score — Kerala-calibrated decay (* 5 instead of * 15)
     // IMPORTANT: When coordinates are unavailable, distanceKm stays null.
@@ -209,7 +395,10 @@ function rankPharmaciesForMedicines({
       availabilityStatus,
       matchedItemsCount,
       totalRequested,
-      totalEstimatedCost: Number(totalEstimatedCost.toFixed(2)),
+      totalEstimatedCost: inStockPricedCount > 0 ? Number(totalEstimatedCost.toFixed(2)) : null,
+      isTotalCostComplete,
+      pricingStatus,
+      pricingNote,
       itemStockDetails,
       availability: itemStockDetails,
       scores: {
@@ -241,4 +430,7 @@ function rankPharmaciesForMedicines({
   return ranked;
 }
 
-module.exports = { rankPharmaciesForMedicines };
+module.exports = {
+  rankPharmaciesForMedicines,
+  verifyClinicalEquivalence
+};

@@ -68,29 +68,6 @@ const keralaTestPharmacies = [
     managerEmail: 'pharmacist2@medifind.com',
     isTestRecord: true,
     testDataNote: 'TEST DATA — NOT A PARTICIPATING PHARMACY'
-  },
-
-  // ──────────────────────────────────────────────────────────────
-  // TEST PHARMACY 3 — Alappuzha town area
-  // Approximate coordinates only. Marked is24x7 for system testing only.
-  // NOT a real pharmacy and NOT a real 24x7 service.
-  // ──────────────────────────────────────────────────────────────
-  {
-    name: '[TEST] Alappuzha Town Area Pharmacy',
-    licenseNumber: 'TEST-KL-ALP-003',            // NOT a real license number
-    address: 'Alappuzha Town Area, Alappuzha District, Kerala 688001 [TEST RECORD]',
-    latitude: 9.4981,
-    longitude: 76.3388,
-    phone: 'CONTACT-NOT-AVAILABLE',               // NOT a real phone number
-    isOpen: true,
-    is24x7: true,                                 // Synthetic flag for testing 24x7 logic only
-    isVerified: false,
-    verificationStatus: 'TEST',
-    rating: 0.0,
-    openingHours: 'Open 24 Hours (Test Simulation)',  // Synthetic — not real
-    managerEmail: 'pharmacist3@medifind.com',
-    isTestRecord: true,
-    testDataNote: 'TEST DATA — NOT A PARTICIPATING PHARMACY'
   }
 ];
 

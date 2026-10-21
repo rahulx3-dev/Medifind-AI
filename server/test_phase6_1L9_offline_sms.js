@@ -21,8 +21,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
+const prisma = createSafeTestPrismaClient();
 
 const {
   sanitizePhoneNumber,

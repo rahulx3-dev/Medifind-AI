@@ -1,6 +1,6 @@
 /**
  * MediFind AI — Pharmacy Network Configuration
- * Region: Chengannur / Alappuzha, Kerala, India
+ * Region: Chengannur, Kerala, India
  *
  * This module is the single source of truth for geographic defaults,
  * emergency hotlines, and network-level constants.
@@ -16,10 +16,9 @@ module.exports = {
   DEFAULT_LON: 76.6160,
 
   // Human-readable region name shown in the UI
-  REGION_NAME: 'Chengannur / Alappuzha, Kerala',
+  REGION_NAME: 'Chengannur, Kerala',
 
   // Maximum pharmacy search radius in km (default when no radius is specified)
-  // Set to 40 km to cover the full Chengannur→Alappuzha district corridor (~36 km straight-line)
   MAX_RANGE_KM: 40,
 
   // Opening hours timezone for live open/closed computation

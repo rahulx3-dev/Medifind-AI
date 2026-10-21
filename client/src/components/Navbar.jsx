@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { usePortalGreeting } from '../utils/greetingUtils';
 import MediFindLogo from './MediFindLogo';
 import ConfirmationDialog from './ConfirmationDialog';
+import { AnimatedHamburgerIcon } from './Sidebar';
 
 export default function Navbar({
   activeTab,
@@ -12,6 +15,8 @@ export default function Navbar({
   medicineRequestCount = 0
 }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
+  const { fullName: userDisplayName } = usePortalGreeting(user, user?.role || 'PATIENT');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -27,8 +32,8 @@ export default function Navbar({
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-[#ecfdf7]/90 backdrop-blur-xl border-b border-[#e0e8e5] shadow-[0_1px_8px_rgba(3,47,40,0.04)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-50 bg-[#ecfdf7]/90 dark:bg-[#212529]/95 backdrop-blur-xl border-b border-[#e0e8e5] dark:border-[#3d4349] shadow-[0_1px_8px_rgba(3,47,40,0.04)] dark:shadow-[0_1px_8px_rgba(0,0,0,0.3)] transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 lg:h-20 flex items-center justify-between gap-3 sm:gap-4">
           {/* Canonical Brand Logo */}
           <button
             onClick={() => {
@@ -39,7 +44,12 @@ export default function Navbar({
             }}
             className="flex items-center gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
           >
-            <MediFindLogo size="md" showSubtitle={true} />
+            <div className="block sm:hidden">
+              <MediFindLogo size="sm" showSubtitle={false} />
+            </div>
+            <div className="hidden sm:block">
+              <MediFindLogo size="md" showSubtitle={true} />
+            </div>
           </button>
 
           {/* Desktop Navigation Links (Pill Style with Spring Motion) */}
@@ -88,6 +98,14 @@ export default function Navbar({
                     gradientFrom: '#065f46',
                     gradientTo: '#059669',
                     ariaLabel: 'My Orders'
+                  },
+                  {
+                    id: 'healthcare',
+                    label: 'Healthcare',
+                    icon: 'medical_services',
+                    gradientFrom: '#064e3b',
+                    gradientTo: '#10b981',
+                    ariaLabel: 'Healthcare Professional Marketplace'
                   },
                   {
                     id: 'profile',
@@ -157,57 +175,140 @@ export default function Navbar({
               </div>
             )}
 
-            {/* PHARMACIST ROLE */}
+            {/* PHARMACIST ROLE — Barba Sliding Nav Bar */}
             {user?.role === 'PHARMACIST' && (
-              <button
-                id="nav-pharmacist-btn"
-                onClick={() => handleTabClick('pharmacist')}
-                className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'pharmacist'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
-                }`}
-              >
-                <span className="material-symbols-outlined text-lg">inventory_2</span>
-                <span>Pharmacist Dispatch &amp; Inventory Portal</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: 'pharmacist', label: 'Queue', icon: 'inventory_2' },
+                  { id: 'inventory', label: 'Inventory', icon: 'medication' },
+                  { id: 'profile', label: 'Profile', icon: 'badge' },
+                ].map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      id={`nav-${item.id}-btn`}
+                      onClick={() => handleTabClick(item.id)}
+                      className={`relative px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer ${
+                        isActive ? 'text-white' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="specialist-navbar-barba"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                          className="absolute inset-0 rounded-full bg-gradient-to-r from-[#032f28] to-[#0a4f43] shadow-[0_2px_12px_rgba(3,47,40,0.3)] -z-0"
+                        />
+                      )}
+                      <span className={`relative z-10 material-symbols-outlined text-[18px] ${isActive ? 'text-[#b0ecdd]' : 'text-primary'}`}>
+                        {item.icon}
+                      </span>
+                      <span className="relative z-10 font-bold">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
-            {/* ASSISTANT ROLE */}
+            {/* ASSISTANT ROLE — Barba Sliding Nav Bar */}
             {user?.role === 'ASSISTANT' && (
-              <button
-                id="nav-assistant-btn"
-                onClick={() => handleTabClick('assistant')}
-                className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'assistant'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
-                }`}
-              >
-                <span className="material-symbols-outlined text-lg">directions_bike</span>
-                <span>Delivery Assistant Journey</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: 'assistant', label: 'Available Tasks', icon: 'assignment_turned_in' },
+                  { id: 'active', label: 'Active Journey', icon: 'electric_moped' },
+                  { id: 'completed', label: 'Dispatches', icon: 'verified' },
+                  { id: 'profile', label: 'Profile', icon: 'badge' },
+                ].map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      id={`nav-${item.id}-btn`}
+                      onClick={() => handleTabClick(item.id)}
+                      className={`relative px-4 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer ${
+                        isActive ? 'text-white' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="specialist-navbar-barba"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                          className="absolute inset-0 rounded-full bg-gradient-to-r from-[#032f28] to-[#0a4f43] shadow-[0_2px_12px_rgba(3,47,40,0.3)] -z-0"
+                        />
+                      )}
+                      <span className={`relative z-10 material-symbols-outlined text-[18px] ${isActive ? 'text-[#b0ecdd]' : 'text-primary'}`}>
+                        {item.icon}
+                      </span>
+                      <span className="relative z-10 font-bold">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
-            {/* ADMIN ROLE */}
+            {/* ADMIN ROLE — Barba Sliding Nav Bar */}
             {user?.role === 'ADMIN' && (
-              <button
-                id="nav-admin-btn"
-                onClick={() => handleTabClick('admin')}
-                className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'admin'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
-                }`}
-              >
-                <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
-                <span>Admin Operations Center</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: 'admin', label: 'Overview', icon: 'dashboard' },
+                  { id: 'users', label: 'Users', icon: 'group' },
+                  { id: 'pharmacies', label: 'Pharmacies', icon: 'domain' },
+                  { id: 'orders', label: 'Orders', icon: 'receipt_long' },
+                  { id: 'emergency', label: 'Logistics', icon: 'local_shipping' },
+                  { id: 'activity', label: 'Audit', icon: 'timeline' },
+                  { id: 'profile', label: 'Profile', icon: 'badge' },
+                ].map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      id={`nav-${item.id}-btn`}
+                      onClick={() => handleTabClick(item.id)}
+                      className={`relative px-3.5 py-2 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer ${
+                        isActive ? 'text-white' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="specialist-navbar-barba"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                          className="absolute inset-0 rounded-full bg-gradient-to-r from-[#032f28] to-[#0a4f43] shadow-[0_2px_12px_rgba(3,47,40,0.3)] -z-0"
+                        />
+                      )}
+                      <span className={`relative z-10 material-symbols-outlined text-[18px] ${isActive ? 'text-[#b0ecdd]' : 'text-primary'}`}>
+                        {item.icon}
+                      </span>
+                      <span className="relative z-10 font-bold">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </nav>
 
-          {/* Right Utilities: Notifications & User Profile */}
-          <div className="flex items-center gap-3">
+          {/* Right Utilities: Notifications, Theme Toggle & User Profile */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Accessible Theme Toggle Button (Light / Dark) */}
+            <button
+              id="theme-toggle-btn"
+              type="button"
+              onClick={toggleTheme}
+              className="relative w-10 h-10 rounded-full bg-surface-container-lowest hover:bg-surface-container text-on-surface-variant hover:text-primary flex items-center justify-center border border-outline-variant/30 shadow-sm transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-pressed={isDark}
+            >
+              <span className="material-symbols-outlined text-xl transition-transform duration-200">
+                {isDark ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+
             {/* Notification Bell Button */}
             <button
               id="notifications-bell-btn"
@@ -233,11 +334,11 @@ export default function Navbar({
                   title="View & Edit Profile"
                 >
                   <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold uppercase">
-                    {user.name ? user.name.charAt(0) : 'U'}
+                    {userDisplayName ? userDisplayName.charAt(0) : 'U'}
                   </div>
                   <div className="flex flex-col text-left leading-none">
                     <span className="text-xs font-bold text-primary truncate max-w-[120px]">
-                      {user.name}
+                      {userDisplayName}
                     </span>
                     <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider mt-0.5">
                       {user.role}
@@ -247,23 +348,22 @@ export default function Navbar({
                 <button
                   id="auth-logout-btn"
                   onClick={() => setShowLogoutConfirm(true)}
-                  className="w-7 h-7 rounded-full hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center justify-center transition-colors ml-1 cursor-pointer border-none bg-transparent"
+                  className="px-2.5 py-1.5 rounded-xl hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center gap-1.5 transition-colors ml-1 cursor-pointer border border-transparent hover:border-error/20 bg-transparent text-xs font-semibold"
                   title="Sign out of MediFind"
                 >
                   <span className="material-symbols-outlined text-base">logout</span>
+                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
             )}
 
-            {/* Mobile Hamburger Toggle Button */}
+            {/* Mobile Hamburger Toggle Button with Barba-style morphing */}
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              className="lg:hidden w-10 h-10 rounded-full bg-surface-container-lowest text-primary flex items-center justify-center border border-outline-variant/30 shadow-sm"
-              aria-label="Toggle menu"
+              className="lg:hidden w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             >
-              <span className="material-symbols-outlined text-2xl">
-                {mobileMenuOpen ? 'close' : 'menu'}
-              </span>
+              <AnimatedHamburgerIcon isOpen={mobileMenuOpen} size={36} color="#032f28" circleColor="#2e685d" />
             </button>
           </div>
         </div>
@@ -341,6 +441,18 @@ export default function Navbar({
                 </button>
 
                 <button
+                  onClick={() => handleTabClick('healthcare')}
+                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                    activeTab === 'healthcare'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-lg">medical_services</span>
+                  <span>Healthcare Professional Marketplace</span>
+                </button>
+
+                <button
                   onClick={() => handleTabClick('profile')}
                   className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
                     activeTab === 'profile'
@@ -390,15 +502,33 @@ export default function Navbar({
               </button>
             )}
 
+            {/* Mobile Theme Toggle Pill Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-full px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-between text-left transition-colors bg-surface-container-lowest text-on-surface hover:bg-surface-container border border-outline-variant/20 mt-1 cursor-pointer"
+              aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">
+                  {isDark ? 'light_mode' : 'dark_mode'}
+                </span>
+                <span>Interface Theme</span>
+              </div>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                {isDark ? 'Dark Mode' : 'Light Mode'}
+              </span>
+            </button>
+
             {/* User Profile in Mobile Drawer */}
             {user && (
               <div className="pt-2 border-t border-outline-variant/30 flex items-center justify-between mt-2">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs uppercase">
-                    {user.name ? user.name.charAt(0) : 'U'}
+                    {userDisplayName ? userDisplayName.charAt(0) : 'U'}
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs font-bold text-primary">{user.name}</span>
+                    <span className="text-xs font-bold text-primary">{userDisplayName}</span>
                     <span className="text-[10px] text-secondary font-semibold uppercase">{user.role}</span>
                   </div>
                 </div>

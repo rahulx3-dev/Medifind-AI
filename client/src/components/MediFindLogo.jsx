@@ -55,17 +55,11 @@ export default function MediFindLogo({
         style={{
           height: `${imgHeight}px`,
           width: 'auto',
-          maxWidth: '100%',
           objectFit: 'contain',
           display: 'block',
-          /* Pull left & right to compensate for PNG internal padding */
-          marginLeft: `-${imgNegMargin}px`,
-          marginRight: `-${imgNegMargin}px`,
-          /* multiply blends white pixels into the background, hiding the oval */
-          mixBlendMode: inverted ? 'screen' : 'multiply',
           filter: inverted
-            ? 'brightness(2) saturate(1.3) contrast(1.1)'
-            : 'none',
+            ? 'brightness(1.5) contrast(1.2) drop-shadow(0 0 6px rgba(16, 185, 129, 0.4))'
+            : 'drop-shadow(0 2px 6px rgba(16, 185, 129, 0.3))',
           background: 'transparent'
         }}
       />
@@ -75,7 +69,7 @@ export default function MediFindLogo({
             style={{
               fontSize: `${titleSize}px`,
               fontWeight: 800,
-              color: inverted ? '#ffffff' : '#032f28',
+              color: inverted ? '#ffffff' : 'var(--on-surface, #032f28)',
               letterSpacing: '-0.02em',
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               display: 'flex',
@@ -83,13 +77,13 @@ export default function MediFindLogo({
             }}
           >
             MediFind
-            <span style={{ color: inverted ? '#34d399' : '#2e685d', marginLeft: '3px' }}>AI</span>
+            <span style={{ color: inverted ? '#34d399' : 'var(--secondary, #2e685d)', marginLeft: '3px' }}>AI</span>
           </span>
           {showSubtitle && (
             <span
               style={{
                 fontSize: `${subSize}px`,
-                color: inverted ? '#a7f3d0' : '#414846',
+                color: inverted ? '#a7f3d0' : 'var(--on-surface-variant, #414846)',
                 fontWeight: 600,
                 letterSpacing: '0.02em',
                 marginTop: '1px',

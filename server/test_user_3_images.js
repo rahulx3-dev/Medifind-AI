@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { runOCR, processPrescriptionText, matchMedicineNameAgainstCatalog } = require('./src/utils/ocrEngine');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
+const prisma = createSafeTestPrismaClient();
 
 const USER_IMAGES = [
   {

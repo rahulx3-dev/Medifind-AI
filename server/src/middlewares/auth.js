@@ -14,7 +14,8 @@ const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'medifind-ai-dev-secret-key-change-in
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  const token = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null)
+    || (req.query && req.query.token ? req.query.token : null);
 
   if (!token) {
     return res.status(401).json({ success: false, error: 'Access token required. Please login.' });

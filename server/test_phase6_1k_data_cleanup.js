@@ -14,12 +14,12 @@
  * 10. No obsolete Bangalore references in seedData.
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 
-const prisma = new PrismaClient();
+const prisma = createSafeTestPrismaClient();
 const BASE_URL = 'http://localhost:5000/api';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key_medifind_ai_2026';
 

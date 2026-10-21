@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import AvailabilityModal from '../components/AvailabilityModal';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import EmptyState from '../components/EmptyState';
 import { getMedicineImageUrl } from '../data/medicineImages';
+import { getVerifiedPrice, getVerifiedUnitPrice, getVerifiedPackSize, roundCurrency } from '../utils/referencePricing';
+import { triggerToast } from '../components/ToastAlert';
 import VoiceSearchModal from '../components/VoiceSearchModal';
 import PromptInput from '../components/ui/PromptInput';
+import ChipGradientBg from '../components/ui/ChipGradientBg';
+import { useRealtimeRefresh } from '../utils/realtimeUpdates';
+import { usePortalGreeting } from '../utils/greetingUtils';
+import RollingNumber from '../components/ui/RollingNumber';
 
 /* ── Vertical scroll animation styles ───────────────────────────────────── */
 const scrollAnimStyles = `
@@ -62,6 +69,16 @@ function validateCachedCatalog(cachedStr) {
   }
 }
 
+const HEALTH_CONCERNS = [
+  { id: 'diabetes', label: 'Diabetes & Endocrine', icon: 'bloodtype', keywords: ['diabetes', 'diabetic', 'metformin', 'glimepiride', 'insulin', 'glycomet'] },
+  { id: 'heart', label: 'Heart & BP', icon: 'cardiology', keywords: ['cardio', 'heart', 'hypertensive', 'statin', 'amlodipine', 'atorvastatin', 'telmisartan'] },
+  { id: 'stomach', label: 'Gastroenterology', icon: 'medication_liquid', keywords: ['gastro', 'antacid', 'ppi', 'pantoprazole', 'pan 40', 'digene', 'omeprazole', 'rabeprazole'] },
+  { id: 'respiratory', label: 'Respiratory & Chest', icon: 'air', keywords: ['respiratory', 'inhaler', 'asthma', 'bronchodilator', 'montair', 'levocetirizine', 'asthalin', 'cough'] },
+  { id: 'pain', label: 'Pain & Orthopedics', icon: 'healing', keywords: ['analgesic', 'nsaid', 'paracetamol', 'dolo', 'brufen', 'ibuprofen', 'combiflam', 'pain'] },
+  { id: 'infections', label: 'Anti-infectives', icon: 'vaccines', keywords: ['antibiotic', 'antimicrobial', 'azithromycin', 'taxim', 'amoxicillin', 'cefixime', 'ciprofloxacin'] },
+  { id: 'skin', label: 'Dermatology & Skin', icon: 'sanitizer', keywords: ['dermatology', 'topical', 'antifungal', 'candid', 'betnovate', 'clotrimazole', 'skin'] },
+];
+
 export default function MedicineSearch({
   onOrderCreated,
   selectedMedicines = [],
@@ -71,13 +88,41 @@ export default function MedicineSearch({
   onClearRequest,
   onProceedToPharmacies,
   onNavigateToPrescription,
-  onNavigateToEmergency
+  onNavigateToEmergency,
+  onNavigateToOrders,
+  onNavigateToHealthcare
 }) {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const scrollContainerRef = useRef(null);
-  const [medicines, setMedicines] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [medicines, setMedicines] = useState(() => {
+    try {
+      const cached = localStorage.getItem('medifind_offline_catalog');
+      return validateCachedCatalog(cached) || [];
+    } catch {
+      return [];
+    }
+  });
+  const [categories, setCategories] = useState(() => {
+    try {
+      const cached = localStorage.getItem('medifind_offline_catalog');
+      const validMeds = validateCachedCatalog(cached);
+      if (validMeds && validMeds.length > 0) {
+        return ['ALL', ...Array.from(new Set(validMeds.map(m => m.category).filter(Boolean)))];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('medifind_offline_catalog');
+      return !(validateCachedCatalog(cached)?.length > 0);
+    } catch {
+      return true;
+    }
+  });
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +133,11 @@ export default function MedicineSearch({
   const [sortBy, setSortBy] = useState('name-asc'); // 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [categoryOverrideNote, setCategoryOverrideNote] = useState('');
+  const [selectedHealthConcern, setSelectedHealthConcern] = useState(null);
+
+  // Carousel banner state & auto-advance timer
+  const [bannerSlide, setBannerSlide] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [offlineError, setOfflineError] = useState(null);
@@ -96,13 +146,27 @@ export default function MedicineSearch({
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItemsForModal, setSelectedItemsForModal] = useState([]);
 
+  // Dedicated Reservation Cart Card State
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+
   // Voice search modal state
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+
+  // Network live status – pings backend every 30s
+  const [networkLive, setNetworkLive] = useState(null); // null = checking, true = live, false = offline
+
+  // Smart display name & dynamic time-of-day greeting — reactive to profile edits
+  const { firstName: patientFirstName, timeGreet: patientTimeGreet, icon: patientGreetIcon } = usePortalGreeting(user, 'PATIENT');
 
   // Toast feedback state
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
   const showToast = (message, type = 'success') => {
     setFeedback({ show: true, message, type });
+    triggerToast({
+      title: type === 'error' ? 'Notice' : 'Success',
+      message,
+      variant: type === 'error' ? 'destructive' : type
+    });
     setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 4000);
   };
 
@@ -127,7 +191,7 @@ export default function MedicineSearch({
 
   useEffect(() => {
     const handleOnline = () => { setIsOffline(false); setOfflineError(null); fetchMedicines(); fetchCategories(); };
-    const handleOffline = () => { setIsOffline(true); };
+    const handleOffline = () => { setIsOffline(true); setNetworkLive(false); };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -136,19 +200,48 @@ export default function MedicineSearch({
     };
   }, []);
 
+  // Periodic backend health check for Network Live indicator
+  useEffect(() => {
+    let alive = true;
+    const checkHealth = async () => {
+      try {
+        const res = await fetch('/api/medicines/categories', { method: 'GET', signal: AbortSignal.timeout(5000) });
+        if (alive) setNetworkLive(res.ok);
+      } catch {
+        if (alive) setNetworkLive(false);
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => { alive = false; clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
   useEffect(() => {
     fetchMedicines();
-    fetchCategories();
   }, [debouncedSearchQuery, selectedCategory]);
 
-  async function fetchMedicines(forceCategory = null) {
-    setLoading(true);
-    setOfflineError(null);
-    setCategoryOverrideNote('');
+  // Real-time automatic background refresh (heartbeat + event triggers)
+  useRealtimeRefresh({
+    onRefresh: () => {
+      fetchMedicines(null, true);
+    },
+    interval: 30000
+  });
+
+  async function fetchMedicines(forceCategory = null, isBackground = false) {
+    if (!isBackground) {
+      setLoading(true);
+      setOfflineError(null);
+      setCategoryOverrideNote('');
+    }
 
     if (!navigator.onLine) {
       handleOfflineFallback();
-      setLoading(false);
+      if (!isBackground) setLoading(false);
       return;
     }
 
@@ -193,7 +286,7 @@ export default function MedicineSearch({
       console.warn('Network error, attempting offline fallback:', err);
       handleOfflineFallback();
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }
 
@@ -263,6 +356,7 @@ export default function MedicineSearch({
     setSortBy('name-asc');
     setCategoryOverrideNote('');
     setSearchQuery('');
+    setSelectedHealthConcern(null);
   };
 
   const handleCheckAvailability = (med) => {
@@ -289,11 +383,22 @@ export default function MedicineSearch({
   const activeFilterCount = (selectedCategory !== 'ALL' ? 1 : 0) +
     (filterTag !== 'all' ? 1 : 0) +
     (dosageFormFilter !== 'ALL' ? 1 : 0) +
+    (selectedHealthConcern ? 1 : 0) +
     (sortBy !== 'name-asc' ? 1 : 0);
 
   // Compute displayed medicines with active filters and sorting
   let displayedMedicines = medicines.filter(med => {
-    // 1. Regulatory Status Filter
+    // 1. Health Concern Focus Filter
+    if (selectedHealthConcern) {
+      const concernObj = HEALTH_CONCERNS.find(c => c.id === selectedHealthConcern);
+      if (concernObj) {
+        const text = `${med.brandName} ${med.genericName} ${med.category || ''} ${med.commonUses || ''}`.toLowerCase();
+        const matches = concernObj.keywords.some(k => text.includes(k.toLowerCase()));
+        if (!matches) return false;
+      }
+    }
+
+    // 2. Regulatory Status Filter
     if (filterTag === 'rx') {
       const isRx = med.requiresPrescription || med.isEmergency || (med.dosageForm && med.dosageForm.toLowerCase().includes('inhaler')) || med.category?.toLowerCase().includes('antibiotic');
       if (!isRx) return false;
@@ -304,7 +409,7 @@ export default function MedicineSearch({
     }
     if (filterTag === 'emergency' && !med.isEmergency) return false;
 
-    // 2. Dosage Form Filter
+    // 3. Dosage Form Filter
     if (dosageFormFilter !== 'ALL') {
       if (!med.dosageForm?.toLowerCase().includes(dosageFormFilter.toLowerCase())) return false;
     }
@@ -338,6 +443,283 @@ export default function MedicineSearch({
     return med ? (med.isEmergency || med.requiresPrescription || med.category?.toLowerCase().includes('antibiotic')) : false;
   });
 
+  const bannerSlides = [
+    {
+      tag: "Prescription OCR Pipeline",
+      title: "Need medicines from a doctor's prescription?",
+      desc: "Upload a physical prescription or e-Rx PDF. MediFind automatically extracts your items and locates matching stocks across Chengannur dispensaries.",
+      buttonText: "Upload & Verify Rx",
+      action: () => (onNavigateToPrescription ? onNavigateToPrescription() : onProceedToPharmacies()),
+      background: isDark
+        ? 'linear-gradient(135deg, #0d2821 0%, #11362d 50%, #0a1f1a 100%)'
+        : 'linear-gradient(135deg, #e8f5e9 0%, #f4faf7 50%, #e0f2eb 100%)',
+      decorBg: isDark ? 'rgba(52, 211, 153, 0.08)' : 'rgba(18, 128, 95, 0.08)',
+      badgeBg: isDark ? 'rgba(52, 211, 153, 0.16)' : 'rgba(18, 128, 95, 0.12)',
+      badgeColor: isDark ? '#6ee7b7' : '#0b4a3c',
+      buttonBg: isDark ? '#10b981' : '#032f28',
+      buttonColor: isDark ? '#02201b' : '#ffffff',
+      icon: 'document_scanner'
+    },
+    {
+      tag: "24/7 Night Duty Network",
+      title: "Urgent & Late-Night Medicine Access",
+      desc: "Find duty pharmacies open right now near Central Junction, Bethenny & MC Road with emergency critical inhalers, cardiac medicines and injectables.",
+      buttonText: "Find Duty Pharmacy",
+      action: () => (onNavigateToEmergency ? onNavigateToEmergency() : onProceedToPharmacies()),
+      background: isDark
+        ? 'linear-gradient(135deg, #08283b 0%, #0c334b 50%, #051926 100%)'
+        : 'linear-gradient(135deg, #e0f2fe 0%, #f8fafc 50%, #f0f9ff 100%)',
+      decorBg: isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(2, 132, 199, 0.08)',
+      badgeBg: isDark ? 'rgba(56, 189, 248, 0.16)' : 'rgba(2, 132, 199, 0.12)',
+      badgeColor: isDark ? '#7dd3fc' : '#0369a1',
+      buttonBg: '#0284c7',
+      buttonColor: '#ffffff',
+      icon: 'local_hospital'
+    },
+    {
+      tag: "Zero-Markup Direct Pricing",
+      title: "Verified Retail Inventory with Counter Pickup",
+      desc: "Reserve authenticated medicines directly at licensed dispensaries. Zero markups, instant counter verification, and guaranteed batch tracking.",
+      buttonText: "Explore Full Inventory",
+      action: () => {
+        const el = document.getElementById('catalog-grid-anchor');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      },
+      background: isDark
+        ? 'linear-gradient(135deg, #301f06 0%, #40290a 50%, #201403 100%)'
+        : 'linear-gradient(135deg, #fef3c7 0%, #fffdf5 50%, #fef9c3 100%)',
+      decorBg: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(217, 119, 6, 0.08)',
+      badgeBg: isDark ? 'rgba(245, 158, 11, 0.16)' : 'rgba(217, 119, 6, 0.12)',
+      badgeColor: isDark ? '#fde047' : '#92400e',
+      buttonBg: isDark ? '#d97706' : '#b45309',
+      buttonColor: '#ffffff',
+      icon: 'verified'
+    },
+    {
+      tag: "Doorstep Clinical Services",
+      title: "Book Certified Nurses & At-Home Clinical Care",
+      desc: "Schedule licensed home healthcare professionals for IV infusions, wound dressing, vitals monitoring, and physiotherapy in Chengannur.",
+      buttonText: "Book Home Care Visit",
+      action: () => (onNavigateToHealthcare ? onNavigateToHealthcare('services') : onProceedToPharmacies()),
+      background: isDark
+        ? 'linear-gradient(135deg, #261244 0%, #34185c 50%, #170b2c 100%)'
+        : 'linear-gradient(135deg, #ede9fe 0%, #fdf4ff 50%, #fae8ff 100%)',
+      decorBg: isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(124, 58, 237, 0.08)',
+      badgeBg: isDark ? 'rgba(168, 85, 247, 0.16)' : 'rgba(124, 58, 237, 0.12)',
+      badgeColor: isDark ? '#d8b4fe' : '#5b21b6',
+      buttonBg: isDark ? '#8b5cf6' : '#6d28d9',
+      buttonColor: '#ffffff',
+      icon: 'home_health'
+    },
+    {
+      tag: "1-on-1 Clinical Tele-Assistance",
+      title: "Direct Pharmacist Consultation & Second Opinion",
+      desc: "Speak with registered clinical pharmacists in English, Malayalam, or Hindi. Verify dosages, check drug-drug interactions, and resolve prescription doubts.",
+      buttonText: "Consult Clinical Officer",
+      action: () => (onNavigateToHealthcare ? onNavigateToHealthcare('clinical-assistance') : (onNavigateToPrescription ? onNavigateToPrescription() : onProceedToPharmacies())),
+      background: isDark
+        ? 'linear-gradient(135deg, #092e28 0%, #0e3d36 50%, #051d19 100%)'
+        : 'linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 50%, #e0f2fe 100%)',
+      decorBg: isDark ? 'rgba(20, 184, 166, 0.08)' : 'rgba(13, 148, 136, 0.08)',
+      badgeBg: isDark ? 'rgba(20, 184, 166, 0.16)' : 'rgba(13, 148, 136, 0.12)',
+      badgeColor: isDark ? '#5eead4' : '#115e59',
+      buttonBg: isDark ? '#14b8a6' : '#0f766e',
+      buttonColor: isDark ? '#02201b' : '#ffffff',
+      icon: 'support_agent'
+    },
+    {
+      tag: "Universal Rx Matching",
+      title: "Multi-Pharmacy Smart Split Order Fulfillment",
+      desc: "Missing medicines from a single shop? MediFind automatically splits your prescription across nearby verified Chengannur dispensaries with unified single checkout.",
+      buttonText: "Find Nearby Dispensaries",
+      action: () => (onProceedToPharmacies ? onProceedToPharmacies() : (onNavigateToPrescription ? onNavigateToPrescription() : null)),
+      background: isDark
+        ? 'linear-gradient(135deg, #2b2306 0%, #3a2e0a 50%, #1b1603 100%)'
+        : 'linear-gradient(135deg, #fefce8 0%, #fffbeb 50%, #fef3c7 100%)',
+      decorBg: isDark ? 'rgba(234, 179, 8, 0.08)' : 'rgba(202, 138, 4, 0.08)',
+      badgeBg: isDark ? 'rgba(234, 179, 8, 0.16)' : 'rgba(202, 138, 4, 0.12)',
+      badgeColor: isDark ? '#fde047' : '#854d0e',
+      buttonBg: isDark ? '#ca8a04' : '#a16207',
+      buttonColor: '#ffffff',
+      icon: 'call_split'
+    },
+    {
+      tag: "Home Diagnostic Lab Tests",
+      title: "At-Home Blood Sample Collection & Pathology",
+      desc: "Certified phlebotomists collect blood & diagnostic samples right at your doorstep. Fast accredited pathology results sent straight to your portal.",
+      buttonText: "Explore Diagnostic Tests",
+      action: () => (onNavigateToHealthcare ? onNavigateToHealthcare('services') : onProceedToPharmacies()),
+      background: isDark
+        ? 'linear-gradient(135deg, #350b16 0%, #46101f 50%, #22060d 100%)'
+        : 'linear-gradient(135deg, #ffe4e6 0%, #fff1f2 50%, #fce7f3 100%)',
+      decorBg: isDark ? 'rgba(244, 63, 94, 0.08)' : 'rgba(225, 29, 72, 0.08)',
+      badgeBg: isDark ? 'rgba(244, 63, 94, 0.16)' : 'rgba(225, 29, 72, 0.12)',
+      badgeColor: isDark ? '#fda4af' : '#9f1239',
+      buttonBg: isDark ? '#f43f5e' : '#be123c',
+      buttonColor: '#ffffff',
+      icon: 'biotech'
+    }
+  ];
+
+  useEffect(() => {
+    if (isCarouselPaused) return;
+    const timer = setInterval(() => {
+      setBannerSlide(prev => (prev + 1) % bannerSlides.length);
+    }, 5500);
+    return () => clearInterval(timer);
+  }, [isCarouselPaused, bannerSlides.length]);
+
+  const orderAgainMedicines = medicines.slice(0, 6);
+
+  const renderMedicineCard = (med, idx = 0) => {
+    const reqItem = (selectedMedicines || []).find(i => i.medicineId === med.id);
+    const isRx = med.requiresPrescription || med.isEmergency || (med.dosageForm && med.dosageForm.toLowerCase().includes('inhaler')) || med.category?.toLowerCase().includes('antibiotic');
+    const imgUrl = getMedicineImageUrl(med);
+    const rawPrice = getVerifiedPrice(med);
+    const packPrice = rawPrice != null ? Number(rawPrice) : 32.28;
+    const unitsPerPack = med.unitsPerPack || 1;
+    const rawUnitPrice = getVerifiedUnitPrice(med);
+    const unitPrice = rawUnitPrice != null ? Number(rawUnitPrice) : (unitsPerPack > 1 ? roundCurrency(packPrice / unitsPerPack) : packPrice);
+    const packQuantity = getVerifiedPackSize(med);
+    const allowIndividual = unitsPerPack > 1 && (
+      (med.dosageForm || '').toLowerCase().includes('tablet') ||
+      (med.dosageForm || '').toLowerCase().includes('capsule')
+    );
+
+    return (
+      <article
+        key={`card-${med.id}-${idx}`}
+        className="bg-white rounded-2xl p-3 sm:p-4 shadow-2xs hover:shadow-md transition-all border border-[#e2e8f0] hover:border-[#1b7058]/40 flex flex-col justify-between group h-full"
+      >
+        <div>
+          {/* Product Visual Imagery Well */}
+          <div className="relative w-full h-24 sm:h-36 rounded-xl bg-[#f8fafc] border border-[#edf2f7] flex items-center justify-center mb-2.5 sm:mb-3 overflow-hidden p-2 sm:p-3 group-hover:bg-white group-hover:border-[#1b7058]/30 transition-all shadow-2xs">
+            {imgUrl ? (
+              <img
+                src={imgUrl}
+                alt={med.brandName}
+                className="w-full h-full object-contain mix-blend-multiply transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div
+              style={{ display: imgUrl ? 'none' : 'flex' }}
+              className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-secondary-container/40 items-center justify-center text-secondary group-hover:scale-105 transition-transform"
+            >
+              <span className="material-symbols-outlined text-xl sm:text-3xl">medication</span>
+            </div>
+            {isRx && (
+              <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold bg-[#0a3d34]/90 text-white backdrop-blur-xs shadow-2xs">
+                Rx
+              </span>
+            )}
+          </div>
+
+          {/* Clean Visual Hierarchy: Name and Quantity */}
+          <div className="space-y-0.5 sm:space-y-1">
+            <h3 className="text-xs sm:text-base font-bold text-primary leading-tight line-clamp-1">
+              {med.brandName}
+            </h3>
+            <p className="text-[11px] sm:text-xs text-on-surface-variant font-medium">
+              {packQuantity}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer: Verified Price & Add / Stepper Button */}
+        <div className="mt-4 pt-3 border-t border-surface-container flex items-center justify-between gap-2">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
+              {allowIndividual ? 'Strip MRP' : 'Price'}
+            </span>
+            <span className="text-base font-bold text-primary">
+              ₹{packPrice.toFixed(2)}
+            </span>
+            {allowIndividual && (
+              <span className="text-[10px] text-secondary font-medium">
+                ₹{unitPrice.toFixed(2)} / tablet
+              </span>
+            )}
+          </div>
+
+          {reqItem ? (
+            <div className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-full">
+              <button
+                type="button"
+                onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity - 1)}
+                className="w-6 h-6 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container-high flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xs">remove</span>
+              </button>
+              <span className="text-xs font-bold text-primary px-1">
+                {reqItem.quantity} {reqItem.saleUnit === 'TABLET' ? 'tab' : 'strip'}
+              </span>
+              <button
+                type="button"
+                onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity + 1)}
+                className="w-6 h-6 rounded-full bg-primary text-white hover:bg-primary-container flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xs">add</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              {allowIndividual && (
+                <button
+                  type="button"
+                  title={`Add 1 tablet at ₹${unitPrice.toFixed(2)}`}
+                  onClick={() => {
+                    if (onAddToRequest) {
+                      onAddToRequest({
+                        ...med,
+                        publishedMrp: packPrice,
+                        unitPrice: unitPrice,
+                        unitsPerPack,
+                        price: unitPrice,
+                        packSize: packQuantity,
+                        dosageForm: med.dosageForm
+                      }, 1, false, 'TABLET');
+                      triggerToast(`Added 1 tablet of ${med.brandName} (₹${unitPrice.toFixed(2)})`, 'success');
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-full bg-surface-container border border-primary/20 text-primary text-[11px] font-bold hover:bg-surface-container-high transition-all cursor-pointer active:scale-95"
+                >
+                  +1 Tab
+                </button>
+              )}
+              <button
+                type="button"
+                title={allowIndividual ? `Add 1 strip of ${unitsPerPack} at ₹${packPrice.toFixed(2)}` : `Add ${med.brandName} at ₹${packPrice.toFixed(2)}`}
+                onClick={() => {
+                  if (onAddToRequest) {
+                    onAddToRequest({
+                      ...med,
+                      publishedMrp: packPrice,
+                      unitPrice: unitPrice,
+                      unitsPerPack,
+                      price: packPrice,
+                      packSize: packQuantity,
+                      dosageForm: med.dosageForm
+                    }, 1, false, allowIndividual ? 'STRIP' : 'UNIT');
+                    triggerToast(`Added ${med.brandName} (${allowIndividual ? 'Strip of ' + unitsPerPack : '1 Pack'}) to request.`, 'success');
+                  }
+                }}
+                className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>{allowIndividual ? 'Strip' : 'Add'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </article>
+    );
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
       {/* Inject scroll animation styles + voice mic pulse */}
@@ -357,209 +739,105 @@ export default function MedicineSearch({
           setDebouncedSearchQuery(text);
         }}
       />
-      {/* Top Greeting & Realtime Clinical Status Strip */}
-      <section
-        className="rounded-3xl p-5 sm:p-6 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-        style={{
-          background: 'linear-gradient(135deg, #021f1a 0%, #032f28 60%, #053d34 100%)',
-          border: '1px solid rgba(52, 211, 153, 0.18)'
-        }}
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
-              Verified AI Care Protocol Active
+      {/* Smart Patient Greeting Header */}
+      <div className="flex items-baseline justify-between flex-wrap gap-2 pt-1 pb-1">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-primary tracking-tight flex items-center gap-2 flex-wrap">
+            <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl select-none">
+              {patientGreetIcon}
             </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: '#ffffff' }}>
-            Welcome back, {user?.name ? user.name.split(' ')[0] : 'Patient'}
+            <span>
+              {patientTimeGreet}, <span className="text-secondary">{patientFirstName || 'there'}</span>
+            </span>
           </h1>
-          <p className="text-xs sm:text-sm" style={{ color: '#a7f3d0' }}>
-            Manage your prescriptions, explore local clinical inventories, and locate duty pharmacies across Kerala.
+          <p className="text-xs text-on-surface-variant mt-0.5">
+            Verified Clinical Rx Network &middot; Chengannur, Kerala
           </p>
         </div>
-
-        {/* Network Quick Status Pills */}
-        <div
-          className="backdrop-blur-sm rounded-2xl p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
-          style={{
-            background: 'rgba(0,0,0,0.30)',
-            border: '1px solid rgba(52, 211, 153, 0.15)'
-          }}
-        >
-          <div className="flex items-center gap-2.5 pr-3 sm:border-r border-emerald-400/20">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(52,211,153,0.15)' }}>
-              <span className="material-symbols-outlined text-lg text-emerald-400">near_me</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-medium leading-none" style={{ color: '#6ee7b7' }}>Location</span>
-              <span className="text-xs font-bold" style={{ color: '#ffffff' }}>Chengannur / Alappuzha</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 pr-3 sm:border-r border-emerald-400/20">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(52,211,153,0.20)' }}>
-              <span className="material-symbols-outlined text-lg text-emerald-300">verified_user</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold leading-none" style={{ color: '#6ee7b7' }}>Rx Sync</span>
-              <span className="text-xs font-bold" style={{ color: '#34d399' }}>Live OCR Pipeline</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(52,211,153,0.15)' }}>
-              <span className="material-symbols-outlined text-lg text-emerald-400">local_pharmacy</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-medium leading-none" style={{ color: '#6ee7b7' }}>Network</span>
-              <span className="text-xs font-bold" style={{ color: '#ffffff' }}>Participating Dispensaries</span>
-            </div>
-          </div>
+        <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+          networkLive === false
+            ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/40 text-red-700 dark:text-red-400'
+            : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant'
+        }`}>
+          {networkLive === false ? (
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+            </span>
+          ) : (
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_6px_2px_rgba(52,211,153,0.5)]"></span>
+            </span>
+          )}
+          <span>{networkLive === false ? 'Offline' : networkLive === null ? 'Connecting…' : 'Network Live'}</span>
         </div>
-      </section>
+      </div>
 
-      {/* Interactive Search & Smart Filter Module (Stitch Screen 8183425688289776459) */}
-      <section className="w-full">
-        <div className="bg-surface-container-lowest rounded-3xl p-4 sm:p-5 border border-outline-variant/20 shadow-xs space-y-3">
-          {/* Main Search Input Capsule with 21st.dev PromptInput spring physics */}
-          <PromptInput
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onSubmit={handleSearchSubmit}
-            onOpenVoice={() => setVoiceModalOpen(true)}
-            onOpenFilters={() => setShowFilterModal(!showFilterModal)}
-            activeFilterCount={activeFilterCount}
-            selectedCategory={selectedCategory}
-            categories={categories}
-            onSelectCategory={(cat) => handleCategorySelect(cat)}
-            isRecording={false}
-          />
+      {/* Interactive Search & Action Bar (Tata 1mg Shaded Grey Location & Search System) */}
+      <section className="w-full space-y-2">
+        <div className="w-full flex items-center justify-between sm:justify-start gap-2.5 sm:gap-3 flex-wrap">
+          {/* Distinct Location Pill (Tata 1mg Shaded Grey Style) */}
+          <div
+            title="Current fulfillment territory: Chengannur, Kerala"
+            className="inline-flex items-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-[#f1f4f6] hover:bg-[#e8ecf0] border border-[#e2e8f0] hover:border-[#cbd5e1] shadow-2xs text-xs sm:text-sm font-bold text-[#1e293b] transition-all shrink-0 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[19px] text-[#475569]">location_on</span>
+            <span>Chengannur</span>
+            <span className="material-symbols-outlined text-[17px] text-[#64748b] hover:text-[#1b7058] transition-colors" title="Locate via GPS">my_location</span>
+          </div>
 
-          {/* Quick Regulatory Switchers (Stitch lines 48-53) */}
-          <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
-            <div className="flex items-center gap-1.5 p-1 bg-surface-container-low rounded-full overflow-x-auto shrink-0">
-              <button
-                type="button"
-                onClick={() => setFilterTag('all')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterTag === 'all'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                All Formulations
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterTag('rx')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterTag === 'rx'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Rx Required
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterTag('otc')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterTag === 'otc'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                OTC / Non-Rx
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterTag('emergency')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  filterTag === 'emergency'
-                    ? 'bg-error text-white shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Emergency Critical
-              </button>
-            </div>
+          {/* Main Search Input Capsule: Full width on mobile, flexible row on desktop */}
+          <div className="w-full sm:w-auto flex-1 min-w-[200px] order-last sm:order-none">
+            <PromptInput
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onSubmit={handleSearchSubmit}
+              onOpenVoice={() => setVoiceModalOpen(true)}
+              onOpenFilters={() => setShowFilterModal(!showFilterModal)}
+              activeFilterCount={activeFilterCount}
+              selectedCategory={selectedCategory}
+              categories={categories}
+              onSelectCategory={(cat) => handleCategorySelect(cat)}
+              isRecording={false}
+            />
+          </div>
 
-            {/* Active Filters Reset Shortcut */}
-            {activeFilterCount > 0 && (
+          {/* Standout Reserve / Request Cart Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setCartDrawerOpen(true)}
+            title="View your staged reservation cart and items"
+            className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-[#0a3d34] hover:bg-[#145744] text-white shadow-xs text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+            <span>Reserve</span>
+            {selectedMedicines.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#34d399] text-[#0a3d34] shadow-xs inline-flex items-center">
+                <RollingNumber value={selectedMedicines.length} />
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Active Filter Indicator & Reset (Shown only when filters are active) */}
+        {(activeFilterCount > 0 || categoryOverrideNote || selectedCategory !== 'ALL' || filterTag !== 'all') && (
+          <div className="flex items-center justify-between gap-2 pt-1 px-1 flex-wrap">
+              <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+                <span className="material-symbols-outlined text-sm text-secondary">tune</span>
+                <span>
+                  {categoryOverrideNote || (selectedCategory !== 'ALL' ? `Filtered by ${selectedCategory}` : `Active Filters (${activeFilterCount})`)}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleResetAllFilters}
-                className="text-xs text-secondary hover:text-primary font-bold inline-flex items-center gap-1"
+                className="text-xs text-secondary hover:text-primary font-bold inline-flex items-center gap-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-sm">restart_alt</span>
-                <span>Reset {activeFilterCount} Filter(s)</span>
-              </button>
-            )}
-          </div>
-
-          {/* Category Scroller Strip */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1">
-            {categories.map(cat => {
-              const isActive = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    setCategoryOverrideNote('');
-                  }}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
-                    isActive
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <span>{cat === 'ALL' ? 'All Therapeutic Classes' : cat}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Smart Search Feedback / Category Override Notice */}
-          {categoryOverrideNote && (
-            <div className="flex items-center justify-between gap-2 p-2.5 px-3.5 rounded-2xl bg-secondary-container/40 border border-secondary/20 text-xs text-primary">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-base">info</span>
-                <span>{categoryOverrideNote}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCategory('ALL');
-                  setCategoryOverrideNote('');
-                }}
-                className="underline font-bold text-secondary hover:text-primary cursor-pointer shrink-0"
-              >
-                Switch Category to All
+                <span>Reset Filters</span>
               </button>
             </div>
           )}
-
-          {/* Active Category Tag Indicator */}
-          {selectedCategory !== 'ALL' && !categoryOverrideNote && (
-            <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-xs text-on-surface">
-              <div className="flex items-center gap-1.5">
-                <span className="text-on-surface-variant">Restricted to therapeutic class:</span>
-                <span className="font-bold text-primary">{selectedCategory}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedCategory('ALL')}
-                className="inline-flex items-center gap-0.5 text-secondary hover:text-primary font-bold text-xs cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-                <span>Show All Classes</span>
-              </button>
-            </div>
-          )}
-        </div>
       </section>
 
       {/* Clinical Filter Feature Modal (Opened via Filter button inside search box) */}
@@ -680,7 +958,7 @@ export default function MedicineSearch({
                 onClick={() => setShowFilterModal(false)}
                 className="px-6 py-2 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs transition-all"
               >
-                Apply Filters ({displayedMedicines.length} Results)
+                Apply Filters (<RollingNumber value={displayedMedicines.length} /> Results)
               </button>
             </div>
           </div>
@@ -702,493 +980,449 @@ export default function MedicineSearch({
         </div>
       )}
 
-      {/* HERO 2-COLUMN ACTION CARDS */}
-      <section className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* OCR Prescription Reader Feature Banner (7 cols) */}
-        <div className="md:col-span-7 rounded-3xl bg-surface-container-low p-6 sm:p-7 flex flex-col justify-between shadow-xs border border-outline-variant/20 relative overflow-hidden">
-          <div className="flex items-start justify-between gap-4 relative z-10">
-            <div className="space-y-2 max-w-lg">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/80 text-primary text-xs font-bold backdrop-blur-sm">
-                <span className="material-symbols-outlined text-sm text-secondary">document_scanner</span>
-                <span>OCR Prescription Reader</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-primary tracking-tight">
-                Have a Doctor's Prescription?
-              </h2>
-              <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-                Upload a clear photo or digital e-Rx PDF. MediFind AI instantly parses molecules, detects generic substitutes, and searches stocks across local dispensaries.
-              </p>
-            </div>
-            <div className="hidden sm:flex w-14 h-14 rounded-2xl bg-primary text-white items-center justify-center shrink-0 shadow-md">
-              <span className="material-symbols-outlined text-3xl">prescriptions</span>
-            </div>
+      {/* Quick Actions Grid (5 cards with 5 distinct full-bleed generative gradient backgrounds) */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        {/* 1. Upload Prescription Card - Celtics (soft-clover) */}
+        <button
+          type="button"
+          onClick={() => onNavigateToPrescription ? onNavigateToPrescription() : onProceedToPharmacies()}
+          className="relative overflow-hidden p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+        >
+          <ChipGradientBg presetKey="celtics" />
+          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#132c24]/90 backdrop-blur-md border border-emerald-100 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-xl">description</span>
           </div>
-          <div className="mt-5 pt-1 flex flex-wrap items-center gap-4 relative z-10">
-            <button
-              onClick={() => onNavigateToPrescription ? onNavigateToPrescription() : onProceedToPharmacies()}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-xs transition-all"
+          <div className="relative z-10 flex flex-col gap-0.5">
+            <strong className="text-sm sm:text-base font-bold text-emerald-950 dark:text-emerald-100 leading-tight">Upload prescription</strong>
+            <span className="text-xs text-emerald-800/90 dark:text-emerald-400 leading-tight font-medium">We read it and check stock</span>
+          </div>
+        </button>
+
+        {/* 2. Emergency Pharmacy Card - Full circle (soft-orbit) */}
+        <button
+          type="button"
+          onClick={() => onNavigateToEmergency ? onNavigateToEmergency() : onProceedToPharmacies()}
+          className="relative overflow-hidden p-4 rounded-2xl border border-rose-200/80 dark:border-rose-900/50 hover:border-rose-400 dark:hover:border-rose-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+        >
+          <ChipGradientBg presetKey="full-circle" />
+          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#2c1318]/90 backdrop-blur-md border border-rose-100 dark:border-rose-800/40 text-rose-700 dark:text-rose-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-xl">e911_emergency</span>
+          </div>
+          <div className="relative z-10 flex flex-col gap-0.5">
+            <strong className="text-sm sm:text-base font-bold text-rose-950 dark:text-rose-100 leading-tight">Emergency pharmacy</strong>
+            <span className="text-xs text-rose-800/90 dark:text-rose-400 leading-tight font-medium">Open duty pharmacies now</span>
+          </div>
+        </button>
+
+        {/* 3. Home Healthcare Services Card - Endless return (soft-ring) */}
+        <button
+          type="button"
+          onClick={() => onNavigateToHealthcare ? onNavigateToHealthcare('services') : onProceedToPharmacies()}
+          className="relative overflow-hidden p-4 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 hover:border-purple-400 dark:hover:border-purple-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+        >
+          <ChipGradientBg presetKey="endless-return" />
+          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#23132c]/90 backdrop-blur-md border border-purple-100 dark:border-purple-800/40 text-purple-800 dark:text-purple-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-xl">home_health</span>
+          </div>
+          <div className="relative z-10 flex flex-col gap-0.5">
+            <strong className="text-sm sm:text-base font-bold text-purple-950 dark:text-purple-100 leading-tight">Home healthcare</strong>
+            <span className="text-xs text-purple-800/90 dark:text-purple-400 leading-tight font-medium">Book nurse or clinician</span>
+          </div>
+        </button>
+
+        {/* 4. Clinical Tele-Help Card - Room to rise (soft-arch) */}
+        <button
+          type="button"
+          onClick={() => onNavigateToHealthcare ? onNavigateToHealthcare('clinical-assistance') : onProceedToPharmacies()}
+          className="relative overflow-hidden p-4 rounded-2xl border border-teal-200/80 dark:border-teal-900/50 hover:border-teal-400 dark:hover:border-teal-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+        >
+          <ChipGradientBg presetKey="room-to-rise" />
+          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#132c28]/90 backdrop-blur-md border border-teal-100 dark:border-teal-800/40 text-teal-800 dark:text-teal-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-xl">support_agent</span>
+          </div>
+          <div className="relative z-10 flex flex-col gap-0.5">
+            <strong className="text-sm sm:text-base font-bold text-teal-950 dark:text-teal-100 leading-tight">Clinical tele-help</strong>
+            <span className="text-xs text-teal-800/90 dark:text-teal-400 leading-tight font-medium">Pharmacist second opinion</span>
+          </div>
+        </button>
+
+        {/* 5. Track & Reorder Request Card - Squared away (soft-square) */}
+        <button
+          type="button"
+          onClick={() => onNavigateToOrders ? onNavigateToOrders() : onProceedToPharmacies()}
+          className="relative overflow-hidden p-4 rounded-2xl border border-sky-200/80 dark:border-sky-900/50 hover:border-sky-400 dark:hover:border-sky-600 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col gap-2 group cursor-pointer shadow-xs min-h-[135px] justify-between bg-white dark:bg-[#0c1815]"
+        >
+          <ChipGradientBg presetKey="squared-away" />
+          <div className="w-10 h-10 rounded-xl bg-white/90 dark:bg-[#13232c]/90 backdrop-blur-md border border-sky-100 dark:border-sky-800/40 text-sky-800 dark:text-sky-300 flex items-center justify-center text-xl group-hover:scale-105 transition-transform shadow-xs relative z-10">
+            <span className="material-symbols-outlined text-xl">package_2</span>
+          </div>
+          <div className="relative z-10 flex flex-col gap-0.5">
+            <strong className="text-sm sm:text-base font-bold text-sky-950 dark:text-sky-100 leading-tight">Track &amp; reorder</strong>
+            <span className="text-xs text-sky-800/90 dark:text-sky-400 leading-tight font-medium">Real-time pickup &amp; delivery</span>
+          </div>
+        </button>
+      </section>
+
+      {/* Modern Light Minimalist Carousel Banner */}
+      <section
+        className="relative rounded-3xl overflow-hidden border border-outline-variant/20 shadow-xs group"
+        onMouseEnter={() => setIsCarouselPaused(true)}
+        onMouseLeave={() => setIsCarouselPaused(false)}
+      >
+        <div
+          className="flex transition-transform duration-500 ease-out"
+          style={{ transform: `translateX(-${bannerSlide * 100}%)` }}
+        >
+          {bannerSlides.map((slide, sIdx) => (
+            <div
+              key={sIdx}
+              className="min-w-full p-4 sm:p-8 flex flex-col justify-center gap-1.5 sm:gap-2 relative overflow-hidden"
+              style={{ background: slide.background, minHeight: '140px' }}
             >
-              <span>Upload Prescription</span>
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-            <span className="text-[11px] text-on-surface-variant flex items-center gap-1 font-medium">
-              <span className="material-symbols-outlined text-secondary text-sm">lock</span>
-              Encrypted Secure Upload
-            </span>
-          </div>
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-10px',
+                  top: '-10px',
+                  width: '180px',
+                  height: '180px',
+                  borderRadius: '50%',
+                  background: slide.decorBg,
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '90px',
+                  bottom: '-30px',
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '50%',
+                  background: slide.decorBg,
+                  pointerEvents: 'none'
+                }}
+              />
+
+              <div className="relative z-10 space-y-1.5 sm:space-y-2 max-w-xl">
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                  style={{ background: slide.badgeBg, color: slide.badgeColor }}
+                >
+                  <span className="material-symbols-outlined text-xs">{slide.icon}</span>
+                  <span>{slide.tag}</span>
+                </span>
+                <h3 className="text-base sm:text-2xl font-bold text-primary tracking-tight">
+                  {slide.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed max-w-lg line-clamp-2 sm:line-clamp-none">
+                  {slide.desc}
+                </p>
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={slide.action}
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full font-bold text-xs shadow-xs transition-all cursor-pointer hover:opacity-90"
+                    style={{ background: slide.buttonBg, color: slide.buttonColor }}
+                  >
+                    <span>{slide.buttonText}</span>
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Emergency Duty Pharmacy Feature Banner (5 cols) */}
-        <div className="md:col-span-5 rounded-3xl bg-surface-container-lowest p-6 sm:p-7 flex flex-col justify-between shadow-xs border border-outline-variant/30 relative overflow-hidden">
-          <div className="space-y-2 relative z-10">
-            <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-error-container text-on-error-container text-[11px] font-bold">
-                <span className="inline-block w-2 h-2 rounded-full bg-error animate-ping"></span>
-                <span>Emergency Locator</span>
-              </div>
-              <span className="text-[11px] text-on-surface-variant font-medium">Regional Coverage</span>
-            </div>
-            <h3 className="text-lg font-bold text-primary">Emergency Pharmacy Locator</h3>
-            <p className="text-xs text-on-surface-variant leading-relaxed">
-              Need critical antibiotics, inhalers, or pediatric relief outside standard business hours?
-            </p>
-          </div>
-          <div className="mt-4 pt-1 space-y-3 relative z-10">
-            <div className="p-3 rounded-2xl bg-surface-container-low flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
-                  <span className="material-symbols-outlined text-base">schedule</span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-on-surface">Participating Pharmacies</p>
-                  <p className="text-[11px] text-on-surface-variant">Chengannur, Kerala • Standard business hours</p>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-secondary text-lg">chevron_right</span>
-            </div>
+        {/* Previous & Next Carousel Navigation Chevrons */}
+        <button
+          type="button"
+          onClick={() => setBannerSlide(prev => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
+          aria-label="Previous Slide"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-primary flex items-center justify-center shadow-xs backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-lg">chevron_left</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setBannerSlide(prev => (prev + 1) % bannerSlides.length)}
+          aria-label="Next Slide"
+          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-primary flex items-center justify-center shadow-xs backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-lg">chevron_right</span>
+        </button>
+
+        {/* Dots Indicator */}
+        <div className="absolute bottom-4 right-6 flex items-center gap-1.5 z-20">
+          {bannerSlides.map((_, dotIdx) => (
             <button
-              onClick={() => onNavigateToEmergency ? onNavigateToEmergency() : onProceedToPharmacies()}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-secondary hover:bg-primary-container text-white font-bold text-xs transition-all shadow-xs"
-            >
-              <span className="material-symbols-outlined text-sm">navigation</span>
-              <span>Find Open Duty Pharmacy</span>
-            </button>
-          </div>
+              key={dotIdx}
+              type="button"
+              onClick={() => setBannerSlide(dotIdx)}
+              className={`h-2 rounded-full transition-all cursor-pointer ${
+                bannerSlide === dotIdx ? 'w-6 bg-primary' : 'w-2 bg-primary/25 hover:bg-primary/50'
+              }`}
+              aria-label={`Go to slide ${dotIdx + 1}`}
+            />
+          ))}
         </div>
       </section>
 
-      {/* Main Two-Column Layout: Catalogue (8 cols) & Side Request Drawer (4 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Medicines Catalogue (8 cols) */}
-        <div className="lg:col-span-8 flex flex-col gap-4">
-          {/* Catalogue Header & Sort Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
-            <div>
-              <h2 className="text-lg font-bold text-primary tracking-tight">Verified Medicine Catalogue</h2>
-              <p className="text-xs text-on-surface-variant">
-                Showing {displayedMedicines.length} verified therapeutic items available for reservation
-              </p>
-            </div>
-
-            {/* Quick Sort Dropdown */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-on-surface-variant font-medium">Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
-                className="bg-surface-container-low border border-outline-variant/30 text-on-surface font-semibold text-xs rounded-full px-3 py-1 outline-none cursor-pointer"
-              >
-                <option value="name-asc">Name: A to Z</option>
-                <option value="name-desc">Name: Z to A</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-              </select>
-            </div>
+      {/* Shop by health concern - Minimalist Clinical Chip Strip */}
+      <section className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-secondary text-lg">clinical_notes</span>
+            <h2 className="text-base sm:text-lg font-bold text-primary">Shop by Health Concern</h2>
           </div>
-
-          {/* Medicines Bento Grid — with slow vertical auto-scroll */}
-          {loading ? (
-            <LoadingSkeleton type="cards" count={6} />
-          ) : displayedMedicines.length === 0 ? (
-            <EmptyState
-              icon="search_off"
-              title="No formulations found"
-              description={
-                searchQuery
-                  ? `No medicine matched "${searchQuery}". Try searching generic chemical names or resetting filters.`
-                  : 'No formulations found under current category or filters.'
-              }
-              actionText="Reset All Filters"
-              onAction={handleResetAllFilters}
-            />
-          ) : (
-            /* Scroll container — 3 rows visible, content duplicated for seamless loop when unfiltered */
-            <div
-              className={`medicine-scroll-track ${debouncedSearchQuery.trim() || selectedCategory !== 'ALL' || filterTag !== 'all' ? 'is-filtered' : ''}`}
-              style={{ maxHeight: '480px' }}
-              ref={scrollContainerRef}
+          {selectedHealthConcern ? (
+            <button
+              type="button"
+              onClick={() => setSelectedHealthConcern(null)}
+              className="text-xs font-bold text-secondary hover:text-primary cursor-pointer flex items-center gap-1"
             >
-              <div className="medicine-scroll-inner">
-                {/* Render medicines (only duplicate when actively idling in full marquee mode) */}
-                {((debouncedSearchQuery.trim() || selectedCategory !== 'ALL' || filterTag !== 'all')
-                  ? displayedMedicines
-                  : [...displayedMedicines, ...displayedMedicines]
-                ).map((med, idx) => {
-                let alternatives = [];
-                if (med.alternativeGenerics) {
-                  try {
-                    alternatives = JSON.parse(med.alternativeGenerics);
-                  } catch (e) {
-                    alternatives = med.alternativeGenerics.split(',').map(s => s.trim());
-                  }
-                }
-
-                const reqItem = (selectedMedicines || []).find(i => i.medicineId === med.id);
-                const isRx = med.requiresPrescription || med.isEmergency || (med.dosageForm && med.dosageForm.toLowerCase().includes('inhaler')) || med.category?.toLowerCase().includes('antibiotic');
-
-                return (
-                  <article
-                    key={`med-${idx}-${med.id}`}
-                    className="bg-surface-container-lowest rounded-2xl p-4 shadow-xs hover:shadow-md transition-shadow border border-outline-variant/30 flex flex-col justify-between group"
-                  >
-                    <div>
-                      {/* Product Visual Imagery Well */}
-                      <div className="relative w-full h-36 rounded-xl bg-surface-container-low flex items-center justify-center mb-3 overflow-hidden p-2 group-hover:bg-surface-container transition-colors">
-                        {getMedicineImageUrl(med) ? (
-                          <img
-                            src={getMedicineImageUrl(med)}
-                            alt={med.brandName}
-                            className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div
-                          style={{ display: getMedicineImageUrl(med) ? 'none' : 'flex' }}
-                          className="w-14 h-14 rounded-full bg-secondary-container/40 items-center justify-center text-secondary group-hover:scale-105 transition-transform"
-                        >
-                          <span className="material-symbols-outlined text-3xl">medication</span>
-                        </div>
-                        <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isRx ? 'bg-surface-container text-primary' : 'bg-secondary-container text-on-secondary-container'
-                        }`}>
-                          {isRx ? 'Rx Required' : 'OTC Health'}
-                        </span>
-                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-surface-container-lowest flex items-center justify-center text-secondary shadow-xs">
-                          <span className="material-symbols-outlined text-[13px]">shield</span>
-                        </span>
-                        <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-primary">
-                          {med.dosageForm || 'Oral'} • {med.strength || 'Std'}
-                        </div>
-                      </div>
-
-                      {/* Header details */}
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold text-secondary uppercase tracking-wider block">
-                          {med.category || 'Therapeutic'}
-                        </span>
-                        <h3 className="text-base font-bold text-primary leading-tight">
-                          {med.brandName}
-                        </h3>
-                        <p className="text-[11px] text-on-surface-variant font-medium">
-                          Generic: <strong className="text-on-surface">{med.genericName}</strong>
-                        </p>
-                      </div>
-
-                      {/* Common uses tag */}
-                      {med.commonUses && (
-                        <p className="text-[11px] text-on-surface-variant/80 line-clamp-1 mt-1">
-                          Uses: {med.commonUses}
-                        </p>
-                      )}
-
-                      {/* Availability Tag */}
-                      <div className="mt-3 p-2 rounded-xl bg-surface-container-low flex items-center justify-between text-[11px]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-                          <span className="font-semibold text-secondary">Standardized Network</span>
-                        </div>
-                        <span className="text-on-surface-variant text-[10px]">Ready for Pickup</span>
-                      </div>
-                    </div>
-
-                    {/* Footer price & steppers */}
-                    <div className="mt-4 pt-3 border-t border-surface-container flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-on-surface-variant leading-none">
-                          {med.price != null ? 'Unit Price' : 'Pricing'}
-                        </span>
-                        <span className="text-base font-bold text-primary">
-                          {med.price != null ? `₹${med.price}` : 'At pharmacy counter'}
-                        </span>
-                      </div>
-
-                      {reqItem ? (
-                        <div className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-full">
-                          <button
-                            type="button"
-                            onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity - 1)}
-                            className="w-6 h-6 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container-high flex items-center justify-center transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-xs">remove</span>
-                          </button>
-                          <span className="text-xs font-bold text-primary px-1">{reqItem.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity + 1)}
-                            className="w-6 h-6 rounded-full bg-primary text-white hover:bg-primary-container flex items-center justify-center transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-xs">add</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onAddToRequest) {
-                              onAddToRequest(med, 1);
-                              showToast(`Added ${med.brandName} to medicine request.`, 'success');
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs transition-all"
-                        >
-                          <span className="material-symbols-outlined text-sm">add</span>
-                          <span>Add</span>
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-                })}
-              </div>
-            </div>
+              <span>Show All</span>
+              <span className="material-symbols-outlined text-xs">close</span>
+            </button>
+          ) : (
+            <span className="text-xs text-on-surface-variant font-medium">Filter by therapeutic specialty</span>
           )}
-
-          {/* ── PAPER PRESCRIPTION BANNER (Stitch design — after search results) ── */}
-          <div className="relative rounded-3xl overflow-hidden mt-2" style={{ background: 'linear-gradient(135deg, #1a4a3a 0%, #0d2d22 60%, #0a2018 100%)' }}>
-            {/* Background decorative circle */}
-            <div style={{ position: 'absolute', right: '-40px', top: '-40px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', right: '60px', bottom: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
-
-            <div className="relative z-10 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-              {/* Left content */}
-              <div className="flex-1 space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold" style={{ background: 'rgba(255,255,255,0.1)', color: '#a8d5c2' }}>
-                  <span className="material-symbols-outlined text-sm" style={{ color: '#5fcba0' }}>receipt_long</span>
-                  AUTOMATED Rx SCAN
-                </div>
-                <h3 className="text-xl sm:text-2xl font-extrabold" style={{ color: '#ffffff' }}>
-                  Have a Paper Prescription from your Doctor?
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: '#a8d5c2', maxWidth: '420px' }}>
-                  MedFind AI can instantly recognize your written prescription, extract codes, and locate verified neighborhood pharmacy stocks.
-                </p>
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => onNavigateToPrescription ? onNavigateToPrescription() : null}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all"
-                    style={{ background: '#4db88a', color: '#fff', boxShadow: '0 4px 16px rgba(77,184,138,0.35)' }}
-                  >
-                    <span className="material-symbols-outlined text-sm">upload_file</span>
-                    <span>Upload &amp; Attach Rx Prescription</span>
-                  </button>
-                  <span className="text-xs font-medium flex items-center gap-1" style={{ color: '#7abfa0' }}>
-                    <span className="material-symbols-outlined text-sm" style={{ color: '#5fcba0' }}>lock</span>
-                    100% compliant encryption for Rx
-                  </span>
-                </div>
-              </div>
-
-              {/* Right — Quick Snap & Match card */}
-              <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl shrink-0" style={{ background: 'rgba(255,255,255,0.08)', minWidth: '130px' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(77,184,138,0.25)' }}>
-                  <span className="material-symbols-outlined text-2xl" style={{ color: '#5fcba0' }}>photo_camera</span>
-                </div>
-                <span className="text-xs font-bold text-center" style={{ color: '#ffffff' }}>Quick Snap</span>
-                <span className="text-[10px] text-center" style={{ color: '#7abfa0' }}>&amp; Match</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Genuine Guarantee Informational Strip */}
-          <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-outline-variant/30 text-xs text-on-surface-variant">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary text-lg">local_pharmacy</span>
-              <span>Availability provided by participating pharmacies in Chengannur.</span>
-            </div>
-            <span className="text-secondary font-bold">Participating Pharmacy Inventory</span>
-          </div>
         </div>
 
-        {/* Right Column: Sticky Live Medicine Request Drawer (4 cols) */}
-        <aside className="lg:col-span-4 sticky top-24">
-          <div className="bg-surface-container-lowest rounded-3xl p-5 border border-outline-variant/30 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between pb-3 border-b border-surface-container mb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-lg">shopping_basket</span>
-                <h3 className="text-base font-bold text-primary">Medicine Request</h3>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setSelectedHealthConcern(null)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+              !selectedHealthConcern
+                ? 'bg-[#0a3d34] text-white border-[#0a3d34] shadow-xs'
+                : 'bg-white border-[#d8eae3] text-[#0a3d34] hover:bg-[#f2faf7] hover:border-[#1b7058] shadow-xs'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">tune</span>
+            <span>All Specialties</span>
+          </button>
+          {HEALTH_CONCERNS.map(concern => {
+            const isSelected = selectedHealthConcern === concern.id;
+            return (
+              <button
+                key={concern.id}
+                type="button"
+                onClick={() => setSelectedHealthConcern(prev => prev === concern.id ? null : concern.id)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+                  isSelected
+                    ? 'bg-[#0a3d34] text-white border-[#0a3d34] shadow-xs'
+                    : 'bg-white border-[#d8eae3] text-[#0a3d34] hover:bg-[#f2faf7] hover:border-[#1b7058] shadow-xs'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-base ${isSelected ? 'text-[#34d399]' : 'text-[#12805f]'}`}>
+                  {concern.icon}
+                </span>
+                <span>{concern.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Main Full-Width Medicines Catalogue Layout */}
+      <div className="w-full flex flex-col gap-6">
+        {/* Section 1: Order Again (Essential Refills) */}
+        <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-primary">Order again</h2>
+                <p className="text-[11px] text-on-surface-variant">Quick refill essential therapeutic formulations</p>
               </div>
-              <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-xs font-bold">
-                {selectedMedicines.length} item(s)
-              </span>
+              {onNavigateToOrders && (
+                <button
+                  type="button"
+                  onClick={onNavigateToOrders}
+                  className="text-xs font-bold text-secondary hover:text-primary cursor-pointer"
+                >
+                  Past requests →
+                </button>
+              )}
             </div>
 
-            {selectedMedicines.length === 0 ? (
-              <div className="py-8 text-center text-on-surface-variant space-y-2">
-                <span className="material-symbols-outlined text-3xl text-outline-variant">medication_liquid</span>
-                <p className="text-xs">Your medicine request is currently empty.</p>
-                <p className="text-[11px] text-outline">Search and click "Add" to stage items for reservation.</p>
+            {/* Horizontal scroll rail */}
+            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+              {orderAgainMedicines.map((med, idx) => (
+                <div key={med.id || idx} className="shrink-0 w-52 sm:w-56">
+                  {renderMedicineCard(med, idx)}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Section 2: Frequently Requested / Full Verified Catalogue */}
+          <section id="catalog-grid-anchor" className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-primary tracking-tight">Frequently requested</h2>
+                <p className="text-xs text-on-surface-variant flex items-center gap-1">
+                  Showing <RollingNumber value={displayedMedicines.length} /> verified therapeutic items available for reservation
+                </p>
               </div>
+
+              {/* Quick Sort Dropdown */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-on-surface-variant font-medium">Sort by:</span>
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value)}
+                  className="bg-surface-container-low border border-outline-variant/30 text-on-surface font-semibold text-xs rounded-full px-3 py-1 outline-none cursor-pointer"
+                >
+                  <option value="name-asc">Name: A to Z</option>
+                  <option value="name-desc">Name: Z to A</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                </select>
+              </div>
+            </div>
+
+            {loading ? (
+              <LoadingSkeleton type="cards" count={8} />
+            ) : displayedMedicines.length === 0 ? (
+              <EmptyState
+                icon="search_off"
+                title="No formulations found"
+                description={
+                  searchQuery
+                    ? `No medicine matched "${searchQuery}". Try searching generic chemical names or resetting filters.`
+                    : 'No formulations found under current category or filters.'
+                }
+                actionText="Reset All Filters"
+                onAction={handleResetAllFilters}
+              />
             ) : (
-              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1 mb-3">
-                {selectedMedicines.map(item => {
-                  const med = medicines.find(m => m.id === item.medicineId);
-                  const isRx = med ? (med.requiresPrescription || med.isEmergency || med.category?.toLowerCase().includes('antibiotic')) : false;
-
-                  return (
-                    <div
-                      key={item.medicineId}
-                      className="p-2.5 rounded-xl bg-surface-container-low flex items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className="w-8 h-8 rounded-lg bg-surface-container-lowest p-0.5 border border-outline-variant/30 flex items-center justify-center shrink-0 overflow-hidden">
-                          {getMedicineImageUrl(item) || getMedicineImageUrl(med) ? (
-                            <img
-                              src={getMedicineImageUrl(item) || getMedicineImageUrl(med)}
-                              alt=""
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <span className="material-symbols-outlined text-sm text-secondary">medication</span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-bold text-primary truncate">
-                              {item.brandName || med?.brandName || 'Medicine'}
-                            </p>
-                            {isRx && (
-                              <span className="bg-surface-container text-primary text-[9px] font-bold px-1.5 py-0.2 rounded-full shrink-0">
-                                Rx
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-on-surface-variant truncate">
-                            {med?.genericName || 'Therapeutic Item'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Steppers */}
-                      <div className="flex items-center gap-1 bg-surface-container-lowest px-1.5 py-0.5 rounded-full border border-outline-variant/30">
-                        {onUpdateRequestQuantity && (
-                          <button
-                            type="button"
-                            onClick={() => onUpdateRequestQuantity(item.medicineId, Math.max(1, (item.quantity || 1) - 1))}
-                            className="text-on-surface-variant hover:text-on-surface w-4 h-4 flex items-center justify-center"
-                          >
-                            <span className="material-symbols-outlined text-xs">remove</span>
-                          </button>
-                        )}
-                        <span className="text-xs font-bold text-on-surface font-mono">{item.quantity || 1}</span>
-                        {onUpdateRequestQuantity && (
-                          <button
-                            type="button"
-                            onClick={() => onUpdateRequestQuantity(item.medicineId, (item.quantity || 1) + 1)}
-                            className="text-on-surface-variant hover:text-on-surface w-4 h-4 flex items-center justify-center"
-                          >
-                            <span className="material-symbols-outlined text-xs">add</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {onRemoveFromRequest && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveFromRequest(item.medicineId)}
-                          className="text-on-surface-variant hover:text-error w-5 h-5 flex items-center justify-center transition-colors"
-                          title="Remove item"
-                        >
-                          <span className="material-symbols-outlined text-sm">close</span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5">
+                {displayedMedicines.map((med, idx) => renderMedicineCard(med, idx))}
               </div>
             )}
+          </section>
 
-            {/* Prescription Requirement Reminder Callout */}
-            {hasRxItemsInRequest && (
-              <div className="p-2.5 rounded-xl bg-surface-container-high flex items-start gap-2 mb-3">
-                <span className="material-symbols-outlined text-secondary text-base mt-0.5">info</span>
-                <div className="space-y-0.5">
-                  <p className="text-[11px] text-primary font-bold">Prescription Required For Staged Items</p>
-                  <p className="text-[10px] text-on-surface-variant leading-tight">
-                    Antibiotics &amp; controlled items require doctor validation. You can link your uploaded Rx during checkout.
+          {/* Section 3: Browse by type */}
+          <section className="space-y-3">
+            <h2 className="text-base sm:text-lg font-bold text-primary">Browse by type</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setFilterTag(filterTag === 'rx' ? 'all' : 'rx')}
+                className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 group cursor-pointer ${
+                  filterTag === 'rx'
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface hover:shadow-xs hover:border-secondary/40'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
+                  filterTag === 'rx' ? 'bg-white/20' : 'bg-surface-container-low text-secondary'
+                }`}>
+                  <span className="material-symbols-outlined text-xl">prescriptions</span>
+                </div>
+                <div>
+                  <strong className="text-xs sm:text-sm font-bold block">Prescription (Rx)</strong>
+                  <span className={`text-[11px] ${filterTag === 'rx' ? 'text-white/80' : 'text-on-surface-variant'}`}>
+                    Needs a doctor's prescription
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFilterTag(filterTag === 'otc' ? 'all' : 'otc')}
+                className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 group cursor-pointer ${
+                  filterTag === 'otc'
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface hover:shadow-xs hover:border-secondary/40'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
+                  filterTag === 'otc' ? 'bg-white/20' : 'bg-surface-container-low text-secondary'
+                }`}>
+                  <span className="material-symbols-outlined text-xl">medication</span>
+                </div>
+                <div>
+                  <strong className="text-xs sm:text-sm font-bold block">Over the counter</strong>
+                  <span className={`text-[11px] ${filterTag === 'otc' ? 'text-white/80' : 'text-on-surface-variant'}`}>
+                    No prescription needed
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFilterTag(filterTag === 'emergency' ? 'all' : 'emergency')}
+                className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 group cursor-pointer ${
+                  filterTag === 'emergency'
+                    ? 'bg-error text-white border-error shadow-sm'
+                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface hover:shadow-xs hover:border-error/40'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
+                  filterTag === 'emergency' ? 'bg-white/20' : 'bg-error-container/40 text-error'
+                }`}>
+                  <span className="material-symbols-outlined text-xl">e911_emergency</span>
+                </div>
+                <div>
+                  <strong className="text-xs sm:text-sm font-bold block">Emergency critical</strong>
+                  <span className={`text-[11px] ${filterTag === 'emergency' ? 'text-white/80' : 'text-on-surface-variant'}`}>
+                    Inhalers, injections, relief
+                  </span>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          {/* Minimalist Trust & Safety Assurance */}
+          <section className="pt-4 border-t border-outline-variant/20">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* 1. Verified Dispensaries */}
+              <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 border border-emerald-200/70 shadow-xs">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200">
+                  <span className="material-symbols-outlined text-base">verified</span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-950">Verified Dispensaries</h4>
+                  <p className="text-[11px] text-emerald-800/80 leading-relaxed mt-0.5">
+                    Licensed &amp; inspected under Kerala State Drugs Control standards.
                   </p>
                 </div>
               </div>
-            )}
 
-            {/* Side Action Buttons */}
-            {selectedMedicines.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-surface-container">
-                <button
-                  type="button"
-                  onClick={handleCheckAvailabilityForAll}
-                  className="w-full py-2 rounded-full bg-surface-container hover:bg-surface-container-high text-primary text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-sm text-secondary">explore</span>
-                  <span>Check Availability &amp; Ranking</span>
-                </button>
-                {onProceedToPharmacies && (
-                  <button
-                    type="button"
-                    onClick={onProceedToPharmacies}
-                    className="w-full py-2.5 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <span>Proceed to Pharmacy Discovery</span>
-                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                  </button>
-                )}
-                {onClearRequest && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmDialog({
-                        isOpen: true,
-                        title: 'Clear Active Medicine Request?',
-                        message: `Are you sure you want to remove all ${selectedMedicines.length} medicine(s) from your staged reservation query?`,
-                        confirmLabel: 'Yes, Clear Request',
-                        variant: 'danger',
-                        impactPoints: [
-                          'Staged items will be removed from your reservation queue.',
-                          'You can re-add them anytime from the medicine catalog.'
-                        ],
-                        onConfirm: () => {
-                          onClearRequest();
-                          showToast('Medicine request cleared.', 'info');
-                        }
-                      });
-                    }}
-                    className="w-full py-1 text-center text-[11px] text-tertiary font-bold hover:underline"
-                  >
-                    Clear Request
-                  </button>
-                )}
+              {/* 2. Confidential Prescription Handling */}
+              <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-gradient-to-br from-cyan-50/70 via-white to-blue-50/40 border border-cyan-200/70 shadow-xs">
+                <div className="w-8 h-8 rounded-full bg-cyan-100 text-cyan-800 flex items-center justify-center shrink-0 border border-cyan-200">
+                  <span className="material-symbols-outlined text-base">lock</span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-cyan-950">Confidential Prescription Handling</h4>
+                  <p className="text-[11px] text-cyan-800/80 leading-relaxed mt-0.5">
+                    Prescriptions are encrypted and processed securely for dispensing only.
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
-        </aside>
-      </div>
+
+              {/* 3. Emergency Support */}
+              <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50/70 via-white to-orange-50/40 border border-amber-200/70 shadow-xs">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200">
+                  <span className="material-symbols-outlined text-base">support_agent</span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-amber-950">Emergency Support</h4>
+                  <p className="text-[11px] text-amber-800/80 leading-relaxed mt-0.5">
+                    24/7 duty pharmacy coordination across Chengannur network dispensaries.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 py-2 px-1 flex items-center justify-between text-[11px] text-on-surface-variant">
+              <span>Availability synced directly with participating pharmacy inventories in Chengannur.</span>
+              <span className="font-bold text-secondary">Kerala Drugs Control Audited</span>
+            </div>
+          </section>
+        </div>
 
       {/* ── ACTIVE MEDICINE REQUEST — Sticky Bottom Action Bar (Stitch design) ── */}
       {selectedMedicines.length > 0 && (
@@ -1274,37 +1508,6 @@ export default function MedicineSearch({
         onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Floating Action Feedback / Toast Notification */}
-      {feedback.show && (
-        <div style={{
-          position: 'fixed',
-          top: '1.5rem',
-          right: '1.5rem',
-          zIndex: 9999,
-          padding: '0.85rem 1.25rem',
-          borderRadius: 16,
-          background: feedback.type === 'error' ? '#ffdad6' : '#e0f2eb',
-          color: feedback.type === 'error' ? '#93000a' : '#032f28',
-          border: `1px solid ${feedback.type === 'error' ? '#ffb4a8' : '#a6cfc5'}`,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          maxWidth: 440
-        }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-            {feedback.type === 'error' ? 'error' : 'check_circle'}
-          </span>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{feedback.message}</span>
-          <button
-            onClick={() => setFeedback({ show: false, message: '', type: 'success' })}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto', color: 'inherit', display: 'flex', alignItems: 'center' }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
-          </button>
-        </div>
-      )}
-
       {/* Availability Modal */}
       <AvailabilityModal
         isOpen={modalOpen}
@@ -1313,6 +1516,259 @@ export default function MedicineSearch({
         onOrderCreated={onOrderCreated}
         isEmergency={false}
       />
+
+      {/* Dedicated Reservation Cart Card / Slide-Over Modal */}
+      {cartDrawerOpen && (
+        <div className="fixed inset-0 z-[120] flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setCartDrawerOpen(false)}
+          />
+
+          {/* Cart Card Panel */}
+          <aside
+            className="relative z-10 w-full max-w-md bg-surface-container-lowest h-full shadow-2xl flex flex-col justify-between border-l border-outline-variant/30 animate-in slide-in-from-right duration-200"
+          >
+            {/* Cart Header */}
+            <div className="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-secondary-container text-secondary flex items-center justify-center">
+                  <span className="material-symbols-outlined text-xl">shopping_cart</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-primary">Reservation Cart</h3>
+                  <p className="text-[11px] text-on-surface-variant font-medium">
+                    {selectedMedicines.length} {selectedMedicines.length === 1 ? 'item' : 'items'} staged for dispensary reservation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCartDrawerOpen(false)}
+                className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-colors cursor-pointer"
+                title="Close Cart"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            {/* Cart Items Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+              {/* Prescription Reminder Callout */}
+              {hasRxItemsInRequest && (
+                <div className="p-3 rounded-2xl bg-secondary-container/30 border border-secondary/20 flex items-start gap-2.5">
+                  <span className="material-symbols-outlined text-secondary text-lg shrink-0 mt-0.5">prescriptions</span>
+                  <div className="space-y-0.5 text-xs text-primary">
+                    <p className="font-bold">Prescription Required</p>
+                    <p className="text-[11px] text-on-surface-variant leading-tight">
+                      Some staged formulations require a valid doctor's prescription during pharmacy pickup or counter dispensing.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {selectedMedicines.length === 0 ? (
+                <div className="py-16 px-4 flex flex-col items-center justify-center text-center gap-3 text-on-surface-variant">
+                  <div className="w-16 h-16 rounded-3xl bg-surface-container-low flex items-center justify-center text-secondary">
+                    <span className="material-symbols-outlined text-3xl">remove_shopping_cart</span>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-primary">Your Reservation Cart is Empty</h4>
+                    <p className="text-xs text-on-surface-variant max-w-xs mt-1">
+                      Search and click &ldquo;+ Add&rdquo; on any medicines or scan an Rx to stage items here.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCartDrawerOpen(false)}
+                    className="mt-2 px-5 py-2 rounded-full bg-primary text-white text-xs font-bold shadow-xs hover:opacity-90 cursor-pointer"
+                  >
+                    Browse Medicines
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedMedicines.map(item => {
+                    const fullMed = medicines.find(m => m.id === item.medicineId) || {};
+                    const isRx = fullMed.requiresPrescription || fullMed.isEmergency || item.requiresPrescription;
+                    const imgUrl = getMedicineImageUrl(fullMed);
+                    const isStrip = item.saleUnit === 'STRIP';
+                    const unitPrice = item.effectiveUnitPrice != null ? Number(item.effectiveUnitPrice) : (
+                      getVerifiedPrice(fullMed) != null ? Number(getVerifiedPrice(fullMed)) : (item.price != null ? Number(item.price) : null)
+                    );
+                    const lineTotal = item.subtotal != null ? Number(item.subtotal) : (unitPrice != null ? unitPrice * (item.quantity || 1) : null);
+                    const unitLabel = isStrip
+                      ? ((item.quantity || 1) > 1 ? 'strips' : 'strip')
+                      : ((fullMed.dosageForm || item.dosageForm || 'tablet').toLowerCase().includes('capsule')
+                          ? ((item.quantity || 1) > 1 ? 'capsules' : 'capsule')
+                          : ((fullMed.dosageForm || item.dosageForm || 'tablet').toLowerCase().includes('bottle')
+                              ? 'bottle'
+                              : ((item.quantity || 1) > 1 ? 'tablets' : 'tablet')));
+
+                    return (
+                      <div
+                        key={item.medicineId}
+                        className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-xs flex items-center gap-3 justify-between"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-12 h-12 rounded-xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-center shrink-0 overflow-hidden p-1">
+                          {imgUrl ? (
+                            <img src={imgUrl} alt={item.brandName} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="material-symbols-outlined text-secondary text-xl">medication</span>
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-xs font-bold text-primary truncate">{item.brandName}</h4>
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                              isRx ? 'bg-error-container/40 text-error' : 'bg-secondary-container/40 text-secondary'
+                            }`}>
+                              {isRx ? 'Rx' : 'OTC'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-on-surface-variant truncate">
+                            {fullMed.genericName || fullMed.category || 'Clinical formulation'}
+                          </p>
+                          <div className="text-[11px] font-bold text-primary mt-1">
+                            {unitPrice != null ? (
+                              <>
+                                ₹{unitPrice.toFixed(2)} <span className="text-[10px] text-on-surface-variant font-normal">/ {unitLabel}</span>
+                                {item.quantity > 1 && lineTotal != null && (
+                                  <span className="text-[10px] text-on-surface-variant font-normal ml-1">
+                                    (₹{lineTotal.toFixed(2)} total)
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-on-surface-variant italic">Counter payment required</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stepper & Delete */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center border border-outline-variant/40 rounded-full bg-surface-container-low p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if ((item.quantity || 1) <= 1) {
+                                  if (onRemoveFromRequest) onRemoveFromRequest(item.medicineId);
+                                } else {
+                                  if (onUpdateRequestQuantity) onUpdateRequestQuantity(item.medicineId, (item.quantity || 1) - 1);
+                                }
+                              }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+                              title="Decrease"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-xs font-bold text-primary font-mono">
+                              {item.quantity || 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onUpdateRequestQuantity) onUpdateRequestQuantity(item.medicineId, (item.quantity || 1) + 1);
+                              }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+                              title="Increase"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {onRemoveFromRequest && (
+                            <button
+                              type="button"
+                              onClick={() => onRemoveFromRequest(item.medicineId)}
+                              className="w-7 h-7 rounded-full text-on-surface-variant hover:text-error hover:bg-error-container/30 flex items-center justify-center transition-colors cursor-pointer"
+                              title="Remove item"
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Cart Footer Summary & CTA */}
+            {selectedMedicines.length > 0 && (
+              <div className="p-4 sm:p-5 border-t border-surface-container bg-surface-container-low/40 space-y-3">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between text-on-surface-variant">
+                    <span>Total Medicines Staged</span>
+                    <span className="font-bold text-primary">
+                      <RollingNumber value={selectedMedicines.length} />
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-on-surface-variant">
+                    <span>Advance Payment Required</span>
+                    <span className="font-bold text-secondary">₹0 (Zero)</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-bold text-primary pt-1 border-t border-outline-variant/20">
+                    <span>Estimated Total MRP</span>
+                    <span>
+                      <RollingNumber
+                        prefix="₹"
+                        value={selectedMedicines.reduce((acc, curr) => {
+                          const sub = curr.subtotal != null ? Number(curr.subtotal) : (
+                            curr.effectiveUnitPrice != null ? Number(curr.effectiveUnitPrice) * (curr.quantity || 1) : (
+                              curr.price != null ? Number(curr.price) * (curr.quantity || 1) : 0
+                            )
+                          );
+                          return acc + sub;
+                        }, 0).toFixed(2)}
+                      />
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-2 rounded-xl bg-surface-container text-[11px] text-on-surface-variant leading-tight flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-base shrink-0">verified_user</span>
+                  <span>You pay only at the dispensary after stock and batch confirmation.</span>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {onProceedToPharmacies && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCartDrawerOpen(false);
+                        onProceedToPharmacies();
+                      }}
+                      className="w-full py-3 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-base">local_pharmacy</span>
+                      <span>Find Pharmacies &amp; Reserve</span>
+                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    </button>
+                  )}
+
+                  {onClearRequest && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClearRequest();
+                      }}
+                      className="w-full py-2 text-center text-xs font-semibold text-on-surface-variant hover:text-error transition-colors cursor-pointer"
+                    >
+                      Clear All Staged Items
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

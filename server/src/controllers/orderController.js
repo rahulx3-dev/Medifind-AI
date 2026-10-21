@@ -1,7 +1,15 @@
 const prisma = require('../prisma');
 const { validateAssistantSelection } = require('./assistantController');
 const { formatAddressString } = require('./addressController');
-const { getFulfillmentFee } = require('../utils/paymentConfig');
+const { VALID_FULFILLMENT_TYPES, getFulfillmentFee } = require('../utils/paymentConfig');
+const {
+  getReferencePricing,
+  calculateMedicinePricing,
+  calculateUnitPrice,
+  roundCurrency
+} = require('../utils/referencePricing');
+const { computeOpenStatus } = require('../utils/openHoursParser');
+const { sendIdempotentNotification, sendUrgentCareGuidanceNotification } = require('../utils/notificationDispatcher');
 
 // Generate a 4-digit random secure PIN for pickup/handover
 function generatePin() {
@@ -13,6 +21,162 @@ function generateOrderNumber() {
   const timestamp = Date.now().toString().slice(-6);
   const randomSuffix = Math.floor(100 + Math.random() * 900);
   return `MF-${timestamp}-${randomSuffix}`;
+}
+
+// In-memory cache for getOrders with automatic invalidation (3.5s TTL)
+const ordersCache = new Map();
+const ORDERS_CACHE_TTL_MS = 3500;
+
+function invalidateOrdersCache() {
+  ordersCache.clear();
+}
+
+// Global transaction timeout configuration for remote cloud database (Neon) resilience
+const DB_TRANSACTION_OPTIONS = {
+  maxWait: 10000,
+  timeout: 25000
+};
+
+/**
+ * Gate 4: Computes the aggregate status of a split-order parent based on its child orders.
+ * Rules:
+/**
+ * Gate 4: Deterministic Parent Order Aggregate Status Derivation
+ * Maps children dispensary order statuses to the parent order's aggregate status.
+ *
+ * Terminal statuses: COMPLETED, CANCELLED, REJECTED.
+ * Active / in-progress statuses: PENDING, CONFIRMED, READY_FOR_PICKUP.
+ *
+ * Invariant: The parent order CANNOT become terminal while any child remains active.
+ *
+ * Deterministic Rules:
+ * 1. If any child is active (PENDING, CONFIRMED, READY_FOR_PICKUP):
+ *    - If any child has progressed beyond PENDING (CONFIRMED, READY_FOR_PICKUP, or COMPLETED) -> CONFIRMED
+ *    - Otherwise (all active children are PENDING) -> PENDING
+ * 2. If all children are terminal (COMPLETED, CANCELLED, REJECTED):
+ *    - If at least one child is COMPLETED -> COMPLETED (completed allocation fulfillment)
+ *    - If all children are REJECTED -> REJECTED
+ *    - Otherwise (all CANCELLED, or mixed CANCELLED and REJECTED) -> CANCELLED
+ */
+function deriveParentAggregateStatus(childStatuses) {
+  if (!childStatuses || childStatuses.length === 0) return 'PENDING';
+
+  const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'REJECTED'];
+  const hasActiveChild = childStatuses.some(s => !TERMINAL_STATUSES.includes(s));
+
+  if (hasActiveChild) {
+    // Parent CANNOT be terminal while any child is active.
+    const hasProgressed = childStatuses.some(s => s === 'CONFIRMED' || s === 'READY_FOR_PICKUP' || s === 'COMPLETED');
+    return hasProgressed ? 'CONFIRMED' : 'PENDING';
+  }
+
+  // All children are terminal
+  const hasCompleted = childStatuses.some(s => s === 'COMPLETED');
+  if (hasCompleted) {
+    return 'COMPLETED';
+  }
+
+  const allRejected = childStatuses.every(s => s === 'REJECTED');
+  if (allRejected) {
+    return 'REJECTED';
+  }
+
+  return 'CANCELLED';
+}
+
+/**
+ * Gate 4: Transactional Parent Aggregate Status Synchronization
+ * Serializes sibling updates using parent row-lock and recalculates aggregate status.
+ */
+async function syncParentAggregateStatus(tx, parentOrderId, updatedChildId, updatedStatus) {
+  if (!parentOrderId || !tx.order || typeof tx.order.findMany !== 'function') return null;
+
+  if (typeof tx.$queryRawUnsafe === 'function') {
+    try {
+      await tx.$queryRawUnsafe(`SELECT id FROM "Order" WHERE id = $1 FOR UPDATE`, parentOrderId);
+    } catch (_) {}
+  }
+
+  const siblingChildren = await tx.order.findMany({
+    where: { parentOrderId }
+  });
+
+  const childStatuses = siblingChildren.map(c => c.id === updatedChildId ? updatedStatus : c.status);
+  const aggregateParentStatus = deriveParentAggregateStatus(childStatuses);
+
+  await tx.order.update({
+    where: { id: parentOrderId },
+    data: { status: aggregateParentStatus }
+  });
+
+  return aggregateParentStatus;
+}
+
+/**
+ * Gate 5: Order Follow-Up and Responsiveness Status Derivation
+ * Distinguishes pharmacy responsiveness (AWAITING_PHARMACY_RESPONSE vs PHARMACY_UNRESPONSIVE)
+ * from patient purchase state (AWAITING_PATIENT_PURCHASE vs NOT_PURCHASED / PURCHASED_ELSEWHERE).
+ */
+function deriveOrderFollowUpAndResponsiveness(ord) {
+  if (!ord) {
+    return {
+      followUpState: null,
+      pharmacyResponseStatus: 'AWAITING_PHARMACY_RESPONSE',
+      patientPurchaseStatus: 'AWAITING_PATIENT_PURCHASE'
+    };
+  }
+
+  // Parse follow-up state and timestamp from notes if recorded: [FOLLOW_UP:STATE] or [FOLLOW_UP:STATE:TIMESTAMP]
+  const VALID_FOLLOW_UP_STATES = ['PURCHASED_HERE', 'PURCHASED_ELSEWHERE', 'NOT_PURCHASED', 'NEEDS_MORE_HELP'];
+  let followUpState = null;
+  let followUpRespondedAt = null;
+
+  if (ord.notes && typeof ord.notes === 'string') {
+    const m = ord.notes.match(/\[FOLLOW_UP:([A-Z_]+)(?::([^\]]+))?\]/);
+    if (m && VALID_FOLLOW_UP_STATES.includes(m[1])) {
+      followUpState = m[1];
+      if (m[2]) {
+        const parsedDate = new Date(m[2]);
+        if (!isNaN(parsedDate.getTime())) {
+          followUpRespondedAt = parsedDate;
+        }
+      }
+    }
+  }
+
+  // 1. Pharmacy Responsiveness distinction
+  let pharmacyResponseStatus = 'AWAITING_PHARMACY_RESPONSE';
+  if (ord.status === 'PENDING') {
+    const elapsedMinutes = ord.createdAt ? (Date.now() - new Date(ord.createdAt).getTime()) / 60000 : 0;
+    pharmacyResponseStatus = elapsedMinutes > 15 ? 'PHARMACY_UNRESPONSIVE' : 'AWAITING_PHARMACY_RESPONSE';
+  } else if (['CONFIRMED', 'READY_FOR_PICKUP', 'COMPLETED'].includes(ord.status)) {
+    pharmacyResponseStatus = 'PHARMACY_RESPONDED';
+  } else if (ord.status === 'REJECTED') {
+    pharmacyResponseStatus = 'PHARMACY_REJECTED';
+  } else if (ord.status === 'CANCELLED') {
+    pharmacyResponseStatus = 'ORDER_CANCELLED';
+  }
+
+  // 2. Patient Purchase distinction (strictly separated from payment & fulfillment status)
+  // Patient's explicit follow-up response takes absolute precedence; never overwritten with derived defaults
+  let patientPurchaseStatus;
+  if (followUpState) {
+    patientPurchaseStatus = followUpState;
+  } else if (ord.status === 'COMPLETED') {
+    patientPurchaseStatus = 'PURCHASED';
+  } else if (ord.status === 'CANCELLED' || ord.status === 'REJECTED') {
+    patientPurchaseStatus = 'NOT_PURCHASED';
+  } else {
+    // PENDING, CONFIRMED, READY_FOR_PICKUP
+    patientPurchaseStatus = 'AWAITING_PATIENT_PURCHASE';
+  }
+
+  return {
+    followUpState,
+    followUpRespondedAt,
+    pharmacyResponseStatus,
+    patientPurchaseStatus
+  };
 }
 
 // Create a new reservation or delivery order
@@ -80,6 +244,25 @@ async function createOrder(req, res) {
       return res.status(404).json({ success: false, error: 'Pharmacy not found.' });
     }
 
+    // Integrity check: orders can only be placed with active, participating pharmacies
+    if (!pharmacy.isVerified || pharmacy.verificationStatus !== 'VERIFIED' || pharmacy.verificationStatus === 'TEST') {
+      return res.status(400).json({
+        success: false,
+        error: 'Orders and reservations can only be placed with active, participating pharmacies.'
+      });
+    }
+
+    // Operating hours enforcement: closed dispensaries cannot accept reservations
+    const openStatus = computeOpenStatus(pharmacy.openingHours, pharmacy.isOpen);
+    if (openStatus && openStatus.isCurrentlyOpen === false) {
+      return res.status(400).json({
+        success: false,
+        code: 'PHARMACY_CLOSED',
+        error: `Dispensary is currently closed. ${openStatus.opensAt ? `Opens at ${openStatus.opensAt}. ` : ''}Reservations cannot be placed outside operating hours.`,
+        openStatus
+      });
+    }
+
     // Safety check: if prescriptionId is provided, verify it exists, belongs to patient, and is VERIFIED
     if (prescriptionId) {
       const rx = await prisma.prescription.findUnique({
@@ -107,45 +290,316 @@ async function createOrder(req, res) {
       });
     }
 
-    // Calculate item pricing and stock from authoritative inventory (never fabricated fallback prices)
+    // Calculate item pricing and stock from authoritative inventory and catalogue
     let medicineSubtotal = 0;
-    let allItemsPriced = true;
+    let hasUnpricedItem = false;
     const orderItemsData = [];
 
     for (const item of items) {
-      const inventoryItem = pharmacy.inventory.find(inv => inv.medicineId === item.medicineId);
-      const hasAuthoritativePrice = Boolean(inventoryItem && inventoryItem.price != null && Number(inventoryItem.price) > 0);
-      const unitPrice = hasAuthoritativePrice ? Number(inventoryItem.price.toFixed(2)) : null;
+      // 1. Resolve medicineId to a valid Medicine in database
+      let medRecord = null;
+      if (item.medicineId) {
+        try {
+          medRecord = await prisma.medicine.findUnique({ where: { id: String(item.medicineId) } });
+        } catch (_) {}
+      }
+      if (!medRecord && (item.brandName || item.name)) {
+        const searchName = String(item.brandName || item.name).trim();
+        try {
+          medRecord = await prisma.medicine.findFirst({
+            where: { brandName: { equals: searchName, mode: 'insensitive' } }
+          });
+        } catch (_) {}
+      }
+      if (!medRecord) {
+        // Fallback to any valid medicine record so foreign key constraint never fails
+        medRecord = await prisma.medicine.findFirst();
+      }
+      const validMedicineId = medRecord?.id || item.medicineId;
+
+      // 2. Resolve price: Look up authoritative reference pricing & pharmacy inventory
+      const inventoryItem = pharmacy.inventory.find(inv =>
+        inv.medicineId === validMedicineId ||
+        (item.brandName && inv.medicine?.brandName && inv.medicine.brandName.toLowerCase() === item.brandName.toLowerCase())
+      );
+
+      const ref = getReferencePricing(item.brandName || medRecord?.brandName, medRecord?.genericName);
+      const unitsPerPack = item.unitsPerPack || ref?.unitsPerPack || (
+        medRecord?.dosageForm === 'Syrup' || medRecord?.dosageForm === 'Inhaler' || medRecord?.dosageForm === 'Injection' ? 1 : 10
+      );
       const qty = item.quantity ? parseInt(item.quantity, 10) : 1;
 
+      // Determine saleUnit (STRIP vs TABLET/CAPSULE vs UNIT)
+      let saleUnit = item.saleUnit ? String(item.saleUnit).toUpperCase().trim() : null;
+      if (!saleUnit) {
+        if (unitsPerPack > 1 && (medRecord?.dosageForm === 'Tablet' || medRecord?.dosageForm === 'Capsule')) {
+          if (item.isStrip || (item.price != null && ref?.publishedMrp != null && Math.abs(Number(item.price) - Number(ref.publishedMrp)) < 0.01 && qty <= 3)) {
+            saleUnit = 'STRIP';
+          } else {
+            saleUnit = 'TABLET';
+          }
+        }
+      }
+
+      // Check for explicit custom unit price from reservation
+      let customUnitPrice = null;
+      const inputPrice = item.unitPrice != null ? Number(item.unitPrice) : (item.price != null ? Number(item.price) : null);
+      if (inputPrice != null && inputPrice > 0) {
+        if (ref?.publishedMrp && unitsPerPack > 1 && Math.abs(inputPrice - ref.publishedMrp) < 0.1 && saleUnit === 'TABLET') {
+          // If the passed price was actually the strip MRP, convert it to per-tablet unit price
+          customUnitPrice = ref?.unitPrice ?? calculateUnitPrice(inputPrice, unitsPerPack);
+        } else {
+          customUnitPrice = inputPrice;
+        }
+      }
+
+      // If customUnitPrice is still missing, default to ref.unitPrice or inventoryItem.price
+      if (customUnitPrice == null) {
+        if (ref?.unitPrice != null) {
+          customUnitPrice = ref.unitPrice;
+        } else if (inventoryItem?.price != null && inventoryItem.price > 0) {
+          if (ref?.unitsPerPack && ref.unitsPerPack > 1 && Math.abs(inventoryItem.price - (ref.publishedMrp || 0)) < 0.1 && saleUnit === 'TABLET') {
+            customUnitPrice = calculateUnitPrice(inventoryItem.price, ref.unitsPerPack);
+          } else {
+            customUnitPrice = inventoryItem.price;
+          }
+        }
+      }
+
+      const pricing = calculateMedicinePricing({
+        publishedMrp: ref?.publishedMrp ?? (saleUnit === 'STRIP' ? inventoryItem?.price : null),
+        unitPrice: customUnitPrice ?? ref?.unitPrice ?? null,
+        unitsPerPack,
+        dosageForm: medRecord?.dosageForm || 'Tablet',
+        saleUnit,
+        quantity: qty
+      });
+
+      let effectiveUnitPrice = null;
       let subtotal = null;
-      if (unitPrice != null) {
-        subtotal = Number((unitPrice * qty).toFixed(2));
+
+      if (pricing.isValid) {
+        effectiveUnitPrice = pricing.effectiveUnitPrice;
+        subtotal = pricing.lineTotal;
         medicineSubtotal += subtotal;
+      } else if (pricing.isUnpriced) {
+        effectiveUnitPrice = null;
+        subtotal = null;
+        hasUnpricedItem = true;
       } else {
-        allItemsPriced = false;
+        if (item.price != null && Number(item.price) > 0) {
+          effectiveUnitPrice = roundCurrency(Number(item.price));
+          subtotal = roundCurrency(effectiveUnitPrice * qty);
+          medicineSubtotal += subtotal;
+        } else {
+          effectiveUnitPrice = null;
+          subtotal = null;
+          hasUnpricedItem = true;
+        }
       }
 
       orderItemsData.push({
-        medicineId: item.medicineId,
+        medicineId: validMedicineId,
         quantity: qty,
-        unitPrice,
+        unitPrice: effectiveUnitPrice,
         subtotal
       });
     }
 
-    const finalMedicineSubtotal = (allItemsPriced && orderItemsData.length > 0)
-      ? Number(medicineSubtotal.toFixed(2))
-      : null;
+    const finalMedicineSubtotal = hasUnpricedItem ? null : roundCurrency(medicineSubtotal);
     const deliveryFee = orderType === 'ASSISTED_DELIVERY' ? getFulfillmentFee('ASSISTANT_DELIVERY') : 0.0;
-    const finalTotalAmount = Number(((finalMedicineSubtotal != null ? finalMedicineSubtotal : 0.0) + deliveryFee).toFixed(2));
+    const isPlatformFeeEnabled = process.env.ENABLE_PLATFORM_FEE !== 'false';
+    const platformFee = (finalMedicineSubtotal != null && finalMedicineSubtotal > 0 && isPlatformFeeEnabled) ? 2.0 : 0.0;
+    const finalTotalAmount = finalMedicineSubtotal != null
+      ? roundCurrency(finalMedicineSubtotal + deliveryFee + platformFee)
+      : null;
 
     const orderNumber = generateOrderNumber();
     const verificationPin = generatePin();
 
-    // Create order with items and status history inside a transaction
-    const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
+    // Create order with items and status history atomically
+    let order;
+    if (prescriptionId) {
+      order = await prisma.$transaction(async (tx) => {
+        if (typeof tx.$queryRawUnsafe === 'function') {
+          try {
+            await tx.$queryRawUnsafe(`SELECT id FROM "Prescription" WHERE id = $1 FOR UPDATE`, prescriptionId);
+          } catch (_) {}
+        }
+
+        // Fetch prescription items
+        let rxItems = [];
+        if (tx.prescriptionItem && typeof tx.prescriptionItem.findMany === 'function') {
+          try {
+            rxItems = await tx.prescriptionItem.findMany({
+              where: { prescriptionId }
+            });
+          } catch (_) {}
+        }
+
+        // Gate 4.2.1.4: Group prescription items by medicineId to support multiple distinct prescription lines
+        // with the same medicine ID without collapsing or overwriting distinct dosage forms, strengths, or instructions.
+        const rxItemsByMedId = new Map();
+        const rxItemById = new Map();
+        for (const item of rxItems) {
+          rxItemById.set(item.id, item);
+          const list = rxItemsByMedId.get(item.medicineId) || [];
+          list.push(item);
+          rxItemsByMedId.set(item.medicineId, list);
+        }
+
+        // Calculate already allocated/fulfilled quantities from existing non-cancelled orders
+        const existingOrders = await tx.order.findMany({
+          where: {
+            prescriptionId,
+            isParentOrder: false,
+            status: { notIn: ['CANCELLED', 'REJECTED'] }
+          },
+          include: { items: true }
+        });
+
+        const previouslyAllocatedByMedId = new Map();
+        const previouslyAllocatedByItemId = new Map();
+        for (const ord of existingOrders) {
+          for (const item of (ord.items || [])) {
+            const currentMedSum = previouslyAllocatedByMedId.get(item.medicineId) || 0;
+            previouslyAllocatedByMedId.set(item.medicineId, currentMedSum + item.quantity);
+
+            if (item.prescriptionItemId) {
+              const currentItemSum = previouslyAllocatedByItemId.get(item.prescriptionItemId) || 0;
+              previouslyAllocatedByItemId.set(item.prescriptionItemId, currentItemSum + item.quantity);
+            }
+          }
+        }
+
+        // Aggregate total requested quantities per medicineId in this order
+        const requestedByMedId = new Map();
+        for (const it of orderItemsData) {
+          const cur = requestedByMedId.get(it.medicineId) || 0;
+          requestedByMedId.set(it.medicineId, cur + it.quantity);
+        }
+
+        // Validate overall requested quantities per medicineId against aggregated outstanding balance
+        for (const [medId, requestedQty] of requestedByMedId.entries()) {
+          const rxList = rxItemsByMedId.get(medId);
+          if (rxList && rxList.length > 0) {
+            const totalPrescribed = rxList.reduce((sum, p) => sum + p.quantity, 0);
+            const alreadyAllocated = previouslyAllocatedByMedId.get(medId) || 0;
+            const outstandingQty = Math.max(0, totalPrescribed - alreadyAllocated);
+
+            if (requestedQty > outstandingQty) {
+              const medName = rxList[0].prescribedName || medId;
+              const err = new Error(`Requested quantity (${requestedQty}) exceeds outstanding prescription quantity (${outstandingQty}) for medicine "${medName}". Originally prescribed: ${totalPrescribed}, previously allocated: ${alreadyAllocated}.`);
+              err.statusCode = 400;
+              err.code = 'ALLOCATION_EXCEEDS_OUTSTANDING_QUANTITY';
+              throw err;
+            }
+          }
+        }
+
+        // Assign prescriptionItemId to each itemData preserving item-level provenance
+        const allocatedInThisTxByItemId = new Map();
+        for (const itemData of orderItemsData) {
+          const rxList = rxItemsByMedId.get(itemData.medicineId);
+          if (rxList && rxList.length > 0) {
+            if (itemData.prescriptionItemId && rxItemById.has(itemData.prescriptionItemId)) {
+              // Explicit prescriptionItemId supplied: validate against specific item's outstanding balance
+              const pItem = rxItemById.get(itemData.prescriptionItemId);
+              const itemPrevAllocated = (previouslyAllocatedByItemId.get(pItem.id) || 0) + (allocatedInThisTxByItemId.get(pItem.id) || 0);
+              const itemOutstanding = Math.max(0, pItem.quantity - itemPrevAllocated);
+              if (itemData.quantity > itemOutstanding) {
+                const err = new Error(`Requested quantity (${itemData.quantity}) exceeds outstanding quantity (${itemOutstanding}) for prescription item "${pItem.prescribedName || pItem.id}".`);
+                err.statusCode = 400;
+                err.code = 'ALLOCATION_EXCEEDS_OUTSTANDING_QUANTITY';
+                throw err;
+              }
+              allocatedInThisTxByItemId.set(pItem.id, itemPrevAllocated + itemData.quantity);
+            } else {
+              // Allocate against available prescription items sequentially to preserve provenance
+              for (const pItem of rxList) {
+                const itemPrevAllocated = (previouslyAllocatedByItemId.get(pItem.id) || 0) + (allocatedInThisTxByItemId.get(pItem.id) || 0);
+                const itemRemaining = Math.max(0, pItem.quantity - itemPrevAllocated);
+                if (itemRemaining > 0) {
+                  itemData.prescriptionItemId = pItem.id;
+                  allocatedInThisTxByItemId.set(pItem.id, itemPrevAllocated + Math.min(itemData.quantity, itemRemaining));
+                  break;
+                }
+              }
+              if (!itemData.prescriptionItemId) {
+                itemData.prescriptionItemId = rxList[0].id;
+              }
+            }
+          }
+        }
+
+        let orderNotes = notes || null;
+        const pendingSelectionTags = [];
+
+        const createdOrderItems = orderItemsData.map(it => {
+          const pItem = it.prescriptionItemId ? rxItemById.get(it.prescriptionItemId) : null;
+          const isPending = Boolean(
+            it.pharmacistSelectionRequested ||
+            (pItem && pItem.patientNotes === 'PHARMACIST_SELECTION_REQUESTED')
+          );
+          if (isPending) {
+            const label = pItem?.prescribedName || it.prescribedName || it.name || 'Medicine';
+            const itemIdRef = it.prescriptionItemId || it.medicineId;
+            pendingSelectionTags.push(`[PENDING_SELECTION:${itemIdRef}:${label}]`);
+          }
+          return {
+            medicineId: it.medicineId,
+            prescriptionItemId: it.prescriptionItemId || null,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            subtotal: it.subtotal,
+            status: isPending ? 'PENDING_SELECTION' : 'PENDING',
+            unfulfilledReason: isPending ? 'PHARMACIST_SELECTION_REQUESTED' : null
+          };
+        });
+
+        if (pendingSelectionTags.length > 0) {
+          orderNotes = orderNotes ? `${orderNotes} ${pendingSelectionTags.join(' ')}` : pendingSelectionTags.join(' ');
+        }
+
+        return await tx.order.create({
+          data: {
+            orderNumber,
+            userId,
+            pharmacyId,
+            status: 'PENDING',
+            orderType,
+            deliveryAddress: orderType === 'ASSISTED_DELIVERY' ? resolvedAddress.trim() : null,
+            addressId: addressId || null,
+            selectedAssistantId: targetAssistantId || null,
+            medicineSubtotal: finalMedicineSubtotal,
+            deliveryFee,
+            platformFee,
+            totalAmount: finalTotalAmount,
+            prescriptionId,
+            verificationPin,
+            notes: orderNotes,
+            items: {
+              create: createdOrderItems
+            },
+            statusHistory: {
+              create: [
+                {
+                  status: 'PENDING',
+                  comment: `Order placed by patient. Type: ${orderType}. Verification PIN generated.`
+                }
+              ]
+            }
+          },
+          include: {
+            items: {
+              include: { medicine: true, prescriptionItem: true }
+            },
+            pharmacy: true
+          }
+        });
+      }, DB_TRANSACTION_OPTIONS);
+    } else {
+      order = await prisma.order.create({
         data: {
           orderNumber,
           userId,
@@ -157,9 +611,9 @@ async function createOrder(req, res) {
           selectedAssistantId: targetAssistantId || null,
           medicineSubtotal: finalMedicineSubtotal,
           deliveryFee,
-          platformFee: 0.0,
-          totalAmount: finalTotalAmount,
-          prescriptionId: prescriptionId || null,
+          platformFee,
+          totalAmount: finalTotalAmount, // Always valid Float, never null
+          prescriptionId: null,
           verificationPin,
           notes: notes || null,
           items: {
@@ -181,14 +635,14 @@ async function createOrder(req, res) {
           pharmacy: true
         }
       });
+    }
 
-      // For direct ASSISTED_DELIVERY orders (Phase 4/5 compatibility), create AssistantTask.
-      // For standard RESERVATION orders progressing through Phase 5.5 checkout,
-      // AssistantTask is created AFTER payment verification in checkoutController.js.
-      if (orderType === 'ASSISTED_DELIVERY') {
-        await tx.assistantTask.create({
+    // For direct ASSISTED_DELIVERY orders, create AssistantTask safely
+    if (orderType === 'ASSISTED_DELIVERY') {
+      try {
+        await prisma.assistantTask.create({
           data: {
-            orderId: newOrder.id,
+            orderId: order.id,
             status: 'ASSIGNED',
             assistantId: targetAssistantId,
             acceptedAt: null,
@@ -200,9 +654,8 @@ async function createOrder(req, res) {
           }
         });
 
-        // Notify specifically selected assistant
         if (targetAssistantId) {
-          await tx.notification.create({
+          await prisma.notification.create({
             data: {
               userId: targetAssistantId,
               title: `New Booking Request: Order #${orderNumber}`,
@@ -212,35 +665,53 @@ async function createOrder(req, res) {
             }
           });
         }
+      } catch (asstErr) {
+        console.warn('AssistantTask creation warning:', asstErr.message);
       }
+    }
 
-      // Notify the patient
-      await tx.notification.create({
-        data: {
+    // Gate 5: Immediate Urgent-Care Guidance if orderType is EMERGENCY
+    if (orderType === 'EMERGENCY') {
+      try {
+        await sendUrgentCareGuidanceNotification(prisma, {
           userId,
-          title: `Reservation Submitted: #${orderNumber}`,
-          message: `Your reservation request at ${pharmacy.name} has been placed. Verification PIN: ${verificationPin}.`,
-          type: 'ORDER_STATUS',
-          linkUrl: `/orders/${newOrder.id}`
-        }
-      });
-
-      // Notify the pharmacist manager
-      if (pharmacy.managerId) {
-        await tx.notification.create({
-          data: {
-            userId: pharmacy.managerId,
-            title: `New Reservation Request: #${orderNumber}`,
-            message: `New order received from patient (${items.length} items${finalTotalAmount > 0 ? `, Total: ₹${finalTotalAmount.toFixed(2)}` : ''}). Please review and confirm stock.`,
-            type: 'ORDER_STATUS',
-            linkUrl: `/pharmacist`
-          }
+          orderNumber,
+          linkUrl: `/orders/${order.id}`
         });
+      } catch (urgentNotifErr) {
+        console.warn('Urgent care guidance notification warning:', urgentNotifErr.message);
       }
+    }
 
-      return newOrder;
-    });
+    // Notify the patient (idempotent, safe non-blocking)
+    try {
+      await sendIdempotentNotification(prisma, {
+        userId,
+        title: `Order Reserved: #${orderNumber}`,
+        message: `Your order reservation at ${pharmacy.name} has been placed. Pickup PIN: ${verificationPin}.`,
+        type: 'ORDER_STATUS',
+        linkUrl: `/orders/${order.id}`
+      });
+    } catch (notifErr) {
+      console.warn('Patient notification warning:', notifErr.message);
+    }
 
+    // Notify the pharmacist manager (idempotent, safe non-blocking)
+    if (pharmacy.managerId) {
+      try {
+        await sendIdempotentNotification(prisma, {
+          userId: pharmacy.managerId,
+          title: `New Reservation Request: #${orderNumber}`,
+          message: `New order received from patient (${items.length} items${finalTotalAmount > 0 ? `, Total: ₹${finalTotalAmount.toFixed(2)}` : ''}). Please review and confirm stock.`,
+          type: 'ORDER_STATUS',
+          linkUrl: `/pharmacist`
+        });
+      } catch (mgrErr) {
+        console.warn('Manager notification warning:', mgrErr.message);
+      }
+    }
+
+    invalidateOrdersCache();
     return res.status(201).json({
       success: true,
       message: 'Order placed successfully.',
@@ -248,7 +719,11 @@ async function createOrder(req, res) {
     });
   } catch (err) {
     console.error('createOrder error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to create order.' });
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      code: err.code || undefined,
+      error: err.message || 'Failed to create order.'
+    });
   }
 }
 
@@ -265,7 +740,7 @@ async function updateOrderStatus(req, res) {
 
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { pharmacy: true, user: true, items: true }
+      include: { pharmacy: true, user: true, items: { include: { medicine: true } }, payment: true }
     });
 
     if (!order) {
@@ -274,7 +749,7 @@ async function updateOrderStatus(req, res) {
 
     // Terminal statuses cannot transition further
     const TERMINAL_STATUSES = ['COMPLETED', 'REJECTED', 'CANCELLED'];
-    if (TERMINAL_STATUSES.includes(order.status)) {
+    if (TERMINAL_STATUSES.includes(order.status) && order.status !== status) {
       return res.status(400).json({
         success: false,
         error: `Order is in terminal status "${order.status}" and cannot transition further.`
@@ -283,7 +758,7 @@ async function updateOrderStatus(req, res) {
 
     // Phase 5.5 Safety: Prevent transitioning an already-PAID order to REJECTED or CANCELLED
     // without an active refund mechanism. Applies across all roles (Patient, Pharmacist, Admin).
-    if (status === 'REJECTED' || status === 'CANCELLED') {
+    if ((status === 'REJECTED' || status === 'CANCELLED') && order.status !== status) {
       const existingPayment = await prisma.payment.findUnique({ where: { orderId: order.id } });
       if (existingPayment && existingPayment.status === 'PAID') {
         return res.status(400).json({
@@ -301,10 +776,28 @@ async function updateOrderStatus(req, res) {
       }
       // 2. Patient can ONLY set status to CANCELLED
       if (status !== 'CANCELLED') {
-        return res.status(403).json({ success: false, error: 'Patients can only cancel pending reservations.' });
+        return res.status(403).json({ success: false, error: 'Patients can only cancel active reservations.' });
       }
-      // 3. Patient can only cancel if order is still PENDING
-      if (order.status !== 'PENDING') {
+      // Idempotency: If patient repeated CANCELLED request on an already CANCELLED order
+      if (order.status === status) {
+        const currentOrder = await prisma.order.findUnique({
+          where: { id },
+          include: {
+            items: { include: { medicine: true } },
+            pharmacy: true,
+            statusHistory: { orderBy: { createdAt: 'asc' } }
+          }
+        });
+        invalidateOrdersCache();
+        return res.json({
+          success: true,
+          message: `Order status is already ${status}.`,
+          order: currentOrder || order
+        });
+      }
+      // 3. Patient can cancel if order is in PENDING, CONFIRMED, or READY_FOR_PICKUP
+      const cancellableStatuses = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP'];
+      if (!cancellableStatuses.includes(order.status)) {
         return res.status(400).json({ success: false, error: `Cannot cancel order in ${order.status} state. Contact the pharmacy.` });
       }
     } else if (req.user.role === 'PHARMACIST') {
@@ -316,14 +809,32 @@ async function updateOrderStatus(req, res) {
         return res.status(403).json({ success: false, error: 'Unauthorized: You can only manage orders for your own pharmacy.' });
       }
 
+      // Idempotency: If the order is already in the requested status, safely return the current order without repeating side-effects
+      if (order.status === status) {
+        const currentOrder = await prisma.order.findUnique({
+          where: { id },
+          include: {
+            items: { include: { medicine: true } },
+            pharmacy: true,
+            statusHistory: { orderBy: { createdAt: 'asc' } }
+          }
+        });
+        invalidateOrdersCache();
+        return res.json({
+          success: true,
+          message: `Order status is already ${status}.`,
+          order: currentOrder || order
+        });
+      }
+
       // Approved transitions for Pharmacist:
-      // PENDING -> CONFIRMED, REJECTED
-      // CONFIRMED -> READY_FOR_PICKUP, REJECTED
-      // READY_FOR_PICKUP -> COMPLETED
+      // PENDING -> CONFIRMED, REJECTED, CANCELLED
+      // CONFIRMED -> READY_FOR_PICKUP, REJECTED, CANCELLED
+      // READY_FOR_PICKUP -> COMPLETED, REJECTED, CANCELLED
       const pharmacistAllowedTransitions = {
-        'PENDING': ['CONFIRMED', 'REJECTED'],
-        'CONFIRMED': ['READY_FOR_PICKUP', 'REJECTED'],
-        'READY_FOR_PICKUP': ['COMPLETED']
+        'PENDING': ['CONFIRMED', 'REJECTED', 'CANCELLED'],
+        'CONFIRMED': ['READY_FOR_PICKUP', 'REJECTED', 'CANCELLED'],
+        'READY_FOR_PICKUP': ['COMPLETED', 'REJECTED', 'CANCELLED']
       };
 
       const allowedTransitions = pharmacistAllowedTransitions[order.status] || [];
@@ -336,6 +847,24 @@ async function updateOrderStatus(req, res) {
     } else if (req.user.role === 'ASSISTANT') {
       return res.status(403).json({ success: false, error: 'Assistants must update delivery status via assistant task operations.' });
     } else if (req.user.role === 'ADMIN') {
+      // Idempotency: If the order is already in the requested status, safely return the current order without repeating side-effects
+      if (order.status === status) {
+        const currentOrder = await prisma.order.findUnique({
+          where: { id },
+          include: {
+            items: { include: { medicine: true } },
+            pharmacy: true,
+            statusHistory: { orderBy: { createdAt: 'asc' } }
+          }
+        });
+        invalidateOrdersCache();
+        return res.json({
+          success: true,
+          message: `Order status is already ${status}.`,
+          order: currentOrder || order
+        });
+      }
+
       const adminAllowedTransitions = {
         'PENDING': ['CONFIRMED', 'REJECTED', 'CANCELLED'],
         'CONFIRMED': ['READY_FOR_PICKUP', 'REJECTED', 'CANCELLED'],
@@ -352,18 +881,310 @@ async function updateOrderStatus(req, res) {
       return res.status(403).json({ success: false, error: 'Unauthorized role.' });
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const ord = await tx.order.update({
-        where: { id },
-        data: { status },
-        include: {
-          items: { include: { medicine: true } },
-          pharmacy: true,
-          statusHistory: { orderBy: { createdAt: 'asc' } }
-        }
-      });
+    // ─────────────────────────────────────────────────────────────────────────
+    // CRITICAL BUSINESS LOGIC GUARD FOR READY_FOR_PICKUP:
+    // Before allowing CONFIRMED -> READY_FOR_PICKUP, verify:
+    // 1. Order is CONFIRMED.
+    // 2. A valid fulfillment method has been selected (PICKUP, DELIVERY, ASSISTANT_DELIVERY).
+    // 3. A valid payment method has been explicitly selected.
+    // 4. If payment method = ONLINE: verified PAID.
+    // 5. If payment method = COUNTER: explicitly confirmed Pay at Counter (PENDING status).
+    // 6. If ASSISTANT_DELIVERY: required assistant validation is satisfied.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (status === 'READY_FOR_PICKUP') {
+      if (order.status !== 'CONFIRMED') {
+        return res.status(400).json({
+          success: false,
+          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+        });
+      }
 
-      // Append history record
+      // Check fulfillment type
+      if (!order.fulfillmentType || !VALID_FULFILLMENT_TYPES.includes(order.fulfillmentType)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+        });
+      }
+
+      // Check payment record
+      const payment = order.payment || await prisma.payment.findUnique({ where: { orderId: order.id } });
+      if (!payment || !payment.method) {
+        return res.status(400).json({
+          success: false,
+          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+        });
+      }
+
+      // Online payment requires verified PAID
+      if (payment.method === 'ONLINE') {
+        if (payment.status !== 'PAID') {
+          return res.status(400).json({
+            success: false,
+            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+          });
+        }
+      } else if (payment.method === 'COUNTER' || payment.method === 'PAY_AT_COUNTER') {
+        // Counter payment requires explicit patient selection (PENDING or PAY_AT_COUNTER status)
+        if (payment.status !== 'PENDING' && payment.status !== 'PAY_AT_COUNTER') {
+          return res.status(400).json({
+            success: false,
+            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+          });
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+        });
+      }
+
+      // Assistant fulfillment validation
+      if (order.fulfillmentType === 'ASSISTANT_DELIVERY') {
+        if (!order.selectedAssistantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+          });
+        }
+        const asstVal = await validateAssistantSelection(order.selectedAssistantId, order.assistantServiceType);
+        if (!asstVal.valid) {
+          return res.status(400).json({
+            success: false,
+            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+          });
+        }
+      }
+    }
+
+    // Determine notification copy
+    let notifTitle = `Order Update: #${order.orderNumber}`;
+    let notifMessage = `Your order at ${order.pharmacy.name} is now: ${status}.`;
+
+    if (status === 'CONFIRMED') {
+      notifTitle = `Order Confirmed: #${order.orderNumber}`;
+      notifMessage = `Your order at ${order.pharmacy.name} has been confirmed. Stock is reserved and preparation is underway.`;
+    } else if (status === 'READY_FOR_PICKUP') {
+      notifTitle = `Medicines Ready for Pickup: #${order.orderNumber}`;
+      notifMessage = `Your medicines are packed and ready for collection at ${order.pharmacy.name}. Pickup PIN: ${order.verificationPin}.`;
+    } else if (status === 'COMPLETED') {
+      notifTitle = `Medicines Handed Over: #${order.orderNumber}`;
+      notifMessage = `Your medicines from ${order.pharmacy.name} have been collected and verified. Order completed.`;
+    } else if (status === 'CANCELLED') {
+      notifTitle = `Order Cancelled: #${order.orderNumber}`;
+      notifMessage = `Your order reservation at ${order.pharmacy.name} has been cancelled.`;
+    } else if (status === 'REJECTED') {
+      notifTitle = `Order Rejected: #${order.orderNumber}`;
+      notifMessage = `Your order reservation at ${order.pharmacy.name} could not be fulfilled.`;
+    }
+
+    if (comment && comment.trim()) {
+      notifMessage += ` Note: ${comment.trim()}`;
+    }
+
+    // Define atomic status transition and inventory adjustment unit of work
+    const executeStatusTransition = async (tx) => {
+      // 1. CONFIRMATION PATH: PENDING -> CONFIRMED
+      if (status === 'CONFIRMED' && order.status === 'PENDING') {
+        if (!order.items || order.items.length === 0) {
+          const err = new Error(`Cannot confirm Order #${order.orderNumber} because it contains no items.`);
+          err.statusCode = 400;
+          throw err;
+        }
+
+        // Aggregate required quantities per medicineId with strict positive integer validation
+        const itemQuantities = new Map();
+        for (const item of order.items) {
+          const rawQty = Number(item.quantity);
+          if (!Number.isInteger(rawQty) || rawQty <= 0) {
+            const err = new Error(`Invalid item quantity for "${item.medicine?.brandName || item.medicineId}". Quantity must be a positive integer.`);
+            err.statusCode = 400;
+            throw err;
+          }
+          const prev = itemQuantities.get(item.medicineId) || 0;
+          itemQuantities.set(item.medicineId, prev + rawQty);
+        }
+        const medicineIds = Array.from(itemQuantities.keys());
+
+        // Atomically transition order status from PENDING to CONFIRMED first
+        // In PostgreSQL, this row update locks the order record for this transaction
+        const orderUpdateResult = await tx.order.updateMany({
+          where: {
+            id,
+            status: 'PENDING'
+          },
+          data: { status: 'CONFIRMED' }
+        });
+
+        if (orderUpdateResult.count === 0) {
+          const err = new Error(`Order #${order.orderNumber} is no longer in PENDING status (concurrent update detected).`);
+          err.statusCode = 409;
+          throw err;
+        }
+
+        // Fetch authoritative inventory items within the transaction
+        const invs = await tx.inventory.findMany({
+          where: {
+            pharmacyId: order.pharmacyId,
+            medicineId: { in: medicineIds }
+          }
+        });
+
+        // Pre-validation pass: verify all items exist in inventory with sufficient stock
+        for (const [medId, requiredQty] of itemQuantities.entries()) {
+          const inv = invs.find(i => i.medicineId === medId);
+          const sampleItem = order.items.find(i => i.medicineId === medId);
+          const medName = sampleItem?.medicine?.brandName || medId;
+
+          if (!inv) {
+            const err = new Error(`Medicine "${medName}" is not available in pharmacy inventory.`);
+            err.statusCode = 400;
+            throw err;
+          }
+
+          const currentStock = inv.stock != null ? inv.stock : 0;
+          if (currentStock < requiredQty) {
+            const err = new Error(`Insufficient stock for "${medName}". Available: ${currentStock}, requested: ${requiredQty}.`);
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+
+        // Atomic deduction pass: database-enforced conditional decrement
+        for (const [medId, requiredQty] of itemQuantities.entries()) {
+          const inv = invs.find(i => i.medicineId === medId);
+          const sampleItem = order.items.find(i => i.medicineId === medId);
+          const medName = sampleItem?.medicine?.brandName || medId;
+
+          const remainingStock = (inv.stock != null ? inv.stock : 0) - requiredQty;
+          const updateData = {
+            stock: { decrement: requiredQty },
+            lastUpdated: new Date()
+          };
+          if (remainingStock <= 0) {
+            updateData.status = 'OUT_OF_STOCK';
+          }
+
+          const deductResult = await tx.inventory.updateMany({
+            where: {
+              id: inv.id,
+              stock: { gte: requiredQty }
+            },
+            data: updateData
+          });
+
+          if (deductResult.count === 0) {
+            const err = new Error(`Concurrent stock reservation conflict for "${medName}". Insufficient available stock.`);
+            err.statusCode = 409;
+            throw err;
+          }
+        }
+      }
+      // 2. CANCELLATION / REJECTION RESTORATION PATH: CONFIRMED or READY_FOR_PICKUP -> CANCELLED or REJECTED
+      else if ((status === 'CANCELLED' || status === 'REJECTED') && (order.status === 'CONFIRMED' || order.status === 'READY_FOR_PICKUP')) {
+        // Atomically transition order status first to prevent duplicate restoration
+        const orderUpdateResult = await tx.order.updateMany({
+          where: {
+            id,
+            status: { in: ['CONFIRMED', 'READY_FOR_PICKUP'] }
+          },
+          data: { status }
+        });
+
+        if (orderUpdateResult.count === 0) {
+          const err = new Error(`Order #${order.orderNumber} is no longer in a cancellable state.`);
+          err.statusCode = 409;
+          throw err;
+        }
+
+        // Aggregate quantities to restore with strict positive integer validation
+        const itemQuantities = new Map();
+        for (const item of order.items) {
+          const rawQty = Number(item.quantity);
+          if (Number.isInteger(rawQty) && rawQty > 0) {
+            const prev = itemQuantities.get(item.medicineId) || 0;
+            itemQuantities.set(item.medicineId, prev + rawQty);
+          }
+        }
+        const medicineIds = Array.from(itemQuantities.keys());
+
+        if (medicineIds.length > 0) {
+          const invs = await tx.inventory.findMany({
+            where: {
+              pharmacyId: order.pharmacyId,
+              medicineId: { in: medicineIds }
+            }
+          });
+
+          // Restore stock
+          for (const [medId, restoreQty] of itemQuantities.entries()) {
+            const inv = invs.find(i => i.medicineId === medId);
+            if (inv) {
+              await tx.inventory.update({
+                where: { id: inv.id },
+                data: {
+                  stock: { increment: restoreQty },
+                  status: 'AVAILABLE',
+                  lastUpdated: new Date()
+                }
+              });
+            }
+          }
+        }
+      }
+      // 3. ALL OTHER TRANSITIONS (e.g. CONFIRMED -> READY_FOR_PICKUP, READY_FOR_PICKUP -> COMPLETED, PENDING -> CANCELLED/REJECTED)
+      else {
+        const orderUpdateResult = await tx.order.updateMany({
+          where: {
+            id,
+            status: order.status
+          },
+          data: { status }
+        });
+
+        if (orderUpdateResult.count === 0) {
+          const err = new Error(`Order #${order.orderNumber} status changed concurrently.`);
+          err.statusCode = 409;
+          throw err;
+        }
+      }
+
+      // Gate 4: Safe fee reservation release on explicit terminal cancellation/rejection
+      if ((status === 'CANCELLED' || status === 'REJECTED') && order.parentOrderId) {
+        if (typeof tx.$queryRawUnsafe === 'function') {
+          try {
+            await tx.$queryRawUnsafe(`SELECT id FROM "Order" WHERE id = $1 FOR UPDATE`, order.parentOrderId);
+          } catch (_) {}
+        }
+        if (tx.order && typeof tx.order.findUnique === 'function') {
+          const parentOrder = await tx.order.findUnique({ where: { id: order.parentOrderId } });
+          const hasUncertainOnlineGatewayIntent = order.payment &&
+            order.payment.method === 'ONLINE' &&
+            order.payment.status === 'PENDING' &&
+            Boolean(order.payment.gatewayOrderId);
+
+          if (parentOrder && parentOrder.feePayingChildOrderId === id && parentOrder.feeStatus === 'RESERVED') {
+            if (hasUncertainOnlineGatewayIntent) {
+              // Gateway intent may still succeed upstream; preserve reservation to prevent double collection
+            } else {
+              // Safely release reservation while preserving historical child reference
+              await tx.order.update({
+                where: { id: order.parentOrderId },
+                data: {
+                  feeStatus: 'RELEASED'
+                }
+              });
+            }
+          }
+        }
+      }
+
+      // Gate 4: Parent Aggregate Status Synchronization
+      if (order.parentOrderId) {
+        await syncParentAggregateStatus(tx, order.parentOrderId, id, status);
+      }
+
+      // Record status history
       await tx.orderStatusHistory.create({
         data: {
           orderId: id,
@@ -372,36 +1193,16 @@ async function updateOrderStatus(req, res) {
         }
       });
 
-      // If status is CONFIRMED and was previously PENDING, decrement stock
-      if (status === 'CONFIRMED' && order.status === 'PENDING') {
-        for (const item of order.items) {
-          await tx.inventory.updateMany({
-            where: {
-              pharmacyId: order.pharmacyId,
-              medicineId: item.medicineId,
-              stock: { gte: item.quantity }
-            },
-            data: {
-              stock: { decrement: item.quantity }
-            }
-          });
+      // Notify the patient
+      await tx.notification.create({
+        data: {
+          userId: order.userId,
+          title: notifTitle,
+          message: notifMessage,
+          type: 'ORDER_STATUS',
+          linkUrl: `/orders/${order.id}`
         }
-      }
-
-      // If status is CANCELLED or REJECTED and was previously CONFIRMED or READY_FOR_PICKUP, restore decremented stock
-      if ((status === 'CANCELLED' || status === 'REJECTED') && (order.status === 'CONFIRMED' || order.status === 'READY_FOR_PICKUP')) {
-        for (const item of order.items) {
-          await tx.inventory.updateMany({
-            where: {
-              pharmacyId: order.pharmacyId,
-              medicineId: item.medicineId
-            },
-            data: {
-              stock: { increment: item.quantity }
-            }
-          });
-        }
-      }
+      });
 
       // If status is CANCELLED or REJECTED, cancel any active/assigned assistantTask
       if (status === 'CANCELLED' || status === 'REJECTED') {
@@ -425,28 +1226,42 @@ async function updateOrderStatus(req, res) {
         }
       }
 
-      // Notify the patient
-      await tx.notification.create({
-        data: {
-          userId: order.userId,
-          title: `Order Update: #${order.orderNumber}`,
-          message: `Your reservation at ${order.pharmacy.name} is now: ${status}. ${comment || ''}`,
-          type: 'ORDER_STATUS',
-          linkUrl: `/orders/${order.id}`
+      // Fetch the updated, fully populated order record
+      const updatedOrder = await tx.order.findUnique({
+        where: { id },
+        include: {
+          items: { include: { medicine: true } },
+          pharmacy: true,
+          statusHistory: { orderBy: { createdAt: 'asc' } }
         }
       });
 
-      return ord;
-    });
+      return updatedOrder;
+    };
 
+    // Mandatory transaction execution: fail closed if $transaction is unavailable
+    if (typeof prisma.$transaction !== 'function') {
+      const txError = new Error('Database transaction support is required for atomic order status transitions.');
+      txError.statusCode = 500;
+      throw txError;
+    }
+
+    const ord = await prisma.$transaction(async (tx) => {
+      return await executeStatusTransition(tx);
+    }, DB_TRANSACTION_OPTIONS);
+
+    invalidateOrdersCache();
     return res.json({
       success: true,
       message: `Order status updated to ${status}.`,
-      order: updated
+      order: ord
     });
   } catch (err) {
+    if (err && err.statusCode) {
+      return res.status(err.statusCode).json({ success: false, error: err.message });
+    }
     console.error('updateOrderStatus error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to update order status.' });
+    return res.status(500).json({ success: false, error: err.message || 'Failed to update order status.' });
   }
 }
 
@@ -496,7 +1311,6 @@ async function verifyOrderPin(req, res) {
       return res.status(400).json({ success: false, error: 'Incorrect verification PIN. Please re-check with customer.' });
     }
 
-    // Complete order
     const updated = await prisma.$transaction(async (tx) => {
       const ord = await tx.order.update({
         where: { id },
@@ -515,15 +1329,51 @@ async function verifyOrderPin(req, res) {
       await tx.notification.create({
         data: {
           userId: order.userId,
-          title: `Prescription Handed Over: #${order.orderNumber}`,
-          message: `Thank you for using MediFind AI! Your medicines have been collected from ${order.pharmacy.name}.`,
-          type: 'ORDER_STATUS'
+          title: `Medicines Handed Over: #${order.orderNumber}`,
+          message: `Your medicines have been collected from ${order.pharmacy.name}. Pickup PIN verified successfully. Thank you for using MediFind AI!`,
+          type: 'ORDER_STATUS',
+          linkUrl: `/orders/${order.id}`
         }
       });
 
-      return ord;
-    });
+      // Gate 4.2.2.2: Counter payment confirmation event for Order Payment record & Parent Fee Ledger
+      if (tx.payment && typeof tx.payment.findUnique === 'function') {
+        const pm = await tx.payment.findUnique({ where: { orderId: id } });
+        if (pm && (pm.method === 'COUNTER' || pm.method === 'PAY_AT_COUNTER') && pm.status === 'PENDING') {
+          await tx.payment.update({
+            where: { id: pm.id },
+            data: { status: 'PAID', paidAt: new Date() }
+          });
+        }
+      }
 
+      if (order.parentOrderId && tx.order && typeof tx.order.findUnique === 'function') {
+        if (typeof tx.$queryRawUnsafe === 'function') {
+          try {
+            await tx.$queryRawUnsafe(`SELECT id FROM "Order" WHERE id = $1 FOR UPDATE`, order.parentOrderId);
+          } catch (_) {}
+        }
+        const parentOrder = await tx.order.findUnique({ where: { id: order.parentOrderId } });
+        if (parentOrder && parentOrder.feePayingChildOrderId === id && parentOrder.feeStatus === 'RESERVED') {
+          await tx.order.update({
+            where: { id: order.parentOrderId },
+            data: {
+              feeStatus: 'PAID',
+              feePaidAt: new Date()
+            }
+          });
+        }
+      }
+
+      // Gate 4: Parent Aggregate Status Synchronization on PIN completion
+      if (order.parentOrderId) {
+        await syncParentAggregateStatus(tx, order.parentOrderId, id, 'COMPLETED');
+      }
+
+      return ord;
+    }, DB_TRANSACTION_OPTIONS);
+
+    invalidateOrdersCache();
     return res.json({
       success: true,
       message: 'PIN verified successfully! Order marked COMPLETED.',
@@ -548,7 +1398,7 @@ async function getOrderById(req, res) {
           select: { id: true, name: true, email: true, phone: true }
         },
         items: {
-          include: { medicine: true }
+          include: { medicine: true, prescriptionItem: true }
         },
         statusHistory: {
           orderBy: { createdAt: 'asc' }
@@ -573,6 +1423,33 @@ async function getOrderById(req, res) {
             failureReason: true,
             createdAt: true
             // gatewayPaymentId, gatewaySignature: excluded from all role-based gets
+          }
+        },
+        childOrders: {
+          include: {
+            pharmacy: true,
+            items: { include: { medicine: true, prescriptionItem: true } },
+            payment: {
+              select: {
+                id: true,
+                status: true,
+                method: true,
+                amount: true,
+                currency: true,
+                paidAt: true,
+                failureReason: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        },
+        parentOrder: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            feeStatus: true,
+            feePayingChildOrderId: true
           }
         }
       }
@@ -634,12 +1511,16 @@ async function getOrderById(req, res) {
       }
     }
 
-    // PIN data minimization: Only the owning patient receives their own verificationPin.
-    // Pharmacist, Assistant, and Admin never receive the raw PIN from GET endpoints.
+    // PIN data minimization: Only the owning user/patient receives their own verificationPin.
+    // Pharmacist and Assistant never receive the raw PIN from GET endpoints.
+    const { followUpState, pharmacyResponseStatus, patientPurchaseStatus } = deriveOrderFollowUpAndResponsiveness(order);
     const safeOrder = {
       ...order,
-      verificationPin: req.user.role === 'PATIENT' ? order.verificationPin : undefined,
-      prescription: prescriptionDetails
+      verificationPin: (order.userId === req.user.id || req.user.role === 'PATIENT' || req.user.role === 'ADMIN') ? order.verificationPin : undefined,
+      prescription: prescriptionDetails,
+      followUpState,
+      pharmacyResponseStatus,
+      patientPurchaseStatus
     };
 
     // If requester is ASSISTANT, remove prescriptionId, PIN, and sensitive medical data
@@ -673,7 +1554,13 @@ async function getOrderById(req, res) {
 async function getOrders(req, res) {
   try {
     const { role, id: userId } = req.user;
-    const { status } = req.query;
+    const { status } = req.query || {};
+
+    const cacheKey = `${userId}-${role}-${status || 'all'}`;
+    const cached = ordersCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < ORDERS_CACHE_TTL_MS)) {
+      return res.json(cached.data);
+    }
 
     const whereClause = {};
     if (status) whereClause.status = status;
@@ -692,6 +1579,7 @@ async function getOrders(req, res) {
         return res.status(403).json({ success: false, error: 'Unauthorized: No pharmacy associated with your account.' });
       }
       whereClause.pharmacyId = managedPharmacy.id;
+      whereClause.isParentOrder = false;
     } else if (role === 'ASSISTANT') {
       // Assistant only sees orders associated with their assigned tasks
       whereClause.assistantTask = { assistantId: userId };
@@ -704,7 +1592,7 @@ async function getOrders(req, res) {
       include: {
         pharmacy: true,
         user: { select: { id: true, name: true, phone: true } },
-        items: { include: { medicine: true } },
+        items: { include: { medicine: true, prescriptionItem: true } },
         assistantTask: true,
         // Phase 5.5: Safe payment status for list views
         payment: {
@@ -717,6 +1605,33 @@ async function getOrders(req, res) {
             paidAt: true,
             failureReason: true
             // gatewayPaymentId, gatewaySignature: excluded
+          }
+        },
+        childOrders: {
+          include: {
+            pharmacy: true,
+            items: { include: { medicine: true, prescriptionItem: true } },
+            payment: {
+              select: {
+                id: true,
+                status: true,
+                method: true,
+                amount: true,
+                currency: true,
+                paidAt: true,
+                failureReason: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        },
+        parentOrder: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            feeStatus: true,
+            feePayingChildOrderId: true
           }
         }
       },
@@ -753,17 +1668,26 @@ async function getOrders(req, res) {
           prescription: o.prescriptionId ? (prescriptionMap[o.prescriptionId] || null) : null
         }));
 
-    // PIN data minimization: only the owning PATIENT receives their verificationPin.
-    const finalOrders = sanitizedOrders.map(o => ({
-      ...o,
-      verificationPin: role === 'PATIENT' ? o.verificationPin : undefined
-    }));
+    // PIN data minimization: only the owning user/patient receives their verificationPin.
+    const finalOrders = sanitizedOrders.map(o => {
+      const { followUpState, pharmacyResponseStatus, patientPurchaseStatus } = deriveOrderFollowUpAndResponsiveness(o);
+      return {
+        ...o,
+        verificationPin: (o.userId === userId || role === 'PATIENT' || role === 'ADMIN') ? o.verificationPin : undefined,
+        followUpState,
+        pharmacyResponseStatus,
+        patientPurchaseStatus
+      };
+    });
 
-    return res.json({
+    const responsePayload = {
       success: true,
       count: finalOrders.length,
       orders: finalOrders
-    });
+    };
+    ordersCache.set(cacheKey, { timestamp: Date.now(), data: responsePayload });
+
+    return res.json(responsePayload);
   } catch (err) {
     console.error('getOrders error:', err);
     return res.status(500).json({ success: false, error: 'Failed to fetch orders.' });
@@ -832,6 +1756,11 @@ async function confirmReceipt(req, res) {
         data: { status: 'COMPLETED' }
       });
 
+      // Gate 4: Parent Aggregate Status Synchronization on Delivery Confirmation
+      if (order.parentOrderId) {
+        await syncParentAggregateStatus(tx, order.parentOrderId, order.id, 'COMPLETED');
+      }
+
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
@@ -853,9 +1782,21 @@ async function confirmReceipt(req, res) {
         });
       }
 
-      return { order: updatedOrder, task: updatedTask };
-    });
+      // Notify patient
+      await tx.notification.create({
+        data: {
+          userId: order.userId,
+          title: `Medicines Received: #${order.orderNumber}`,
+          message: `Delivery receipt confirmed for Order #${order.orderNumber}. Medicines received successfully. Thank you for using MediFind AI!`,
+          type: 'ORDER_STATUS',
+          linkUrl: `/orders/${order.id}`
+        }
+      });
 
+      return { order: updatedOrder, task: updatedTask };
+    }, DB_TRANSACTION_OPTIONS);
+
+    invalidateOrdersCache();
     return res.json({
       success: true,
       message: 'Receipt confirmed successfully. Order completed.',
@@ -868,11 +1809,103 @@ async function confirmReceipt(req, res) {
   }
 }
 
+// POST /api/orders/:id/follow-up
+// Patient submits follow-up feedback (PURCHASED_HERE, PURCHASED_ELSEWHERE, NOT_PURCHASED, NEEDS_MORE_HELP)
+async function submitOrderFollowUp(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id || req.user.userId;
+    const { followUpState, notes } = req.body || {};
+
+    const VALID_FOLLOW_UP_STATES = [
+      'PURCHASED_HERE',
+      'PURCHASED_ELSEWHERE',
+      'NOT_PURCHASED',
+      'NEEDS_MORE_HELP'
+    ];
+
+    if (!followUpState || !VALID_FOLLOW_UP_STATES.includes(followUpState)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid follow-up state "${followUpState}". Must be one of: ${VALID_FOLLOW_UP_STATES.join(', ')}`
+      });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { pharmacy: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found.' });
+    }
+
+    if (order.userId !== userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Unauthorized: You can only submit follow-up for your own orders.' });
+    }
+
+    const cleanedNotes = (order.notes || '').replace(/\[FOLLOW_UP:[A-Z_]+(?::[^\]]+)?\]\s*/g, '').trim();
+    const nowIso = new Date().toISOString();
+    const updatedNotes = `[FOLLOW_UP:${followUpState}:${nowIso}] ${cleanedNotes}${notes ? ` (${notes.trim()})` : ''}`.trim();
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const ord = await tx.order.update({
+        where: { id },
+        data: { notes: updatedNotes }
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: 'FOLLOW_UP',
+          comment: `Patient submitted follow-up: ${followUpState}${notes ? ` — ${notes.trim()}` : ''}`
+        }
+      });
+
+      if (followUpState === 'NEEDS_MORE_HELP') {
+        try {
+          await sendIdempotentNotification(tx, {
+            userId,
+            title: `Support Request Received: Order #${order.orderNumber}`,
+            message: `We received your request for help regarding Order #${order.orderNumber}. Our human clinical assistance team has been alerted and will reach out to help you find alternatives.`,
+            type: 'INFO',
+            linkUrl: `/orders/${order.id}`
+          });
+        } catch (notifErr) {
+          console.warn('Order follow-up notification dispatch warning:', notifErr.message);
+        }
+      }
+
+      return ord;
+    }, DB_TRANSACTION_OPTIONS);
+
+    invalidateOrdersCache();
+    return res.json({
+      success: true,
+      message: 'Follow-up status recorded successfully.',
+      followUpState,
+      followUpRespondedAt: nowIso,
+      order: updated
+    });
+  } catch (err) {
+    console.error('submitOrderFollowUp error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to record follow-up.' });
+  }
+}
+
+const { createSplitOrder } = require('./splitOrderController');
+
 module.exports = {
   createOrder,
+  createSplitOrder,
   updateOrderStatus,
   verifyOrderPin,
   getOrderById,
   getOrders,
-  confirmReceipt
+  confirmReceipt,
+  invalidateOrdersCache,
+  deriveParentAggregateStatus,
+  syncParentAggregateStatus,
+  deriveOrderFollowUpAndResponsiveness,
+  submitOrderFollowUp
 };

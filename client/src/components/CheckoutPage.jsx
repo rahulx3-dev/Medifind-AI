@@ -9,8 +9,9 @@
  * - Payment is blocked when offline with a clear message.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import FlowButton from './FlowButton';
+import { broadcastUpdate } from '../utils/realtimeUpdates';
 
 const FULFILLMENT_OPTIONS = [
   {
@@ -29,20 +30,23 @@ const FULFILLMENT_OPTIONS = [
   },
   {
     value: 'ASSISTANT_DELIVERY',
-    label: 'Medicine Access Assistant',
-    description: 'A registered MediFind Assistant provides non-clinical support — medicine collection, pharmacy visits, companion, delivery, or digital assistance.',
-    icon: 'support_agent',
+    label: 'Doorstep Medicine Delivery',
+    description: 'Delivered safely to your doorstep by a verified MediFind delivery partner.',
+    icon: 'sports_motorsports',
     requiresAddress: true
   }
 ];
 
-function getFulfillmentFeeInfo(optValue, checkout) {
+function getFulfillmentFeeInfo(optValue, checkout, isDeliveryAvailable) {
   if (optValue === 'PICKUP') return { fee: 0, label: 'Free' };
   if (optValue === 'DELIVERY') {
     const fee = checkout?.totals?.deliveryFee ?? checkout?.deliveryFee ?? (checkout?.totals?.fulfillmentFee && checkout?.fulfillmentType === 'DELIVERY' ? checkout.totals.fulfillmentFee : 0);
     return { fee, label: fee > 0 ? `₹${fee.toFixed(2)}` : 'Free' };
   }
   if (optValue === 'ASSISTANT_DELIVERY') {
+    if (isDeliveryAvailable === false) {
+      return { fee: 0, label: 'Unavailable' };
+    }
     const fee = checkout?.totals?.fulfillmentFee && checkout?.fulfillmentType === 'ASSISTANT_DELIVERY' ? checkout.totals.fulfillmentFee : 80;
     return { fee, label: `₹${fee.toFixed(2)}` };
   }
@@ -104,6 +108,9 @@ const ASSISTANT_SERVICE_TYPES = [
 // Service types that do NOT require a physical patient address
 const NON_ADDRESS_SERVICE_TYPES = ['DIGITAL_ASSISTANCE', 'PRESCRIPTION_ASSISTANCE', 'PHARMACY_COMMS'];
 
+// Active, non-obsolete service types for patient checkout selection
+export const ACTIVE_ASSISTANT_SERVICE_TYPES = ASSISTANT_SERVICE_TYPES.filter(svc => !['DIGITAL_ASSISTANCE', 'PRESCRIPTION_ASSISTANCE', 'PHARMACY_COMMS', 'RESTOCK_ASSISTANCE'].includes(svc.value));
+
 // Return human-readable label for a service type enum value
 function getAssistantServiceLabel(value) {
   const found = ASSISTANT_SERVICE_TYPES.find(s => s.value === value);
@@ -124,6 +131,8 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
     addressLine1: '',
     addressLine2: '',
     landmark: '',
+    contactPhone: '',
+    deliveryNote: '',
     city: 'Chengannur',
     state: 'Kerala',
     postalCode: '689121'
@@ -133,7 +142,9 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
   const [loadingAssistants, setLoadingAssistants] = useState(false);
   const [error, setError] = useState(null);
   const [paymentData, setPaymentData] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('COUNTER');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const paymentCompletedRef = useRef(false);
 
   const token = localStorage.getItem('medifind_token');
 
@@ -146,6 +157,11 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       });
       const data = await res.json();
       if (!data.success) {
+        if (data.code === 'PARENT_ORDER_CHECKOUT_PROHIBITED') {
+          setError(data.error);
+          setStep('parent_prohibited');
+          return;
+        }
         setError(data.error || 'Failed to load checkout.');
         setStep('error');
         return;
@@ -155,17 +171,19 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       if (c.payment?.status === 'PAID') {
         setStep('success');
         setPaymentData(c.payment);
+      } else if (c.payment?.method === 'COUNTER' || c.payment?.method === 'PAY_AT_COUNTER') {
+        setStep('counter_confirmed');
+        setPaymentData(c.payment);
       } else if (c.payment?.status === 'FAILED') {
         setStep('failed');
         setPaymentData(c.payment);
       } else if (c.fulfillmentType) {
         setSelectedFulfillment(c.fulfillmentType);
-        if (c.assistantServiceType) {
-          setSelectedServiceType(c.assistantServiceType);
-        }
+        setSelectedServiceType(c.assistantServiceType || 'MEDICINE_DELIVERY');
         setDeliveryAddress(c.deliveryAddress || '');
         setStep('payment');
       } else {
+        setSelectedServiceType('MEDICINE_DELIVERY');
         setStep('fulfillment');
       }
     } catch (err) {
@@ -203,50 +221,46 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
     fetchAddresses();
   }, [token]);
 
+  // Proactively discover registered delivery partners in this area on checkout load
   useEffect(() => {
-    if (selectedFulfillment !== 'ASSISTANT_DELIVERY' || !selectedServiceType || !token) {
-      setAvailableAssistants([]);
-      return;
-    }
+    if (!token) return;
+    let isMounted = true;
     async function fetchAssistants() {
       setLoadingAssistants(true);
       try {
-        const res = await fetch(`/api/assistant/discover?serviceType=${selectedServiceType}`, {
+        const area = checkout?.pharmacy?.city || 'Chengannur';
+        const res = await fetch(`/api/assistant/discover?serviceType=MEDICINE_DELIVERY&city=${encodeURIComponent(area)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
-        if (data.success && Array.isArray(data.assistants)) {
+        if (isMounted && data.success && Array.isArray(data.assistants)) {
           setAvailableAssistants(data.assistants);
+          if (data.assistants.length > 0 && !selectedAssistantId) {
+            setSelectedAssistantId(data.assistants[0].id);
+          }
         }
       } catch (e) {
-        console.error('Failed to load available assistants:', e);
+        console.error('Failed to load available delivery assistants:', e);
       } finally {
-        setLoadingAssistants(false);
+        if (isMounted) setLoadingAssistants(false);
       }
     }
     fetchAssistants();
-  }, [selectedFulfillment, selectedServiceType, token]);
+    return () => { isMounted = false; };
+  }, [token, checkout?.pharmacy?.city]);
 
   async function handleFulfillmentSelect() {
     if (!navigator.onLine) { setStep('offline'); return; }
     if (!selectedFulfillment) { setError('Please select a fulfillment option.'); return; }
-    // Address is required for DELIVERY and ASSISTANT_DELIVERY physical services
-    // (NOT required for DIGITAL_ASSISTANCE, PRESCRIPTION_ASSISTANCE, PHARMACY_COMMS)
-    const assistantNeedsAddress = selectedFulfillment === 'ASSISTANT_DELIVERY' &&
-      !NON_ADDRESS_SERVICE_TYPES.includes(selectedServiceType);
-    const option = FULFILLMENT_OPTIONS.find(o => o.value === selectedFulfillment);
-    const needsAddress = selectedFulfillment === 'DELIVERY' || assistantNeedsAddress;
+    const needsAddress = selectedFulfillment === 'DELIVERY' || selectedFulfillment === 'ASSISTANT_DELIVERY';
     if (needsAddress && (!deliveryAddress || deliveryAddress.trim() === '')) {
-      setError('Please enter a service location address.');
+      setError('Please enter a delivery address.');
       return;
     }
     if (selectedFulfillment === 'ASSISTANT_DELIVERY') {
-      if (!selectedServiceType) {
-        setError('Please select the type of service you need from your Medicine Access Assistant.');
-        return;
-      }
-      if (!selectedAssistantId) {
-        setError('Please select a specific Medicine Access Assistant for this service.');
+      const activePartnerId = selectedAssistantId || availableAssistants[0]?.id;
+      if (!activePartnerId || availableAssistants.length === 0) {
+        setError('No delivery partner is currently available in this area. Please select In-Pharmacy Pickup.');
         return;
       }
     }
@@ -257,10 +271,11 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         fulfillmentType: selectedFulfillment,
         deliveryAddress: deliveryAddress.trim() || undefined,
         addressId: selectedAddressId || undefined,
-        assistantId: selectedAssistantId || undefined
+        assistantId: selectedFulfillment === 'ASSISTANT_DELIVERY' ? (selectedAssistantId || availableAssistants[0]?.id) : undefined,
+        includePlatformFee: true
       };
       if (selectedFulfillment === 'ASSISTANT_DELIVERY') {
-        body.assistantServiceType = selectedServiceType;
+        body.assistantServiceType = 'MEDICINE_DELIVERY';
       }
       const res = await fetch(`/api/checkout/${orderId}/fulfillment`, {
         method: 'POST',
@@ -271,6 +286,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       if (!data.success) { setError(data.error || 'Failed to set fulfillment.'); return; }
       setCheckout(prev => ({ ...prev, fulfillmentType: selectedFulfillment, deliveryAddress: deliveryAddress.trim() || null, totals: data.totals }));
       setStep('payment');
+      broadcastUpdate('FULFILLMENT_SELECTED', { orderId, fulfillmentType: selectedFulfillment });
     } catch (err) {
       setError('Network error. Please try again.');
     } finally {
@@ -290,7 +306,8 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
     try {
       const createRes = await fetch(`/api/checkout/${orderId}/create-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ includePlatformFee: true })
       });
       const createData = await createRes.json();
       if (!createData.success) {
@@ -310,6 +327,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       }
       if (!window.Razorpay) { await loadRazorpayScript(); }
       setStep('processing');
+      paymentCompletedRef.current = false;
       const options = {
         key: razorpayKeyId,
         amount: Math.round(amount * 100),
@@ -318,7 +336,13 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         description: `Order #${checkout?.orderNumber}`,
         order_id: gatewayOrderId,
         handler: async function(response) { await handlePaymentSuccess(response); },
-        modal: { ondismiss: function() { setStep('payment'); setError('Payment was cancelled. You can try again.'); } },
+        modal: {
+          ondismiss: function() {
+            if (paymentCompletedRef.current) return;
+            setStep('payment');
+            setError('Payment was cancelled. You can try again.');
+          }
+        },
         prefill: {},
         theme: { color: '#032f28' }
       };
@@ -351,9 +375,15 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       });
       const verifyData = await verifyRes.json();
       if (verifyData.success) {
+        paymentCompletedRef.current = true;
         setPaymentData(verifyData.payment);
+        setCheckout(prev => ({
+          ...prev,
+          verificationPin: verifyData.verificationPin || prev?.verificationPin,
+          payment: verifyData.payment
+        }));
         setStep('success');
-        if (onPaymentSuccess) onPaymentSuccess();
+        broadcastUpdate('PAYMENT_COMPLETED', { orderId, method: 'ONLINE', status: 'PAID' });
       } else {
         setError(verifyData.error || 'Payment verification failed.');
         setStep('failed');
@@ -362,6 +392,45 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       setError('Network error during payment verification. Please contact support with your payment ID.');
       setStep('failed');
     }
+  }
+
+  async function handleConfirmCounterPayment() {
+    if (!navigator.onLine) { setStep('offline'); return; }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/checkout/${orderId}/select-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ paymentMethod: 'COUNTER', includePlatformFee: true })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to confirm counter payment.');
+        return;
+      }
+      paymentCompletedRef.current = true;
+      setPaymentData(data.payment);
+      setCheckout(prev => ({
+        ...prev,
+        verificationPin: data.verificationPin || prev?.verificationPin,
+        payment: data.payment
+      }));
+      setStep('counter_confirmed');
+      broadcastUpdate('PAYMENT_COMPLETED', { orderId, method: 'COUNTER', status: 'PENDING' });
+    } catch (err) {
+      setError('Network error confirming counter payment.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function handleFinishCheckout() {
+    onClose();
+    if (onPaymentSuccess) onPaymentSuccess();
   }
 
   async function handleRetryPayment() {
@@ -398,10 +467,18 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
 
   function getTotals() {
     if (checkout?.totals) {
+      const pFee = checkout.totals.platformFee != null
+        ? Number(checkout.totals.platformFee)
+        : 2.0;
+      const medSub = checkout.totals.medicineSubtotal;
+      const fFee = checkout.totals.fulfillmentFee != null ? checkout.totals.fulfillmentFee : (checkout.totals.deliveryFee || 0);
+      const computedTotal = medSub != null ? Number((medSub + fFee + pFee).toFixed(2)) : null;
       return {
         ...checkout.totals,
-        platformFee: checkout.totals.platformFee != null ? checkout.totals.platformFee : 2.0,
-        requiresCounterPayment: checkout.totals.medicineSubtotal == null || checkout.totals.totalAmount == null
+        fulfillmentFee: fFee,
+        platformFee: pFee,
+        totalAmount: computedTotal != null ? computedTotal : checkout.totals.totalAmount,
+        requiresCounterPayment: checkout.totals.medicineSubtotal == null || (computedTotal == null && checkout.totals.totalAmount == null)
       };
     }
     if (!checkout?.items) return null;
@@ -430,12 +507,12 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
   const overlayStyle = {
     position: 'fixed', inset: 0, zIndex: 9999,
     background: 'rgba(3,47,40,0.65)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem'
   };
   const panelStyle = {
     background: '#ffffff', border: '1px solid #e0f2eb',
-    borderRadius: 24, width: '100%', maxWidth: 580,
-    maxHeight: '92vh', overflowY: 'auto',
+    borderRadius: 20, width: '100%', maxWidth: 580,
+    maxHeight: '85dvh', overflowY: 'auto',
     boxShadow: '0 24px 64px -12px rgba(3,47,40,0.25)'
   };
 
@@ -451,14 +528,43 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
               Pharmacy Confirmed
             </div>
             <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#c0c8c5' }}>chevron_right</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#1e453e', color: '#8ab2a9', padding: '3px 12px', borderRadius: 99 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a6cfc5' }}></span>
-              {step === 'fulfillment' ? 'Fulfillment (Active)' : step === 'payment' || step === 'processing' ? 'Payment (Active)' : 'Checkout'}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: step === 'fulfillment' ? '#1e453e' : '#e0f2eb',
+              color: step === 'fulfillment' ? '#8ab2a9' : '#2e685d',
+              padding: '3px 12px',
+              borderRadius: 99
+            }}>
+              {step !== 'fulfillment' && <span className="material-symbols-outlined" style={{ fontSize: 15 }}>check</span>}
+              <span>Fulfillment</span>
             </div>
             <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#c0c8c5' }}>chevron_right</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: 0.6, color: '#414846' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>radio_button_unchecked</span>
-              {step === 'success' ? 'Confirmed' : 'Confirmation (Next)'}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: step === 'payment' || step === 'processing' ? '#1e453e' : '#e0f2eb',
+              color: step === 'payment' || step === 'processing' ? '#8ab2a9' : (step === 'success' || step === 'counter_confirmed' ? '#2e685d' : '#414846'),
+              padding: '3px 12px',
+              borderRadius: 99
+            }}>
+              {(step === 'success' || step === 'counter_confirmed') && <span className="material-symbols-outlined" style={{ fontSize: 15 }}>check</span>}
+              <span>Payment</span>
+            </div>
+            <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#c0c8c5' }}>chevron_right</span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              color: (step === 'success' || step === 'counter_confirmed') ? '#2e685d' : '#717976',
+              fontWeight: (step === 'success' || step === 'counter_confirmed') ? 700 : 500
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                {(step === 'success' || step === 'counter_confirmed') ? 'check_circle' : 'radio_button_unchecked'}
+              </span>
+              <span>{(step === 'success' || step === 'counter_confirmed') ? 'Confirmed' : 'Confirmation'}</span>
             </div>
           </nav>
         </div>
@@ -469,10 +575,12 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, color: '#032f28', margin: 0 }}>
                 {step === 'success' ? 'Payment Confirmed' :
+                 step === 'counter_confirmed' ? 'Pay at Counter Confirmed' :
                  step === 'failed' ? 'Payment Failed' :
                  step === 'processing' ? 'Processing Payment...' :
-                 step === 'fulfillment' ? 'Checkout & Fulfillment Selection' :
-                 'Complete Payment'}
+                 step === 'fulfillment' ? 'Step 1 — Fulfillment Selection' :
+                 step === 'parent_prohibited' ? 'Split Order Notice' :
+                 'Step 2 — Select Payment Method'}
               </h2>
               {step === 'fulfillment' && (
                 <span style={{ fontSize: 11, fontWeight: 700, background: '#b0ecdd', color: '#336c61', padding: '2px 10px', borderRadius: 99 }}>
@@ -521,6 +629,42 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
               <button onClick={fetchCheckout} style={{ padding: '0.65rem 1.5rem', borderRadius: 99, background: '#032f28', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>
                 Retry
               </button>
+            </div>
+          )}
+
+          {/* ── Split Order Parent Prohibited Notice ── */}
+          {step === 'parent_prohibited' && (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e0f2eb', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#2e685d' }}>call_split</span>
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#032f28', marginBottom: '0.5rem' }}>
+                Multi-Pharmacy Split Order
+              </h3>
+              <p style={{ color: '#414846', fontSize: 14, maxWidth: 460, margin: '0 auto 1.5rem', lineHeight: 1.5 }}>
+                {error || 'Parent aggregate orders cannot be checked out directly. Please checkout each pharmacy order individually from your Order Tracking page.'}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={onClose}
+                  style={{
+                    padding: '0.75rem 2rem',
+                    borderRadius: 99,
+                    background: '#032f28',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>receipt_long</span>
+                  Return to Order Tracking
+                </button>
+              </div>
             </div>
           )}
 
@@ -622,168 +766,179 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1rem' }}>
                 {FULFILLMENT_OPTIONS.filter(opt => opt.value !== 'DELIVERY' || checkout.pharmacy?.deliveryAvailable).map(opt => {
                   const isSelected = selectedFulfillment === opt.value;
+                  const isAssistantDelivery = opt.value === 'ASSISTANT_DELIVERY';
+                  const isDeliveryAvailable = !isAssistantDelivery || availableAssistants.length > 0;
+                  const pharmacyArea = checkout?.pharmacy?.city || 'Chengannur';
+
                   return (
                     <div
                       key={opt.value}
                       onClick={() => {
+                        if (!isDeliveryAvailable) return;
                         setSelectedFulfillment(opt.value);
+                        if (isAssistantDelivery) {
+                          setSelectedServiceType('MEDICINE_DELIVERY');
+                          if (availableAssistants.length > 0 && !selectedAssistantId) {
+                            setSelectedAssistantId(availableAssistants[0].id);
+                          }
+                        }
                         setError(null);
                       }}
                       style={{
-                        padding: '1rem 1.25rem', borderRadius: 14,
-                        cursor: 'pointer',
-                        border: isSelected ? '2px solid #032f28' : '1.5px solid #e0f2eb',
-                        background: isSelected ? '#e6f8f1' : '#fff',
-                        display: 'flex', alignItems: 'center', gap: '1rem',
+                        padding: '1rem 1.25rem',
+                        borderRadius: 14,
+                        cursor: isDeliveryAvailable ? 'pointer' : 'not-allowed',
+                        border: isSelected ? '2px solid #032f28' : (isDeliveryAvailable ? '1.5px solid #e0f2eb' : '1.5px dashed #c0c8c5'),
+                        background: isSelected ? '#e6f8f1' : (isDeliveryAvailable ? '#fff' : '#f8fafc'),
+                        opacity: isDeliveryAvailable ? 1 : 0.55,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
                         transition: 'all 0.15s'
                       }}
                     >
-                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: isSelected ? '#1e453e' : '#e0f2eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 22, color: isSelected ? '#8ab2a9' : '#2e685d' }}>{opt.icon}</span>
+                      <div style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: '50%',
+                        background: isSelected ? '#1e453e' : (isDeliveryAvailable ? '#e0f2eb' : '#eceff1'),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <span className="material-symbols-outlined" style={{
+                          fontSize: 22,
+                          color: isSelected ? '#8ab2a9' : (isDeliveryAvailable ? '#2e685d' : '#90a4ae')
+                        }}>
+                          {opt.icon}
+                        </span>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: '#032f28' }}>
-                          {opt.label}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 15, color: isDeliveryAvailable ? '#032f28' : '#717976' }}>
+                            {opt.label}
+                          </span>
+                          {isAssistantDelivery && isDeliveryAvailable && (
+                            <span style={{ fontSize: 10, fontWeight: 700, background: '#e0f2eb', color: '#2e685d', padding: '2px 7px', borderRadius: 99 }}>
+                              Available in {pharmacyArea}
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: 12, color: '#414846', marginTop: '0.2rem' }}>
                           {opt.description}
                         </div>
+                        {isAssistantDelivery && !isDeliveryAvailable && !loadingAssistants && (
+                          <div style={{
+                            marginTop: '0.45rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            background: '#ffebee',
+                            border: '1px solid #ffcdd2',
+                            borderRadius: 8,
+                            padding: '3px 8px',
+                            color: '#ba1a1a',
+                            fontSize: 11,
+                            fontWeight: 700
+                          }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>fmd_bad</span>
+                            <span>Currently unavailable • No delivery partner registered in {pharmacyArea}</span>
+                          </div>
+                        )}
+                        {isAssistantDelivery && loadingAssistants && (
+                          <div style={{ fontSize: 11, color: '#717976', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                            Checking delivery coverage in {pharmacyArea}...
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: 16, color: '#2e685d', whiteSpace: 'nowrap' }}>
-                        {getFulfillmentFeeInfo(opt.value, checkout).label}
+                      <div style={{
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: isDeliveryAvailable ? '#2e685d' : '#90a4ae',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {getFulfillmentFeeInfo(opt.value, checkout, isDeliveryAvailable).label}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Non-clinical Disclaimer & Service Type Selector for ASSISTANT_DELIVERY */}
-              {selectedFulfillment === 'ASSISTANT_DELIVERY' && (
-                <div style={{ marginBottom: '1rem' }}>
-                  {/* Disclaimer */}
+              {/* Assigned Delivery Partner Card for Doorstep Delivery */}
+              {selectedFulfillment === 'ASSISTANT_DELIVERY' && availableAssistants.length > 0 && (() => {
+                const assignedPartner = availableAssistants.find(a => a.id === selectedAssistantId) || availableAssistants[0];
+                return (
                   <div style={{
-                    background: '#fffbeb',
-                    border: '1.5px solid #fde68a',
-                    borderRadius: 12,
-                    padding: '0.75rem 1rem',
-                    marginBottom: '0.75rem',
+                    background: 'linear-gradient(135deg, #f0fdf4 0%, #e6f8f1 100%)',
+                    border: '1.5px solid #a7f3d0',
+                    borderRadius: 14,
+                    padding: '0.85rem 1.15rem',
+                    marginBottom: '1rem',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.6rem'
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem'
                   }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#92400e', flexShrink: 0, marginTop: 1 }}>info</span>
-                    <p style={{ margin: 0, fontSize: 12, color: '#78350f', lineHeight: 1.5 }}>
-                      <strong>Non-Clinical Service Only.</strong> Medicine Access Assistants provide non-clinical assistance only. They do not diagnose, prescribe, change medicines, or provide medical advice.
-                    </p>
-                  </div>
-
-                  {/* Service Type Selector */}
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: '#032f28', margin: '0 0 0.5rem 0' }}>
-                    Select Service Type <span style={{ color: '#ba1a1a' }}>*</span>
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    {ASSISTANT_SERVICE_TYPES.map(svc => {
-                      const isSvcSelected = selectedServiceType === svc.value;
-                      return (
-                        <div
-                          key={svc.value}
-                          onClick={() => { setSelectedServiceType(svc.value); setError(null); }}
-                          style={{
-                            padding: '0.75rem 1rem',
-                            borderRadius: 12,
-                            cursor: 'pointer',
-                            border: isSvcSelected ? '2px solid #032f28' : '1.5px solid #e0f2eb',
-                            background: isSvcSelected ? '#e6f8f1' : '#fafcfb',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            transition: 'all 0.12s'
-                          }}
-                        >
-                          <span
-                            className="material-symbols-outlined"
-                            style={{ fontSize: 20, color: isSvcSelected ? '#032f28' : '#2e685d', flexShrink: 0 }}
-                          >
-                            {svc.icon}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: '50%',
+                        background: '#032f28',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: 15,
+                        flexShrink: 0
+                      }}>
+                        {assignedPartner?.name?.charAt(0) || 'D'}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13.5, color: '#032f28' }}>
+                            {assignedPartner?.name || 'Verified Delivery Partner'}
                           </span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: 13, color: '#032f28' }}>{svc.label}</div>
-                            <div style={{ fontSize: 11, color: '#414846', marginTop: '0.15rem' }}>{svc.description}</div>
-                          </div>
-                          {isSvcSelected && (
-                            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d', flexShrink: 0 }}>check_circle</span>
-                          )}
+                          <span style={{ fontSize: 10.5, fontWeight: 700, background: '#dcfce7', color: '#166534', padding: '1px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>verified</span>
+                            Verified Partner in {assignedPartner?.operatingCity || checkout?.pharmacy?.city || 'Chengannur'}
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Specific Assistant Selector */}
-                  {selectedServiceType && (
-                    <div style={{ marginTop: '0.85rem' }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 700, color: '#032f28', margin: '0 0 0.5rem 0' }}>
-                        Select Assistant
-                      </h4>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {/* Specific available assistants list */}
-                        {loadingAssistants && (
-                          <div style={{ fontSize: 12, color: '#717976', fontStyle: 'italic', padding: '0.4rem 0' }}>
-                            Loading active assistants with this capability...
-                          </div>
-                        )}
-
-                        {!loadingAssistants && availableAssistants.map(asst => {
-                          const isAsstSelected = selectedAssistantId === asst.id;
-                          return (
-                            <div
-                              key={asst.id}
-                              onClick={() => setSelectedAssistantId(asst.id)}
-                              style={{
-                                padding: '0.65rem 0.85rem',
-                                borderRadius: 10,
-                                border: isAsstSelected ? '2px solid #2e685d' : '1px solid #d5e6e0',
-                                background: isAsstSelected ? '#ffffff' : '#f8fafc',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between'
-                              }}
-                            >
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <span style={{ fontWeight: 700, fontSize: 12, color: '#032f28' }}>{asst.name}</span>
-                                  <span style={{ fontSize: 10, fontWeight: 700, background: '#e0f2eb', color: '#2e685d', padding: '1px 6px', borderRadius: 99 }}>
-                                    Available
-                                  </span>
-                                </div>
-                                {asst.bio && (
-                                  <div style={{ fontSize: 11, color: '#414846', marginTop: '0.15rem' }}>{asst.bio}</div>
-                                )}
-                              </div>
-                              {isAsstSelected && (
-                                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>check_circle</span>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        {!loadingAssistants && availableAssistants.length === 0 && (
-                          <div style={{ fontSize: 12, color: '#ba1a1a', background: '#fff8f6', border: '1px solid #ffdad6', borderRadius: 10, padding: '0.6rem 0.85rem' }}>
-                            No active assistants currently available with capability for this service. Please select another service or try again later.
-                          </div>
-                        )}
+                        <div style={{ fontSize: 11.5, color: '#414846', marginTop: 2 }}>
+                          Medicine will be securely collected from {checkout?.pharmacy?.name} and delivered to your doorstep with 4-digit PIN verification.
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+                    {availableAssistants.length > 1 && (
+                      <select
+                        value={selectedAssistantId || ''}
+                        onChange={e => setSelectedAssistantId(e.target.value)}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          padding: '0.4rem 0.65rem',
+                          borderRadius: 8,
+                          border: '1.5px solid #2e685d',
+                          background: '#ffffff',
+                          color: '#032f28',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {availableAssistants.map(a => (
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
 
-              {/* Address Input & Saved Address Selector — only shown when the service requires a physical location */}
+              {/* Address Input & Saved Address Selector — shown for DELIVERY and Doorstep Delivery */}
               {(() => {
                 const isDelivery = selectedFulfillment === 'DELIVERY';
-                const isAssistantPhysical = selectedFulfillment === 'ASSISTANT_DELIVERY' &&
-                  selectedServiceType && !NON_ADDRESS_SERVICE_TYPES.includes(selectedServiceType);
+                const isAssistantPhysical = selectedFulfillment === 'ASSISTANT_DELIVERY';
                 const showAddress = isDelivery || isAssistantPhysical;
                 if (!showAddress) return null;
                 const isAssistant = selectedFulfillment === 'ASSISTANT_DELIVERY';
@@ -795,9 +950,19 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                   setDeliveryAddress(formatted);
                 };
 
+                const formatAddressString = (form) => {
+                  return [
+                    form.addressLine1?.trim(),
+                    form.landmark?.trim() ? `Near ${form.landmark.trim()}` : null,
+                    form.city || 'Chengannur',
+                    form.contactPhone?.trim() ? `Tel: ${form.contactPhone.trim()}` : null,
+                    form.deliveryNote?.trim() ? `Note: ${form.deliveryNote.trim()}` : null
+                  ].filter(Boolean).join(', ');
+                };
+
                 const handleSaveNewAddress = async () => {
                   if (!newAddressForm.addressLine1 || newAddressForm.addressLine1.trim().length < 5) {
-                    setError('Please enter a valid street / address (at least 5 characters).');
+                    setError('Please enter a valid street / building address (at least 5 characters).');
                     return;
                   }
                   try {
@@ -811,7 +976,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                       setSavedAddresses(prev => [data.address, ...prev]);
                       setSelectedAddressId(data.address.id);
                       setIsAddingNewAddress(false);
-                      setDeliveryAddress(data.formattedAddress || `${newAddressForm.addressLine1}, ${newAddressForm.city}, ${newAddressForm.state} - ${newAddressForm.postalCode}`);
+                      setDeliveryAddress(formatAddressString(newAddressForm));
                     } else {
                       setError(data.error || 'Failed to save address.');
                     }
@@ -825,7 +990,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <label style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4, color: '#2e685d' }}>home_pin</span>
-                        {isAssistant ? 'Service Location Address' : 'Delivery Address'} <span style={{ color: '#ba1a1a' }}>*</span>
+                        {isAssistant ? 'Service Location & Handover Details' : 'Delivery Address'} <span style={{ color: '#ba1a1a' }}>*</span>
                       </label>
                       {savedAddresses.length > 0 && (
                         <button
@@ -874,7 +1039,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                                 )}
                               </div>
                               <div style={{ fontSize: 12, color: '#414846', lineHeight: 1.4 }}>
-                                {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}, {addr.city}, {addr.state} - {addr.postalCode}
+                                {addr.addressLine1}{addr.landmark ? `, Near ${addr.landmark}` : ''}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}, {addr.city || 'Chengannur'}
                               </div>
                             </div>
                           );
@@ -882,58 +1047,111 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                       </div>
                     )}
 
-                    {/* Manual or New Address Input */}
+                    {/* Streamlined Delivery Location & Patient Note Inputs */}
                     {(savedAddresses.length === 0 || isAddingNewAddress) && (
-                      <div style={{ background: '#f8fafc', border: '1px solid #d5e6e0', borderRadius: 12, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}>
-                          <input
-                            type="text"
-                            placeholder="Label (e.g. Home)"
-                            value={newAddressForm.label}
-                            onChange={e => setNewAddressForm({ ...newAddressForm, label: e.target.value })}
-                            style={{ padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 13 }}
-                          />
-                          <input
-                            type="text"
-                            placeholder="Flat / House / Street Address *"
-                            value={newAddressForm.addressLine1}
+                      <div style={{ background: '#f8fafc', border: '1px solid #d5e6e0', borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                        {/* Row 1: Building / Street Address & Landmark */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                          <div className="sm:col-span-7">
+                            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 3 }}>
+                              House / Flat / Street Address <span style={{ color: '#ba1a1a' }}>*</span>
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Address"
+                              value={newAddressForm.addressLine1}
+                              onChange={e => {
+                                const updated = { ...newAddressForm, addressLine1: e.target.value };
+                                setNewAddressForm(updated);
+                                setDeliveryAddress(formatAddressString(updated));
+                              }}
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 10, border: '1px solid #c0c8c5', fontSize: 13, background: '#ffffff', fontWeight: 700, color: '#032f28' }}
+                            />
+                          </div>
+
+                          <div className="sm:col-span-5">
+                            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 3 }}>
+                              Nearby Landmark (Crucial for Assistant)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Landmark"
+                              value={newAddressForm.landmark}
+                              onChange={e => {
+                                const updated = { ...newAddressForm, landmark: e.target.value };
+                                setNewAddressForm(updated);
+                                setDeliveryAddress(formatAddressString(updated));
+                              }}
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 10, border: '1px solid #c0c8c5', fontSize: 13, background: '#ffffff', fontWeight: 700, color: '#032f28' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Row 2: Delivery Contact Phone & Address Label */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                          <div className="sm:col-span-7">
+                            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 3 }}>
+                              Recipient Contact Phone (For Handover Arrival Call)
+                            </label>
+                            <input
+                              type="tel"
+                              placeholder="Phone"
+                              value={newAddressForm.contactPhone}
+                              onChange={e => {
+                                const updated = { ...newAddressForm, contactPhone: e.target.value };
+                                setNewAddressForm(updated);
+                                setDeliveryAddress(formatAddressString(updated));
+                              }}
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 10, border: '1px solid #c0c8c5', fontSize: 13, background: '#ffffff', fontWeight: 700, color: '#032f28' }}
+                            />
+                          </div>
+
+                          <div className="sm:col-span-5">
+                            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 3 }}>
+                              Address Label
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Label"
+                              value={newAddressForm.label}
+                              onChange={e => setNewAddressForm({ ...newAddressForm, label: e.target.value })}
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 10, border: '1px solid #c0c8c5', fontSize: 13, background: '#ffffff', fontWeight: 700, color: '#032f28' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Row 3: Patient Note for Delivery Assistant */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 3 }}>
+                            Patient Note for Delivery Assistant (Specific Handover Instructions)
+                          </label>
+                          <textarea
+                            rows="2"
+                            placeholder="Instructions"
+                            value={newAddressForm.deliveryNote}
                             onChange={e => {
-                              setNewAddressForm({ ...newAddressForm, addressLine1: e.target.value });
-                              setDeliveryAddress(e.target.value);
+                              const updated = { ...newAddressForm, deliveryNote: e.target.value };
+                              setNewAddressForm(updated);
+                              setDeliveryAddress(formatAddressString(updated));
                             }}
-                            style={{ padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 13 }}
+                            style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 10, border: '1px solid #c0c8c5', fontSize: 12, background: '#ffffff', resize: 'none' }}
                           />
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                          <input
-                            type="text"
-                            placeholder="City"
-                            value={newAddressForm.city}
-                            onChange={e => setNewAddressForm({ ...newAddressForm, city: e.target.value })}
-                            style={{ padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 13 }}
-                          />
-                          <input
-                            type="text"
-                            placeholder="State"
-                            value={newAddressForm.state}
-                            onChange={e => setNewAddressForm({ ...newAddressForm, state: e.target.value })}
-                            style={{ padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 13 }}
-                          />
-                          <input
-                            type="text"
-                            placeholder="PIN Code"
-                            value={newAddressForm.postalCode}
-                            onChange={e => setNewAddressForm({ ...newAddressForm, postalCode: e.target.value })}
-                            style={{ padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 13 }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+
+                        {/* Territory Context Badge & Save Action */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', paddingTop: '0.25rem' }}>
+                          <span style={{ fontSize: 11, color: '#2e685d', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>location_city</span>
+                            <span>Operating Territory: Chengannur, Kerala • Local Cold-Chain Relay</span>
+                          </span>
+
                           <button
                             type="button"
                             onClick={handleSaveNewAddress}
-                            style={{ background: '#2e685d', color: '#ffffff', border: 'none', borderRadius: 8, padding: '0.45rem 1rem', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                            style={{ background: '#2e685d', color: '#ffffff', border: 'none', borderRadius: 99, padding: '0.45rem 1.15rem', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                           >
-                            Save & Use Address
+                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
+                            <span>Save &amp; Use Details</span>
                           </button>
                         </div>
                       </div>
@@ -965,12 +1183,12 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                       <div>
                         <span>
                           {selectedFulfillment === 'ASSISTANT_DELIVERY'
-                            ? 'Assistant Service Fee:'
+                            ? 'Doorstep Delivery Fee:'
                             : `Fulfillment (${opt ? opt.label : 'Select method above'}):`}
                         </span>
-                        {selectedFulfillment === 'ASSISTANT_DELIVERY' && selectedServiceType && (
+                        {selectedFulfillment === 'ASSISTANT_DELIVERY' && (
                           <div style={{ fontSize: 12, color: '#2e685d', fontWeight: 600, marginTop: '0.15rem' }}>
-                            Service: {getAssistantServiceLabel(selectedServiceType)}
+                            Delivered safely by verified partner
                           </div>
                         )}
                       </div>
@@ -1003,7 +1221,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 </button>
                 <FlowButton
                   onClick={handleFulfillmentSelect}
-                  disabled={isSubmitting || !selectedFulfillment || (selectedFulfillment === 'ASSISTANT_DELIVERY' && !selectedServiceType)}
+                  disabled={isSubmitting || !selectedFulfillment || (selectedFulfillment === 'ASSISTANT_DELIVERY' && availableAssistants.length === 0)}
                   loading={isSubmitting}
                   fullWidth
                   style={{ flex: 1 }}
@@ -1017,7 +1235,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
           {/* ── Payment Step ── */}
           {step === 'payment' && checkout && (
             <div>
-              {/* Order Summary */}
+              {/* Order Summary Strip */}
               <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 16, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#414846', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Order Reference</div>
                 <div style={{ fontFamily: 'var(--font-mono)', color: '#032f28', fontWeight: 700, fontSize: 18 }}>#{checkout.orderNumber}</div>
@@ -1031,12 +1249,93 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 </div>
               </div>
 
-              {/* Totals */}
+              {/* STEP 2: Choose Payment Method Selector */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#032f28', marginBottom: '0.65rem' }}>
+                  Choose how you will pay:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 1: Pay at Counter */}
+                  <div
+                    onClick={() => setSelectedPaymentMethod('COUNTER')}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 14,
+                      border: selectedPaymentMethod === 'COUNTER' ? '2px solid #2e685d' : '1px solid #d5e6e0',
+                      background: selectedPaymentMethod === 'COUNTER' ? '#f0fdf4' : '#ffffff',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: selectedPaymentMethod === 'COUNTER' ? '0 2px 8px rgba(46,104,93,0.12)' : 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>storefront</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Pay at Counter</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.4 }}>
+                      Pay directly at the pharmacy when collecting your medicines.
+                    </p>
+                  </div>
+
+                  {/* Option 2: Pay Online — Razorpay */}
+                  <div
+                    onClick={() => {
+                      if (!getTotals()?.requiresCounterPayment) {
+                        setSelectedPaymentMethod('ONLINE');
+                      }
+                    }}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 14,
+                      border: selectedPaymentMethod === 'ONLINE' ? '2px solid #2e685d' : '1px solid #d5e6e0',
+                      background: getTotals()?.requiresCounterPayment ? '#f8faf9' : (selectedPaymentMethod === 'ONLINE' ? '#f0fdf4' : '#ffffff'),
+                      cursor: getTotals()?.requiresCounterPayment ? 'not-allowed' : 'pointer',
+                      opacity: getTotals()?.requiresCounterPayment ? 0.6 : 1,
+                      transition: 'all 0.15s ease',
+                      boxShadow: selectedPaymentMethod === 'ONLINE' ? '0 2px 8px rgba(46,104,93,0.12)' : 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>credit_card</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Pay Online</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.4 }}>
+                      Pay securely using Razorpay TEST MODE.
+                    </p>
+                    {getTotals()?.requiresCounterPayment && (
+                      <span style={{ fontSize: 10, color: '#ba1a1a', fontWeight: 600, display: 'block', marginTop: '0.25rem' }}>
+                        MRP pricing required at counter
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Informational Callout based on selected payment method */}
+              {selectedPaymentMethod === 'COUNTER' ? (
+                <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 12, padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: 13, color: '#032f28', lineHeight: 1.4 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d', flexShrink: 0, marginTop: 1 }}>storefront</span>
+                  <div>
+                    <strong style={{ display: 'block', color: '#032f28', marginBottom: '0.15rem' }}>Pay at Counter Selected</strong>
+                    Payment will be made directly at the pharmacy counter when you collect your medicines. Settle with cash or card upon pickup.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 12, padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: 13, color: '#032f28', lineHeight: 1.4 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d', flexShrink: 0, marginTop: 1 }}>shield</span>
+                  <div>
+                    <strong style={{ display: 'block', color: '#032f28', marginBottom: '0.15rem' }}>Pay Online — Razorpay TEST MODE</strong>
+                    Transactions are processed in test simulation mode. Cards, UPI, and Netbanking are accepted safely.
+                  </div>
+                </div>
+              )}
+
+              {/* Order Financial Breakdown */}
               {(() => {
                 const totals = getTotals();
                 const ft = selectedFulfillment || checkout.fulfillmentType;
                 if (!totals) return null;
-                const platformFeeVal = totals.platformFee != null ? totals.platformFee : 2.0;
+                const platformFeeVal = totals.platformFee != null ? Number(totals.platformFee) : 2.0;
                 return (
                   <div style={{ background: '#fff', border: '1px solid #e0f2eb', borderRadius: 16, padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#414846', marginBottom: '0.4rem' }}>
@@ -1049,28 +1348,35 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                       <div>
                         <div style={{ fontWeight: 700, color: '#032f28' }}>
                           {ft === 'ASSISTANT_DELIVERY'
-                            ? 'Assistant Service Fee'
+                            ? 'Doorstep Delivery Fee'
                             : ft === 'PICKUP'
                             ? 'Counter Pickup'
                             : ft === 'DELIVERY'
                             ? 'Home Delivery (Pharmacy)'
                             : ft?.replace(/_/g, ' ')}
                         </div>
-                        {ft === 'ASSISTANT_DELIVERY' && (selectedServiceType || checkout.assistantServiceType) && (
+                        {ft === 'ASSISTANT_DELIVERY' && (
                           <div style={{ fontSize: 12, color: '#2e685d', fontWeight: 600, marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>support_agent</span>
-                            <span>Service: {getAssistantServiceLabel(selectedServiceType || checkout.assistantServiceType)}</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sports_motorsports</span>
+                            <span>Doorstep Delivery by Verified Partner</span>
                           </div>
                         )}
                       </div>
                       <span style={{ fontWeight: 600, color: '#032f28' }}>{totals.fulfillmentFee === 0 ? 'Free (₹0.00)' : `₹${totals.fulfillmentFee?.toFixed(2)}`}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#414846', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e0f2eb' }}>
-                      <span>Platform Fee</span>
+                      <span>
+                        Platform Fee
+                        {platformFeeVal === 0 && (
+                          <span style={{ fontSize: 11, color: '#2e685d', fontWeight: 600, marginLeft: 6 }}>
+                            (Covered on split order sibling)
+                          </span>
+                        )}
+                      </span>
                       <span style={{ fontWeight: 600, color: '#032f28' }}>₹{platformFeeVal.toFixed(2)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 18, color: '#032f28' }}>
-                      <span>Total Payable</span>
+                      <span>{selectedPaymentMethod === 'COUNTER' ? 'Payable at Counter' : 'Total Payable Online'}</span>
                       <span>
                         {totals.medicineSubtotal != null
                           ? `₹${totals.totalAmount?.toFixed(2)}`
@@ -1081,15 +1387,15 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 );
               })()}
 
-              {/* Delivery address — only shown if relevant to selected service */}
-              {checkout.deliveryAddress && !NON_ADDRESS_SERVICE_TYPES.includes(selectedServiceType || checkout.assistantServiceType) && (
+              {/* Delivery / Service location address */}
+              {checkout.deliveryAddress && (
                 <div style={{ background: '#e6f8f1', borderRadius: 10, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: 13, color: '#414846', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d', flexShrink: 0, marginTop: 1 }}>location_on</span>
-                  <span><strong style={{ color: '#032f28' }}>{checkout.fulfillmentType === 'ASSISTANT_DELIVERY' ? 'Service Location:' : 'Delivery to:'}</strong> {checkout.deliveryAddress}</span>
+                  <span><strong style={{ color: '#032f28' }}>Delivery Address:</strong> {checkout.deliveryAddress}</span>
                 </div>
               )}
 
-              {/* Unpriced Medicine Counter Payment Notice */}
+              {/* Unpriced Medicine Counter Notice */}
               {getTotals()?.requiresCounterPayment && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '0.85rem 1rem', marginBottom: '1rem', fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', lineHeight: 1.4 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#d97706', flexShrink: 0, marginTop: 1 }}>storefront</span>
@@ -1106,80 +1412,192 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 </div>
               )}
 
-              {/* Security Notice */}
-              {!getTotals()?.requiresCounterPayment && (
-                <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 10, padding: '0.65rem 1rem', fontSize: 12, color: '#414846', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>shield</span>
-                  Payments are processed securely by Razorpay TEST MODE. We never store card details or CVV.
-                </div>
-              )}
-
               {!navigator.onLine && (
                 <div style={{ background: '#ffdad6', borderRadius: 10, padding: '0.65rem 1rem', marginBottom: '1rem', fontSize: 13, color: '#93000a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>wifi_off</span>
-                  You are currently offline. Payment requires internet connectivity.
+                  You are currently offline. Payment selection requires internet connectivity.
                 </div>
               )}
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button onClick={() => { setStep('fulfillment'); setError(null); }} style={{ padding: '0.75rem 1.25rem', borderRadius: 99, background: '#e0f2eb', border: '1px solid #c0c8c5', color: '#414846', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                <button
+                  onClick={() => { setStep('fulfillment'); setError(null); }}
+                  style={{ padding: '0.75rem 1.25rem', borderRadius: 99, background: '#e0f2eb', border: '1px solid #c0c8c5', color: '#414846', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                >
                   ← Back
                 </button>
-                {getTotals()?.requiresCounterPayment ? (
-                  <button
-                    onClick={() => {
-                      if (onClose) onClose();
-                      window.location.href = `/orders/${orderId}`;
-                    }}
-                    style={{ flex: 1, padding: '0.75rem', borderRadius: 99, background: '#2e685d', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                {selectedPaymentMethod === 'COUNTER' ? (
+                  <FlowButton
+                    onClick={handleConfirmCounterPayment}
+                    disabled={isSubmitting}
+                    loading={isSubmitting}
+                    fullWidth
+                    iconLeft="storefront"
+                    style={{ flex: 1 }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>storefront</span>
-                    Pay at Pharmacy Counter
-                  </button>
+                    {isSubmitting ? 'Confirming...' : 'Confirm Pay at Counter'}
+                  </FlowButton>
                 ) : (
                   <FlowButton
                     onClick={handlePayNow}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || getTotals()?.requiresCounterPayment}
                     loading={isSubmitting}
                     fullWidth
                     iconLeft="credit_card"
                     style={{ flex: 1 }}
                   >
-                    {isSubmitting ? 'Initiating...' : `Pay ₹${getTotals()?.totalAmount?.toFixed(2) || '...'}`}
+                    {isSubmitting ? 'Initiating...' : `Pay ₹${getTotals()?.totalAmount?.toFixed(2) || '...'} via Razorpay`}
                   </FlowButton>
                 )}
               </div>
             </div>
           )}
 
-          {/* ── Success ── */}
-          {step === 'success' && (
-            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#e0f2eb', border: '2px solid #b0ecdd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#2e685d', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              </div>
-              <h3 style={{ fontSize: 22, fontWeight: 700, color: '#032f28', marginBottom: '0.5rem' }}>Payment Successful!</h3>
-              <p style={{ color: '#414846', fontSize: 14, marginBottom: '1.5rem' }}>Your payment has been verified. Fulfillment is now in progress.</p>
-              {paymentData && (
-                <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left' }}>
-                  {[
-                    { label: 'Amount Paid', value: `₹${paymentData.amount}` },
-                    { label: 'Method', value: paymentData.method },
-                    { label: 'Status', value: paymentData.status, highlight: true },
-                    paymentData.paidAt && { label: 'Paid At', value: new Date(paymentData.paidAt).toLocaleString() }
-                  ].filter(Boolean).map((row, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', fontSize: 14 }}>
-                      <span style={{ color: '#414846' }}>{row.label}</span>
-                      <span style={{ fontWeight: 700, color: row.highlight ? '#2e685d' : '#0f1e1b' }}>{row.value}</span>
-                    </div>
-                  ))}
+          {/* ── Counter Payment Confirmed ── */}
+          {step === 'counter_confirmed' && (() => {
+            const activePin = checkout?.verificationPin || paymentData?.verificationPin;
+            return (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                <div style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  background: '#e0f2eb',
+                  border: '2px solid #b0ecdd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.25rem'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#2e685d', fontVariationSettings: "'FILL' 1" }}>
+                    storefront
+                  </span>
                 </div>
-              )}
-              <FlowButton onClick={onClose} size="lg">
-                View Order Tracking
-              </FlowButton>
-            </div>
-          )}
+                <h3 style={{ fontSize: 22, fontWeight: 700, color: '#032f28', marginBottom: '0.5rem' }}>
+                  Pay at Counter Selected
+                </h3>
+                <p style={{ color: '#414846', fontSize: 14, marginBottom: '1.5rem', lineHeight: 1.5, maxWidth: 440, margin: '0 auto 1.5rem' }}>
+                  Payment will be made directly at the pharmacy when you collect your medicines. Your order has been placed in the preparation queue.
+                </p>
+
+                {/* Pickup Verification PIN Card */}
+                {activePin && (
+                  <div style={{
+                    background: '#032f28',
+                    color: '#ffffff',
+                    borderRadius: 16,
+                    padding: '1.25rem',
+                    marginBottom: '1.5rem',
+                    textAlign: 'center',
+                    boxShadow: '0 8px 24px rgba(3,47,40,0.18)',
+                    border: '1.5px solid #2e685d'
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b0ecdd', marginBottom: '0.4rem' }}>
+                      4-Digit Dispensary Pickup PIN
+                    </div>
+                    <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.3em', color: '#ffffff' }}>
+                      {activePin}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#e0f2eb', marginTop: '0.4rem' }}>
+                      Show this 4-digit PIN to the pharmacist upon collecting your medicines.
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: 14 }}>
+                    <span style={{ color: '#414846' }}>Order Reference</span>
+                    <span style={{ fontWeight: 700, color: '#032f28', fontFamily: 'var(--font-mono)' }}>#{checkout?.orderNumber}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: 14 }}>
+                    <span style={{ color: '#414846' }}>Fulfillment Method</span>
+                    <span style={{ fontWeight: 700, color: '#032f28' }}>
+                      {selectedFulfillment === 'ASSISTANT_DELIVERY' || checkout?.fulfillmentType === 'ASSISTANT_DELIVERY'
+                        ? 'Doorstep Delivery'
+                        : (selectedFulfillment === 'DELIVERY' || checkout?.fulfillmentType === 'DELIVERY' ? 'Pharmacy Delivery' : 'Counter Pickup')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: 14 }}>
+                    <span style={{ color: '#414846' }}>Payment Method</span>
+                    <span style={{ fontWeight: 700, color: '#2e685d' }}>Pay at Counter</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: 14 }}>
+                    <span style={{ color: '#414846' }}>Payment Status</span>
+                    <span style={{ fontWeight: 700, color: '#2e685d' }}>Awaiting Counter Settlement</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: 14, borderTop: '1px solid #b0ecdd', marginTop: '0.35rem', paddingTop: '0.5rem' }}>
+                    <span style={{ color: '#032f28', fontWeight: 700 }}>Payable at Counter</span>
+                    <span style={{ fontWeight: 800, color: '#032f28' }}>
+                      {getTotals()?.medicineSubtotal != null
+                        ? `₹${getTotals()?.totalAmount?.toFixed(2)}`
+                        : 'MRP / counter pricing at pharmacy'}
+                    </span>
+                  </div>
+                </div>
+
+                <FlowButton onClick={handleFinishCheckout} size="lg">
+                  View Order Tracking
+                </FlowButton>
+              </div>
+            );
+          })()}
+
+          {/* ── Success ── */}
+          {step === 'success' && (() => {
+            const activePin = checkout?.verificationPin || paymentData?.verificationPin;
+            return (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#e0f2eb', border: '2px solid #b0ecdd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#2e685d', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                </div>
+                <h3 style={{ fontSize: 22, fontWeight: 700, color: '#032f28', marginBottom: '0.5rem' }}>Payment Successful!</h3>
+                <p style={{ color: '#414846', fontSize: 14, marginBottom: '1.5rem' }}>Your payment has been verified. Fulfillment is now in progress.</p>
+
+                {/* Pickup Verification PIN Card */}
+                {activePin && (
+                  <div style={{
+                    background: '#032f28',
+                    color: '#ffffff',
+                    borderRadius: 16,
+                    padding: '1.25rem',
+                    marginBottom: '1.5rem',
+                    textAlign: 'center',
+                    boxShadow: '0 8px 24px rgba(3,47,40,0.18)',
+                    border: '1.5px solid #2e685d'
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b0ecdd', marginBottom: '0.4rem' }}>
+                      4-Digit Dispensary Pickup PIN
+                    </div>
+                    <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.3em', color: '#ffffff' }}>
+                      {activePin}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#e0f2eb', marginTop: '0.4rem' }}>
+                      Show this 4-digit PIN to the pharmacist upon collecting your medicines.
+                    </div>
+                  </div>
+                )}
+
+                {paymentData && (
+                  <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+                    {[
+                      { label: 'Amount Paid', value: `₹${paymentData.amount}` },
+                      { label: 'Method', value: paymentData.method },
+                      { label: 'Status', value: paymentData.status, highlight: true },
+                      paymentData.paidAt && { label: 'Paid At', value: new Date(paymentData.paidAt).toLocaleString() }
+                    ].filter(Boolean).map((row, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', fontSize: 14 }}>
+                        <span style={{ color: '#414846' }}>{row.label}</span>
+                        <span style={{ fontWeight: 700, color: row.highlight ? '#2e685d' : '#0f1e1b' }}>{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <FlowButton onClick={handleFinishCheckout} size="lg">
+                  View Order Tracking
+                </FlowButton>
+              </div>
+            );
+          })()}
 
           {/* ── Failed ── */}
           {step === 'failed' && (

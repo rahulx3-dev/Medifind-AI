@@ -90,9 +90,10 @@ const frag = /* glsl */ `
     return vec4(colorIn.rgb / (a + 1e-5), a);
   }
 
-  const vec3  baseColor1  = vec3(0.611765, 0.262745, 0.996078);
-  const vec3  baseColor2  = vec3(0.298039, 0.760784, 0.913725);
-  const vec3  baseColor3  = vec3(0.062745, 0.078431, 0.600000);
+  // MediFind AI Clinical Theme: #9CB080 Light Sage Green with deep pine green
+  const vec3  baseColor1  = vec3(0.611765, 0.690196, 0.501961); // #9CB080 Signature Light Sage
+  const vec3  baseColor2  = vec3(0.725490, 0.823529, 0.627451); // Luminous #9CB080 Highlight
+  const vec3  baseColor3  = vec3(0.011765, 0.184314, 0.156863); // Deep Pine Emerald #032f28
   const float innerRadius = 0.6;
   const float noiseScale  = 0.65;
 

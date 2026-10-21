@@ -167,6 +167,66 @@ function getServiceProgressDetails(serviceType, status, pharmacyName, assistantN
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/assistant/profile
+/**
+ * Helper to format assistant profile response with Phase 1 fields
+ */
+function formatProfileResponse(profile, user) {
+  const capabilities = parseCapabilities(profile.capabilities);
+  let parsedServiceAreas = [];
+  if (profile.serviceAreasApplied) {
+    try {
+      parsedServiceAreas = JSON.parse(profile.serviceAreasApplied);
+    } catch (e) {
+      parsedServiceAreas = String(profile.serviceAreasApplied).split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }
+
+  return {
+    id: profile.id,
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    bio: profile.bio || '',
+    isActive: profile.isActive,
+    isAvailable: profile.isAvailable,
+    capabilities,
+    supportedServiceTypes: VALID_ASSISTANT_SERVICE_TYPES,
+    // Phase 1 Role Selection & Onboarding Foundation
+    assistantType: profile.assistantType || null,
+    onboardingCompleted: Boolean(profile.onboardingCompleted),
+    onboardingStep: profile.onboardingStep || (profile.assistantType ? 'COMPLETED' : 'ROLE_SELECTION'),
+    // Delivery Assistant Profile
+    operatingCity: profile.operatingCity || null,
+    operatingRadiusKm: profile.operatingRadiusKm != null ? profile.operatingRadiusKm : null,
+    vehicleType: profile.vehicleType || null,
+    maxActiveTasks: profile.maxActiveTasks || 2,
+    // Healthcare Professional Foundation & Phase 2 Verification Lifecycle
+    professionTitle: profile.professionTitle || null,
+    registrationNumber: profile.registrationNumber || null,
+    qualifications: profile.qualifications || null,
+    issuingAuthority: profile.issuingAuthority || null,
+    yearsOfExperience: profile.yearsOfExperience != null ? profile.yearsOfExperience : null,
+    declarationAccepted: Boolean(profile.declarationAccepted),
+    declarationAcceptedAt: profile.declarationAcceptedAt || null,
+    serviceAreasApplied: parsedServiceAreas,
+    approvedServices: profile.approvedServices ? parseCapabilities(profile.approvedServices) : [],
+    verificationStatus: profile.verificationStatus || 'NOT_SUBMITTED',
+    verificationNotes: profile.verificationNotes || null,
+    rejectionReason: profile.rejectionReason || null,
+    correctionReason: profile.correctionReason || null,
+    suspensionReason: profile.suspensionReason || null,
+    submittedAt: profile.submittedAt || null,
+    reviewedAt: profile.reviewedAt || null,
+    reviewedById: profile.reviewedById || null,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/assistant/profile
 // Retrieves current assistant profile, active/available status, and supported capabilities
 // ─────────────────────────────────────────────────────────────────────────────
 async function getAssistantProfile(req, res) {
@@ -186,29 +246,332 @@ async function getAssistantProfile(req, res) {
     }
 
     const profile = await getOrCreateAssistantProfile(userId);
-    const capabilities = parseCapabilities(profile.capabilities);
 
     return res.json({
       success: true,
-      profile: {
-        id: profile.id,
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        bio: profile.bio || '',
-        isActive: profile.isActive,
-        isAvailable: profile.isAvailable,
-        capabilities,
-        supportedServiceTypes: VALID_ASSISTANT_SERVICE_TYPES,
-        createdAt: profile.createdAt,
-        updatedAt: profile.updatedAt
-      }
+      profile: formatProfileResponse(profile, user)
     });
   } catch (err) {
     console.error('getAssistantProfile error:', err);
     return res.status(500).json({ success: false, error: 'Failed to retrieve assistant profile.' });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/assistant/role-selection
+// Mandatory First-Time Role Selection:
+// - DELIVERY_ASSISTANT: Medicine collection and delivery assistant
+// - HEALTHCARE_PROFESSIONAL: Qualified healthcare professional applicant
+// ─────────────────────────────────────────────────────────────────────────────
+async function selectAssistantRole(req, res) {
+  try {
+    const userId = req.user.id;
+    const assistantType = req.body.assistantType || req.body.role;
+
+    if (!assistantType || !['DELIVERY_ASSISTANT', 'HEALTHCARE_PROFESSIONAL'].includes(assistantType)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid assistant role selection. Must be either 'DELIVERY_ASSISTANT' or 'HEALTHCARE_PROFESSIONAL'."
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, phone: true, role: true }
+    });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found.' });
+    }
+
+    if (user.role !== 'ASSISTANT' && user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Unauthorized: Only registered assistants can select an assistant track.' });
+    }
+
+    const profile = await getOrCreateAssistantProfile(userId);
+
+    // Suspension check: Suspended assistants cannot change role
+    if (profile.verificationStatus === 'SUSPENDED') {
+      return res.status(403).json({
+        success: false,
+        error: `Unauthorized: Assistant account is SUSPENDED (${profile.suspensionReason || 'Administrator suspension in effect'}). Cannot modify role selection.`
+      });
+    }
+
+    // Prevent duplicate submission if user has already completed onboarding with this role
+    if (profile.onboardingCompleted && profile.assistantType === assistantType) {
+      return res.json({
+        success: true,
+        message: 'Role already configured.',
+        profile: formatProfileResponse(profile, user)
+      });
+    }
+
+    // Role-specific setup
+    const updateData = {
+      assistantType,
+      updatedAt: new Date()
+    };
+
+    if (assistantType === 'DELIVERY_ASSISTANT') {
+      updateData.onboardingCompleted = false;
+      updateData.onboardingStep = 'DELIVERY_SETUP';
+      updateData.verificationStatus = 'NOT_APPLICABLE';
+      // Default delivery capabilities if none configured
+      if (!profile.capabilities || profile.capabilities.trim() === '') {
+        updateData.capabilities = 'MEDICINE_DELIVERY,MEDICINE_COLLECTION';
+      }
+    } else {
+      // Healthcare Professional path:
+      // Begins onboarding foundation with default PENDING verification status
+      updateData.onboardingStep = 'PROFESSIONAL_APPLICATION';
+      updateData.verificationStatus = 'PENDING';
+      updateData.onboardingCompleted = false;
+      // Clinical tasks require approved credentials; delivery capabilities are empty
+      updateData.capabilities = '';
+    }
+
+    const updated = await prisma.assistantProfile.update({
+      where: { id: profile.id },
+      data: updateData
+    });
+
+    return res.json({
+      success: true,
+      message: assistantType === 'DELIVERY_ASSISTANT'
+        ? 'Successfully registered as Delivery Assistant.'
+        : 'Healthcare Professional track initiated. Please complete your professional application.',
+      profile: formatProfileResponse(updated, user)
+    });
+  } catch (err) {
+    console.error('selectAssistantRole error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to process role selection.' });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/assistant/delivery-profile
+// Updates delivery assistant operational profile (operating city, radius, vehicle, availability).
+// ─────────────────────────────────────────────────────────────────────────────
+async function updateDeliveryProfile(req, res) {
+  try {
+    const userId = req.user.id;
+    const { name, phone, bio, operatingCity, operatingRadiusKm, vehicleType, isAvailable, isActive } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
+
+    const profile = await getOrCreateAssistantProfile(userId);
+    if (profile.assistantType !== 'DELIVERY_ASSISTANT' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized: Delivery profile settings only apply to Delivery Assistants.'
+      });
+    }
+
+    const VALID_VEHICLES = ['BICYCLE', 'MOTORCYCLE', 'SCOOTER', 'CAR', 'ON_FOOT'];
+    if (vehicleType && !VALID_VEHICLES.includes(vehicleType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid vehicle type. Must be one of: ${VALID_VEHICLES.join(', ')}`
+      });
+    }
+
+    let parsedRadius = profile.operatingRadiusKm;
+    if (operatingRadiusKm !== undefined) {
+      const num = parseFloat(operatingRadiusKm);
+      if (isNaN(num) || num <= 0 || num > 50) {
+        return res.status(400).json({ success: false, error: 'Operating radius must be between 1 and 50 km.' });
+      }
+      parsedRadius = num;
+    }
+
+    // Update user name/phone if provided
+    const userUpdate = {};
+    if (name && typeof name === 'string' && name.trim()) userUpdate.name = name.trim();
+    if (phone !== undefined) userUpdate.phone = phone ? phone.trim() : null;
+    if (Object.keys(userUpdate).length > 0) {
+      await prisma.user.update({ where: { id: userId }, data: userUpdate });
+    }
+
+    const profileUpdate = {
+      onboardingCompleted: true,
+      onboardingStep: 'COMPLETED'
+    };
+    if (bio !== undefined) profileUpdate.bio = bio ? String(bio).trim() : null;
+    if (operatingCity !== undefined) profileUpdate.operatingCity = String(operatingCity).trim();
+    if (operatingRadiusKm !== undefined) profileUpdate.operatingRadiusKm = parsedRadius;
+    if (vehicleType !== undefined) profileUpdate.vehicleType = vehicleType;
+    if (isAvailable !== undefined) profileUpdate.isAvailable = Boolean(isAvailable);
+    if (isActive !== undefined) profileUpdate.isActive = Boolean(isActive);
+
+    const updated = await prisma.assistantProfile.update({
+      where: { id: profile.id },
+      data: profileUpdate,
+      include: { user: true }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Delivery profile updated successfully.',
+      profile: formatProfileResponse(updated, updated.user)
+    });
+  } catch (err) {
+    console.error('updateDeliveryProfile error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to update delivery profile.' });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/assistant/professional-application
+// Submits healthcare professional application foundation.
+// Default status: PENDING. Does NOT grant clinical permissions or mark user as verified.
+// ─────────────────────────────────────────────────────────────────────────────
+async function submitProfessionalApplication(req, res) {
+  try {
+    const userId = req.user.id;
+    const { professionTitle, registrationNumber, qualifications, serviceAreasApplied, bio } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
+
+    const profile = await getOrCreateAssistantProfile(userId);
+    if (profile.assistantType !== 'HEALTHCARE_PROFESSIONAL' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized: Professional application can only be submitted for Healthcare Professional role.'
+      });
+    }
+
+    if (!professionTitle || !professionTitle.trim()) {
+      return res.status(400).json({ success: false, error: 'Professional title or category is required.' });
+    }
+    if (!registrationNumber || !registrationNumber.trim()) {
+      return res.status(400).json({ success: false, error: 'Professional registration or council license number is required.' });
+    }
+    if (!qualifications || !qualifications.trim()) {
+      return res.status(400).json({ success: false, error: 'Relevant qualifications summary is required.' });
+    }
+
+    const { FUTURE_CLINICAL_SERVICE_TYPES } = require('../utils/serviceCatalogue');
+    const validClinicalKeys = Object.keys(FUTURE_CLINICAL_SERVICE_TYPES);
+
+    let parsedServices = [];
+    if (Array.isArray(serviceAreasApplied)) {
+      parsedServices = serviceAreasApplied.filter(s => validClinicalKeys.includes(s));
+    } else if (typeof serviceAreasApplied === 'string') {
+      parsedServices = serviceAreasApplied.split(',').map(s => s.trim()).filter(s => validClinicalKeys.includes(s));
+    }
+
+    if (parsedServices.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Please select at least one clinical service category applied for. Eligible options: ${validClinicalKeys.join(', ')}`
+      });
+    }
+
+    const updated = await prisma.assistantProfile.update({
+      where: { id: profile.id },
+      data: {
+        professionTitle: professionTitle.trim(),
+        registrationNumber: registrationNumber.trim(),
+        qualifications: qualifications.trim(),
+        issuingAuthority: req.body.issuingAuthority ? String(req.body.issuingAuthority).trim() : (profile.issuingAuthority || 'State Nursing Council'),
+        yearsOfExperience: req.body.yearsOfExperience !== undefined ? parseInt(req.body.yearsOfExperience, 10) || 0 : (profile.yearsOfExperience || 0),
+        declarationAccepted: req.body.declarationAccepted !== undefined ? Boolean(req.body.declarationAccepted) : true,
+        declarationAcceptedAt: new Date(),
+        serviceAreasApplied: JSON.stringify(parsedServices),
+        operatingCity: req.body.operatingCity ? String(req.body.operatingCity).trim() : (profile.operatingCity || 'Chengannur'),
+        operatingRadiusKm: req.body.operatingRadiusKm !== undefined ? parseFloat(req.body.operatingRadiusKm) || 15.0 : (profile.operatingRadiusKm || 15.0),
+        bio: bio ? bio.trim() : profile.bio,
+        verificationStatus: 'PENDING',
+        submittedAt: new Date(),
+        onboardingCompleted: true,
+        onboardingStep: 'COMPLETED'
+      },
+      include: { user: true }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Healthcare professional application submitted successfully. Your application is now PENDING administrator review.',
+      profile: formatProfileResponse(updated, updated.user)
+    });
+  } catch (err) {
+    console.error('submitProfessionalApplication error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to submit professional application.' });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/assistant/switch-role
+// Explicit role switching between Delivery Assistant and Healthcare Professional.
+// ─────────────────────────────────────────────────────────────────────────────
+async function switchAssistantRole(req, res) {
+  try {
+    const userId = req.user.id;
+    const { targetRole } = req.body;
+
+    if (!targetRole || !['DELIVERY_ASSISTANT', 'HEALTHCARE_PROFESSIONAL'].includes(targetRole)) {
+      return res.status(400).json({
+        success: false,
+        error: "Target role must be either 'DELIVERY_ASSISTANT' or 'HEALTHCARE_PROFESSIONAL'."
+      });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
+
+    const profile = await getOrCreateAssistantProfile(userId);
+
+    // Suspension check: Suspended assistants cannot switch role to regain access or bypass suspension
+    if (profile.verificationStatus === 'SUSPENDED') {
+      return res.status(403).json({
+        success: false,
+        error: `Unauthorized: Assistant account is SUSPENDED (${profile.suspensionReason || 'Administrator suspension in effect'}). Role switching is disabled.`
+      });
+    }
+
+    if (profile.assistantType === targetRole) {
+      return res.json({
+        success: true,
+        message: `Already in ${targetRole} role.`,
+        profile: formatProfileResponse(profile, user)
+      });
+    }
+
+    const updateData = { assistantType: targetRole };
+
+    if (targetRole === 'DELIVERY_ASSISTANT') {
+      updateData.onboardingCompleted = true;
+      updateData.onboardingStep = 'COMPLETED';
+      // Default delivery capabilities if empty
+      if (!profile.capabilities || profile.capabilities.trim() === '') {
+        updateData.capabilities = 'MEDICINE_DELIVERY,MEDICINE_COLLECTION';
+      }
+    } else {
+      // Switching to Healthcare Professional:
+      // Does NOT grant verified status! Preserves existing verificationStatus if previously approved or sets to NOT_SUBMITTED / PENDING.
+      if (profile.verificationStatus !== 'APPROVED') {
+        updateData.verificationStatus = profile.submittedAt ? 'PENDING' : 'NOT_SUBMITTED';
+        updateData.onboardingCompleted = Boolean(profile.submittedAt);
+      }
+      updateData.capabilities = ''; // Delivery tasks not assigned to unapproved professionals
+    }
+
+    const updated = await prisma.assistantProfile.update({
+      where: { id: profile.id },
+      data: updateData,
+      include: { user: true }
+    });
+
+    return res.json({
+      success: true,
+      message: `Role switched to ${targetRole}.`,
+      profile: formatProfileResponse(updated, updated.user)
+    });
+  } catch (err) {
+    console.error('switchAssistantRole error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to switch role.' });
   }
 }
 
@@ -219,7 +582,7 @@ async function getAssistantProfile(req, res) {
 async function updateAssistantProfile(req, res) {
   try {
     const userId = req.user.id;
-    const { name, phone, bio, isActive, isAvailable, capabilities } = req.body;
+    const { name, phone, bio, isActive, isAvailable, capabilities, assistantType, operatingCity, operatingRadiusKm, vehicleType } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -262,11 +625,26 @@ async function updateAssistantProfile(req, res) {
     }
 
     const existing = await getOrCreateAssistantProfile(userId);
+
+    // If account is suspended, strictly prevent reactivating availability or modifying capabilities/role
+    if (existing.verificationStatus === 'SUSPENDED') {
+      if (isActive === true || isAvailable === true || capabilities !== undefined || assistantType !== undefined) {
+        return res.status(403).json({
+          success: false,
+          error: `Unauthorized: Assistant account is SUSPENDED (${existing.suspensionReason || 'Administrator suspension in effect'}). Cannot activate availability or modify capabilities/role.`
+        });
+      }
+    }
+
     const profileUpdate = {};
     if (bio !== undefined) profileUpdate.bio = bio ? String(bio).trim() : null;
     if (isActive !== undefined) profileUpdate.isActive = Boolean(isActive);
     if (isAvailable !== undefined) profileUpdate.isAvailable = Boolean(isAvailable);
     if (capabilitiesStr !== undefined) profileUpdate.capabilities = capabilitiesStr;
+    if (assistantType !== undefined) profileUpdate.assistantType = assistantType;
+    if (operatingCity !== undefined) profileUpdate.operatingCity = String(operatingCity).trim();
+    if (operatingRadiusKm !== undefined) profileUpdate.operatingRadiusKm = parseFloat(operatingRadiusKm) || 10.0;
+    if (vehicleType !== undefined) profileUpdate.vehicleType = vehicleType;
 
     const updatedProfile = await prisma.assistantProfile.update({
       where: { id: existing.id },
@@ -277,20 +655,7 @@ async function updateAssistantProfile(req, res) {
     return res.json({
       success: true,
       message: 'Assistant profile updated successfully.',
-      profile: {
-        id: updatedProfile.id,
-        userId: updatedProfile.user.id,
-        name: updatedProfile.user.name,
-        email: updatedProfile.user.email,
-        phone: updatedProfile.user.phone,
-        role: updatedProfile.user.role,
-        bio: updatedProfile.bio || '',
-        isActive: updatedProfile.isActive,
-        isAvailable: updatedProfile.isAvailable,
-        capabilities: parseCapabilities(updatedProfile.capabilities),
-        supportedServiceTypes: VALID_ASSISTANT_SERVICE_TYPES,
-        updatedAt: updatedProfile.updatedAt
-      }
+      profile: formatProfileResponse(updatedProfile, updatedProfile.user)
     });
   } catch (err) {
     console.error('updateAssistantProfile error:', err);
@@ -301,8 +666,8 @@ async function updateAssistantProfile(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/assistant/available
 // Get available assistant tasks (status = 'AVAILABLE')
-// Phase 6.1L.5: Only returns tasks matching the requesting assistant's supported capabilities
-// when the assistant is active and available.
+// Phase 1: Only returns tasks matching requesting assistant's capabilities when active/available.
+// Healthcare professionals cannot receive delivery tasks unless approved.
 // ─────────────────────────────────────────────────────────────────────────────
 async function getAvailableTasks(req, res) {
   try {
@@ -310,6 +675,51 @@ async function getAvailableTasks(req, res) {
 
     // Check assistant profile, active/available status, and capabilities
     const profile = await getOrCreateAssistantProfile(assistantId);
+
+    // Suspension check: Suspended assistants cannot accept or view tasks
+    if (profile.verificationStatus === 'SUSPENDED') {
+      return res.json({
+        success: true,
+        count: 0,
+        tasks: [],
+        assistantStatus: {
+          isActive: false,
+          isAvailable: false,
+          verificationStatus: 'SUSPENDED',
+          message: `Assistant account is SUSPENDED: ${profile.suspensionReason || 'Account suspended by administrator.'}`
+        }
+      });
+    }
+
+    // Phase 1 & 2: Healthcare Professionals cannot take medicine delivery/collection tasks.
+    if (profile.assistantType === 'HEALTHCARE_PROFESSIONAL') {
+      let statusMsg = 'Your professional application is currently under review (PENDING). Clinical service tasks cannot be received until administrator verification is complete.';
+      if (profile.verificationStatus === 'APPROVED') {
+        statusMsg = 'Healthcare Professional credentials verified (APPROVED). Clinical task bookings will appear here once booked by patients (Phase 3).';
+      } else if (profile.verificationStatus === 'NEEDS_CORRECTION') {
+        statusMsg = `Application requires corrections: ${profile.correctionReason || 'Please review administrator instructions and resubmit.'}`;
+      } else if (profile.verificationStatus === 'REJECTED') {
+        statusMsg = `Professional application was rejected: ${profile.rejectionReason || 'Application rejected by administrator.'}`;
+      } else if (profile.verificationStatus === 'UNDER_REVIEW') {
+        statusMsg = 'Your application is currently UNDER_REVIEW by administrators. Verification is in progress.';
+      } else if (profile.verificationStatus === 'DRAFT' || profile.verificationStatus === 'NOT_SUBMITTED') {
+        statusMsg = 'Professional application not yet submitted. Please complete your application and upload required certificates.';
+      }
+
+      return res.json({
+        success: true,
+        count: 0,
+        tasks: [],
+        assistantStatus: {
+          isActive: profile.isActive,
+          isAvailable: profile.isAvailable,
+          assistantType: 'HEALTHCARE_PROFESSIONAL',
+          verificationStatus: profile.verificationStatus || 'PENDING',
+          message: statusMsg
+        }
+      });
+    }
+
     if (!profile.isActive || !profile.isAvailable) {
       return res.json({
         success: true,
@@ -365,16 +775,51 @@ async function getAvailableTasks(req, res) {
     // Strip handoverPin from all task responses — PIN is verified at handover, not returned in lists
     const sanitized = tasks.map(({ handoverPin: _hp, ...t }) => t).map(t => sanitizeTaskForAssistant(t, { includeHandoverPin: false }));
 
-    // Capability filtering: only show tasks whose serviceType is supported by this assistant
+    const { calculateDistance, resolveCoordinates } = require('../utils/distance');
+    const assistantCoords = resolveCoordinates(null, null, profile.operatingCity || 'Chengannur');
+    const maxRadiusKm = parseFloat(profile.operatingRadiusKm) || 15.0;
+
+    // Capability & Geographic Proximity Filtering:
+    // Only return tasks whose serviceType matches assistant capabilities
+    // AND whose pickup pharmacy / delivery destination falls within the assistant's operating radius
     const capableTasks = sanitized.filter(task => {
       const taskServiceType = task.serviceType || 'MEDICINE_DELIVERY';
-      return assistantCapabilities.includes(taskServiceType);
+      if (!assistantCapabilities.includes(taskServiceType)) {
+        return false;
+      }
+
+      // If task is already assigned to this assistant, always keep it
+      if (task.assistantId === assistantId) {
+        return true;
+      }
+
+      // Geographic radius calculation
+      const pharmacy = task.order?.pharmacy;
+      let targetLat = pharmacy?.latitude;
+      let targetLon = pharmacy?.longitude;
+
+      if (targetLat == null || targetLon == null) {
+        const resolvedPharmacy = resolveCoordinates(null, null, pharmacy?.address || pharmacy?.name || 'Chengannur');
+        targetLat = resolvedPharmacy.lat;
+        targetLon = resolvedPharmacy.lon;
+      }
+
+      const dist = calculateDistance(assistantCoords.lat, assistantCoords.lon, targetLat, targetLon);
+      task.calculatedDistanceKm = dist;
+
+      // Allow if within operating radius (with a 2km grace buffer for border coordinates)
+      return dist <= (maxRadiusKm + 2.0);
     });
 
     return res.json({
       success: true,
       count: capableTasks.length,
-      tasks: capableTasks
+      tasks: capableTasks,
+      assistantLocation: {
+        operatingCity: profile.operatingCity || 'Chengannur',
+        coordinates: assistantCoords,
+        radiusKm: maxRadiusKm
+      }
     });
   } catch (err) {
     console.error('getAvailableTasks error:', err);
@@ -464,6 +909,25 @@ async function acceptTask(req, res) {
 
     // Phase 6.1L.5: Check assistant profile, active/available status, and capability
     const profile = await getOrCreateAssistantProfile(assistantId);
+
+    // Suspension check: Suspended assistants cannot accept tasks
+    if (profile.verificationStatus === 'SUSPENDED') {
+      return res.status(403).json({
+        success: false,
+        error: `Unauthorized: Assistant account is SUSPENDED (${profile.suspensionReason || 'Administrator suspension in effect'}). Cannot accept tasks.`
+      });
+    }
+
+    // Explicit role guard: Healthcare Professionals cannot accept delivery tasks unless verified for delivery
+    if (profile.assistantType === 'HEALTHCARE_PROFESSIONAL') {
+      return res.status(403).json({
+        success: false,
+        error: profile.verificationStatus === 'APPROVED'
+          ? 'Unauthorized: Healthcare Professionals cannot accept medicine delivery tasks. Delivery tasks are restricted to Delivery Assistants.'
+          : 'Unauthorized: Healthcare Professionals with unapproved applications cannot accept tasks.'
+      });
+    }
+
     if (!profile.isActive || !profile.isAvailable) {
       return res.status(400).json({
         success: false,
@@ -668,12 +1132,22 @@ async function progressTaskStatus(req, res) {
         }
       });
 
-      // Update parent order status if confirmed
+      // Update child order status if confirmed
       if (status === 'CONFIRMED') {
         await tx.order.update({
           where: { id: task.orderId },
           data: { status: 'COMPLETED' }
         });
+
+        // Gate 4: Parent Aggregate Status Synchronization if child of a split order
+        if (task.order?.parentOrderId) {
+          try {
+            const { syncParentAggregateStatus } = require('./orderController');
+            await syncParentAggregateStatus(tx, task.order.parentOrderId, task.orderId, 'COMPLETED');
+          } catch (syncErr) {
+            console.error('Error synchronizing parent aggregate status in updateTaskStatus:', syncErr);
+          }
+        }
       }
 
       // Generate service-specific progress details (strictly preventing delivery wording for non-delivery services)
@@ -723,7 +1197,7 @@ async function progressTaskStatus(req, res) {
  */
 async function discoverAssistants(req, res) {
   try {
-    const { serviceType } = req.query;
+    const { serviceType, city, area } = req.query;
 
     if (serviceType && !VALID_ASSISTANT_SERVICE_TYPES.includes(serviceType)) {
       return res.status(400).json({
@@ -737,11 +1211,17 @@ async function discoverAssistants(req, res) {
       include: { assistantProfile: true }
     });
 
+    const targetArea = (city || area || '').trim().toLowerCase();
+
     const matching = assistantUsers.filter(u => {
       const prof = u.assistantProfile;
       if (!prof || !prof.isActive || !prof.isAvailable) return false;
       const caps = parseCapabilities(prof.capabilities);
       if (serviceType && !caps.includes(serviceType)) return false;
+      if (targetArea) {
+        const opCity = (prof.operatingCity || 'Chengannur').toLowerCase();
+        if (!opCity.includes(targetArea) && !targetArea.includes(opCity)) return false;
+      }
       return true;
     });
 
@@ -749,6 +1229,7 @@ async function discoverAssistants(req, res) {
       id: u.id,
       name: u.name,
       bio: u.assistantProfile?.bio || '',
+      operatingCity: u.assistantProfile?.operatingCity || 'Chengannur',
       capabilities: parseCapabilities(u.assistantProfile?.capabilities),
       isActive: u.assistantProfile?.isActive ?? false,
       isAvailable: u.assistantProfile?.isAvailable ?? false
@@ -814,6 +1295,10 @@ module.exports = {
   acceptTask,
   progressTaskStatus,
   discoverAssistants,
-  validateAssistantSelection
+  validateAssistantSelection,
+  selectAssistantRole,
+  updateDeliveryProfile,
+  submitProfessionalApplication,
+  switchAssistantRole
 };
 

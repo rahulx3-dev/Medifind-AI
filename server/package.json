@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test:migrate:local": "node scripts/deploy_local_test_migrations.js"
   },
   "keywords": [],
   "author": "",

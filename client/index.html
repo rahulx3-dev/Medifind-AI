@@ -6,10 +6,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MediFind AI - Prescription Medicine Availability & Emergency Pharmacy Locator</title>
     <meta name="description" content="AI-powered prescription OCR, real-time multi-pharmacy availability matching, explainable ranking, 24x7 emergency locator, and Medicine Access Assistant network." />
-    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <meta name="google" content="notranslate" />
+    <!-- Immediate theme restoration to prevent startup theme flash -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('medifind_theme');
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <!-- Google Fonts: Geist, Geist Mono, Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script id="tailwind-config">
@@ -86,17 +104,18 @@
               "margin-mobile": "1rem"
             },
             fontFamily: {
-              sans: ["'Plus Jakarta Sans'", "sans-serif"],
-              display: ["'Plus Jakarta Sans'", "sans-serif"],
-              body: ["'Plus Jakarta Sans'", "sans-serif"],
-              mono: ["'JetBrains Mono'", "monospace"]
+              sans: ["'Geist'", "'Plus Jakarta Sans'", "sans-serif"],
+              display: ["'Geist'", "'Plus Jakarta Sans'", "sans-serif"],
+              body: ["'Geist'", "'Plus Jakarta Sans'", "sans-serif"],
+              mono: ["'Geist Mono'", "'JetBrains Mono'", "monospace"],
+              pixel: ["'Geist Pixel'", "monospace"]
             }
           }
         }
       };
     </script>
   </head>
-  <body class="bg-background text-on-surface font-sans antialiased min-h-screen">
+  <body class="bg-background text-on-surface font-sans antialiased min-h-screen notranslate">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

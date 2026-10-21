@@ -55,4 +55,8 @@ Thumbs.db
 brain/
 scratch/
 scratch*
-server/scratch*
+# Large raw datasets
+server/ocr/datasets/source/*.csv
+
+.neon
+

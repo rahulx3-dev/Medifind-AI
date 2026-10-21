@@ -464,15 +464,24 @@ async function getEmergencyPharmacies(req, res) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/pharmacies/my-pharmacy
-// Returns the pharmacy managed by the authenticated pharmacist.
-// Strictly derived from req.user.id — never accepts client pharmacyId or fallback.
-// Role: PHARMACIST only.
-// ─────────────────────────────────────────────────────────────────────────────
+// In-memory cache for getMyManagedPharmacy (5s TTL)
+const managedPharmacyCache = new Map();
+const PHARMACY_CACHE_TTL_MS = 5000;
+
+function invalidateManagedPharmacyCache(managerId) {
+  if (managerId) managedPharmacyCache.delete(managerId);
+  else managedPharmacyCache.clear();
+}
+
 async function getMyManagedPharmacy(req, res) {
   try {
     if (req.user.role !== 'PHARMACIST') {
       return res.status(403).json({ success: false, error: 'Unauthorized: Only pharmacists can access their managed pharmacy.' });
+    }
+
+    const cached = managedPharmacyCache.get(req.user.id);
+    if (cached && (Date.now() - cached.timestamp < PHARMACY_CACHE_TTL_MS)) {
+      return res.json(cached.data);
     }
 
     const pharmacy = await prisma.pharmacy.findUnique({
@@ -514,7 +523,7 @@ async function getMyManagedPharmacy(req, res) {
       stockLastUpdated: inv.lastUpdated
     }));
 
-    return res.json({
+    const responsePayload = {
       success: true,
       pharmacy: {
         id: pharmacy.id,
@@ -536,7 +545,10 @@ async function getMyManagedPharmacy(req, res) {
         manager: pharmacy.manager,
         inventory: inventoryWithFreshness
       }
-    });
+    };
+    managedPharmacyCache.set(req.user.id, { timestamp: Date.now(), data: responsePayload });
+
+    return res.json(responsePayload);
   } catch (err) {
     console.error('getMyManagedPharmacy error:', err);
     return res.status(500).json({ success: false, error: 'Failed to retrieve managed pharmacy.' });
@@ -657,6 +669,7 @@ async function updateInventory(req, res) {
       }
     }
 
+    invalidateManagedPharmacyCache();
     return res.json({
       success: true,
       message: 'Inventory updated successfully.',
@@ -703,6 +716,7 @@ async function toggleStatus(req, res) {
       data
     });
 
+    invalidateManagedPharmacyCache();
     return res.json({
       success: true,
       message: 'Pharmacy status updated.',

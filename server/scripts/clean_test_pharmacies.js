@@ -1,13 +1,22 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('../src/utils/testDatabaseGuard');
+
+// Explicit test-only authorization gate for destructive cleanup
+if (process.env.ALLOW_TEST_DATA_CLEANUP !== 'true') {
+  const errMsg = '[CRITICAL REFUSAL] clean_test_pharmacies is a destructive operation. Execution is strictly prohibited unless explicitly authorized via ALLOW_TEST_DATA_CLEANUP=true and validated against a disposable test database.';
+  console.error(errMsg);
+  const err = new Error(errMsg);
+  err.code = 'UNAUTHORIZED_DESTRUCTIVE_CLEANUP';
+  throw err;
+}
+
+const prisma = createSafeTestPrismaClient();
 
 async function clean() {
   console.log('--- CLEANING STALE TEST PHARMACIES ---');
 
   const keepNames = [
     'Max Care Pharmacy',
-    'Karuna Medicals',
-    '[TEST] Alappuzha Town Area Pharmacy'
+    'Karuna Medicals'
   ];
 
   // Find all pharmacies to remove
@@ -97,16 +106,6 @@ async function clean() {
       longitude: null,
       licenseNumber: null,
       rating: 0.0
-    }
-  });
-
-  // Ensure test fixture is strictly flagged as TEST and NOT verified
-  await prisma.pharmacy.updateMany({
-    where: { name: '[TEST] Alappuzha Town Area Pharmacy' },
-    data: {
-      isVerified: false,
-      verificationStatus: 'TEST',
-      dataSource: 'TEST_FIXTURE'
     }
   });
 

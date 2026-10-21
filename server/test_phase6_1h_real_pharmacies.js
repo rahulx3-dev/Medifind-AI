@@ -449,6 +449,18 @@ async function runPhase61HTests() {
       });
       const confirmData = await confirmRes.json();
 
+      // Phase 6.1M Workflow: Patient selects fulfillment & payment before READY_FOR_PICKUP
+      await fetch(`${BASE_URL}/checkout/${createdOrderId}/fulfillment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${patientToken}` },
+        body: JSON.stringify({ fulfillmentType: 'PICKUP' })
+      });
+      await fetch(`${BASE_URL}/checkout/${createdOrderId}/select-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${patientToken}` },
+        body: JSON.stringify({ paymentMethod: 'COUNTER' })
+      });
+
       // Pharmacist 1 sets ready for pickup
       const readyRes = await fetch(`${BASE_URL}/orders/${createdOrderId}/status`, {
         method: 'PUT',

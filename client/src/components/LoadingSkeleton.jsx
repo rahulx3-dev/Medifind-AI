@@ -150,14 +150,56 @@ export function SkeletonTimeline({ steps = 4, className = '' }) {
 }
 
 /**
+ * SkeletonOrderCard — Structural card placeholder matching Patient Order & Assistant Task Cards
+ */
+export function SkeletonOrderCard({ className = '' }) {
+  return (
+    <div className={`bg-white rounded-2xl p-5 border border-[#e0f2eb] flex flex-col gap-4 shadow-xs relative overflow-hidden ${className}`}>
+      <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-[#b0ecdd] skeleton-shimmer" />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <div className="w-24 h-4 rounded-full skeleton-shimmer" />
+          <div className="w-20 h-5 rounded-full skeleton-shimmer" />
+        </div>
+        <div className="w-28 h-4 rounded-full skeleton-shimmer" />
+      </div>
+      <div className="flex items-start gap-3 pt-1">
+        <div className="w-10 h-10 rounded-xl skeleton-shimmer shrink-0" />
+        <div className="flex-1 flex flex-col gap-2">
+          <div className="w-48 h-4 rounded-full skeleton-shimmer" />
+          <div className="w-64 h-3 rounded-full skeleton-shimmer" />
+        </div>
+      </div>
+      <div className="flex items-center justify-between pt-3 border-t border-[#e0f2eb]">
+        <div className="w-32 h-3.5 rounded-full skeleton-shimmer" />
+        <div className="w-28 h-8 rounded-full skeleton-shimmer" />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Default backwards-compatible LoadingSkeleton component
  */
 export default function LoadingSkeleton({
   type = 'cards',
+  variant,
   count = 3,
   className = ''
 }) {
-  if (type === 'metrics') {
+  const activeType = variant || type;
+
+  if (activeType === 'order-card' || activeType === 'task-card') {
+    return (
+      <div className={`flex flex-col gap-3.5 ${className}`}>
+        {Array.from({ length: count }).map((_, i) => (
+          <SkeletonOrderCard key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  if (activeType === 'metrics') {
     return (
       <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${className}`}>
         {Array.from({ length: 4 }).map((_, i) => (
@@ -170,15 +212,15 @@ export default function LoadingSkeleton({
     );
   }
 
-  if (type === 'table') {
+  if (activeType === 'table') {
     return <SkeletonTable rows={count} className={className} />;
   }
 
-  if (type === 'map') {
+  if (activeType === 'map') {
     return <SkeletonMap className={className} />;
   }
 
-  if (type === 'timeline') {
+  if (activeType === 'timeline') {
     return <SkeletonTimeline steps={count} className={className} />;
   }
 
@@ -191,4 +233,5 @@ export default function LoadingSkeleton({
     </div>
   );
 }
+
 

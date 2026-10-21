@@ -44,6 +44,7 @@ const os = require('os');
 //       It is never loaded unless PRESCRIPTION_OCR_ENGINE=tesseract is set.
 //       The normal patient-facing production path uses PaddleOCR exclusively.
 const { Jimp } = require('jimp');
+const { identifyPrescriptionType, findMatchingBrands } = require('./genericMedicineMatcher');
 
 // ─── Developer-Only Tesseract Guard ──────────────────────────────────────────
 // PRESCRIPTION_OCR_ENGINE=tesseract activates the legacy engine ONLY for
@@ -187,13 +188,13 @@ function analyzeDocumentLayout(rawLines) {
     ? rawLines
     : String(rawLines || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-  const headerRE = /(?:hospital|clinic|health\s+centre|dispensary|institute|medical\s+centre|ph:|phone|address|alappuzha|bangalore|bengaluru|delhi|mumbai|kerala|pin|opd\s+prescription|prescription\s+slip)/i;
-  const doctorRE = /(?:dr\.?\s+|consultant|m\.?b\.?b\.?s|m\.?d\.|reg(?:istration)?\.?\s*(?:no\.?|:)|department|specialist)/i;
-  const patientRE = /(?:patient\s*name|patient:|age\s*[\/:]|gender\s*[\/:]|sex\s*[\/:]|date\s*&?\s*time|uhid|abha|provisional|diagnosis|afebrile|vitals)/i;
+  const headerRE = /(?:hospital|clinic|health\s+centre|dispensary|institute|medical\s+centre|ph:|phone|address|alappuzha|bangalore|bengaluru|delhi|mumbai|kerala|pin|opd\s+prescription|prescription\s+slip|cheatth)/i;
+  const doctorRE = /(?:dr\.?\s+|consultant|m\.?b\.?b\.?s|m\.?d\.|reg(?:istration)?\.?\s*(?:no\.?|:)|department|general\s+op|specialist)/i;
+  const patientRE = /(?:patient\s*name|patient:|age\s*[\/:]|gender\s*[\/:]|sex\s*[\/:]|date\s*&?\s*time|uhid|abha|provisional|diagnosis|afebrile|vitals|c\/o\s+|loose\s+stools|nausea|vomiting|complaints?|stable)/i;
   const medHeaderRE = /(?:medicines?\s+prescribed|^rx[\.:\s]*$|^medicines?$|drug\s*(?:&|and)\s*strength|prescribed\s+medicines?)/i;
   const tableHeaderRE = /^(?:sl\.?\s*(?:no\.?)?|drug\s*(?:&|and)\s*strength|dosage|frequency|route|duration|instruction|remarks?|prescribed\s*qty|s\.?\s*no\.?|sr\.?\s*no\.?|quantity|strength)$/i;
-  const multiHeaderRE = /drug\s*(?:&|and)\s*strength.*(dosage|frequency|route|duration|qty)/i;
-  const instructionsRE = /(?:plenty\s+of\s+oral|avoid\s+cold|dietary|advice:|instructions?:|review\s+(?:sos|after)|take\s+with\s+warm)/i;
+  const multiHeaderRE = /(?:drug\s*(?:&|and)\s*strength|route\s+duration|dosage\s+frequency|instruction\s+remarks|prescribed\s+quantity|si\s+drug)/i;
+  const instructionsRE = /(?:plenty\s+of\s+oral|avoid\s+cold|dietary|advice:|instructions?:|review\s*(?:sos|after)|take\s+with\s+warm|remarks?:?|reviewsos)/i;
   const footerRE = /(?:disclaimer|electronically\s+generated|printed\s+on|printed\s+by|page\s+\d|health\s+facility|side\s+effects)/i;
   const signatureRE = /(?:signature|doctor's?\s+signature|stamp)/i;
 
@@ -224,19 +225,23 @@ function analyzeDocumentLayout(rawLines) {
       regionType = 'TABLE_HEADER';
       inMedicineSection = true;
       hasEncounteredMedHeader = true;
-    } else if (!hasEncounteredMedHeader && headerRE.test(line)) {
+    } else if (headerRE.test(line)) {
       regionType = 'CLINIC_HEADER';
-    } else if (!hasEncounteredMedHeader && patientRE.test(line)) {
+    } else if (patientRE.test(line)) {
       regionType = 'PATIENT_METADATA';
     } else {
       // Body lines
       if (inMedicineSection || hasEncounteredMedHeader) {
-        regionType = 'MEDICINE_SECTION';
+        if (instructionsRE.test(line) || footerRE.test(line)) {
+          regionType = 'INSTRUCTIONS';
+        } else {
+          regionType = 'MEDICINE_SECTION';
+        }
       } else {
         // Pre-Rx section or unlabeled prescription body
         const hasMedIndicator = MEDICINE_ROW_INDICATORS.some(re => re.test(line));
-        const isNumbered = /^[,;.\s]*\d+[.)\s]/.test(line);
-        if (hasMedIndicator || isNumbered || /^[A-Z][a-z]{2,}/.test(line)) {
+        const isNumbered = /^[,;.\s]*\d+[.)\s]+[A-Za-z]/.test(line);
+        if (hasMedIndicator || (isNumbered && hasMedIndicator)) {
           regionType = 'MEDICINE_SECTION';
           inMedicineSection = true;
         } else {
@@ -269,6 +274,9 @@ function normalizeHandwrittenTokens(text) {
 
   // Strip leading Rx prefixes
   s = s.replace(/^\s*Rx[\s.:\-_/]+/i, '').trim();
+
+  // Strip leading dosage form prefixes (Tab, Cap, Inj, Syr)
+  s = s.replace(/^\s*(?:Tab(?:let)?s?|Ta[by]\b|Cap(?:sule)?s?|Inj(?:ection)?|Syr(?:up)?)\b[\s.:\-_/]*/i, '').trim();
 
   // Strip leading numbering
   s = s
@@ -332,6 +340,9 @@ function extractMedicineNameFromRow(row) {
     }
   }
 
+  // Strip quantity before dosage forms (e.g. "Dolo 650 1 tab" -> "Dolo 650", "Augmentin 625 Duo 1 tab" -> "Augmentin 625 Duo")
+  s = s.replace(/\s+\d+\s*(?:Tab(?:let)?s?|Ta[by]\b|Cap(?:sule)?s?|Inj(?:ection)?|Syr(?:up)?|Drops?|Puffs?|Vials?|Sachets?)\b.*$/i, '').trim();
+
   // Apply suffix strippers
   for (const re of STRIP_SUFFIXES) {
     s = s.replace(re, '').trim();
@@ -346,6 +357,17 @@ function extractMedicineNameFromRow(row) {
   // If empty or purely a stop word, return null
   if (!s || isStopWord(s)) return { medicineName: null, strength, rawRow: row };
   if (s.length < 2 || /^\d+$/.test(s)) return { medicineName: null, strength, rawRow: row };
+
+  const lowerS = s.toLowerCase();
+  const CLINICAL_NOISE_TERMS = [
+    'provisional', 'afebrile', 'vitals', 'stable', 'loose stools',
+    'nausea', 'vomiting', 'fever', 'general op', 'doctor', 'patient',
+    'prescribed', 'quantity', 'duration instruction', 'remarks', 'reviewsos',
+    'review sos', 'printed on', 'community health', 'cheatth'
+  ];
+  if (CLINICAL_NOISE_TERMS.some(term => lowerS.includes(term))) {
+    return { medicineName: null, strength, rawRow: row };
+  }
 
   return { medicineName: s, strength, rawRow: row };
 }
@@ -487,7 +509,7 @@ function matchMedicineNameAgainstCatalog(medicineName, strength, catalog) {
       (med.brandName || '').includes('-TZ');
 
     if (isSingleIngredient && isComboMedicine && !exactBrand) {
-      combinationPenalty = 0.30;
+      combinationPenalty = 0.45;
     }
 
     const combinedScore = Math.max(0, Math.min(1.0, bestSim + strengthDelta - combinationPenalty));
@@ -596,16 +618,16 @@ function identifyMedicineRows(rawText) {
       item.regionType === 'INSTRUCTIONS' ||
       item.regionType === 'FOOTER_DISCLAIMER' ||
       item.regionType === 'SIGNATURE' ||
-      item.regionType === 'TABLE_HEADER'
+      item.regionType === 'TABLE_HEADER' ||
+      item.regionType === 'METADATA_OR_HEADER'
     ) {
       continue;
     }
 
     const hasMedIndicator = MEDICINE_ROW_INDICATORS.some(re => re.test(line));
-    const isNumbered = /^[,;.\s]*\d+[.)\s]/.test(line);
-    const hasMedWord = /^[A-Za-z]{3,}/.test(line.replace(/^[^A-Za-z0-9]*/, ''));
+    const isNumbered = /^[,;.\s]*\d+[.)\s]+[A-Za-z]/.test(line);
 
-    if (item.regionType === 'MEDICINE_SECTION' && (hasMedIndicator || isNumbered || hasMedWord)) {
+    if (item.regionType === 'MEDICINE_SECTION' && (hasMedIndicator || isNumbered)) {
       medicineRows.push({ row: line, lineIndex: item.lineIndex });
     }
   }
@@ -622,40 +644,72 @@ function identifyMedicineRows(rawText) {
 function extractPrescribedQuantity(row) {
   if (!row) return null;
 
-  // 1. Explicit qty label (e.g. "Qty: 10")
-  const qtyMatch = row.match(QUANTITY_RE);
+  // 1. Explicit qty label (e.g. 'Qty: 10', 'Prescribed Qty: 6', 'Disp: 10', 'Total: 10', '#10')
+  const qtyMatch = row.match(/(?:qty|quantity|prescribed\s+qty|dispense|disp|total|nos?)[:\s#]+(\d{1,3})\b/i);
   if (qtyMatch) {
     const n = parseInt(qtyMatch[1], 10);
     if (n > 0 && n <= 500) return n;
   }
 
-  // 2. Multiplication format: "x 10", "x5", "× 10"
-  const multMatch = row.match(MULT_QTY_RE);
+  // 2. Number in parentheses: '(10)', '(6)', '(15 tabs)'
+  const parenMatch = row.match(/\(\s*(\d{1,3})\s*(?:nos?\.?|tab(?:let)?s?|cap(?:sule)?s?|packets?|sachets?|pcs?\.?|strips?|bottles?)?\s*\)/i);
+  if (parenMatch) {
+    const n = parseInt(parenMatch[1], 10);
+    if (n > 0 && n <= 500) return n;
+  }
+
+  // 3. Multiplication format: 'x 10', 'x5', '× 10', '* 10' (ensuring x is NOT part of drug name like Amox)
+  const multMatch = row.match(/(?:^|\s|[,\-])[xX*×]\s*(\d{1,3})\b/);
   if (multMatch) {
     const n = parseInt(multMatch[1], 10);
     if (n > 0 && n <= 500) return n;
   }
 
-  // 3. Middle wrapped table quantity: OCR table column for "duration" / "days" followed by qty number.
-  // Common Tesseract OCR artifacts for "days": Alois, dais, lave, dlaitvs, dare, dials, dlais
+  // 4. Trailing quantity after duration / days / frequency / sos (e.g. '5 Days 10', '3 Days 6', '5 Days 5', 'SOS - 1')
+  const trailDaysMatch = row.match(/\b(?:dais|dare|dials|days?|sos|stat)\s*[-:]?\s*(\d{1,3})\s*(?:nos?\.?|tab(?:let)?s?|cap(?:sule)?s?|packets?|sachets?|pcs?\.?)?\s*$/i);
+  if (trailDaysMatch) {
+    const n = parseInt(trailDaysMatch[1], 10);
+    if (n >= 1 && n <= 500) return n;
+  }
+
+  // 5. Table column quantity near route / frequency / duration keywords (strictly NOT matching strength units like mg/mcg/gm/ml)
+  if (!/\b\d+\.?\d*\s*(?:mg|mcg|gm?|ml|%)\s*$/i.test(row)) {
+    const tableQtyMatch = row.match(/\b(?:oral|daily|od|bd|tds|sos|route)\b.*?(\d{1,3})\s*(?:nos?\.?|tab(?:let)?s?|cap(?:sule)?s?|packets?|sachets?|pcs?\.?)?\s*$/i);
+    if (tableQtyMatch) {
+      const n = parseInt(tableQtyMatch[1], 10);
+      if (n >= 1 && n <= 500) return n;
+    }
+  }
+
+  // 6. Trailing number pattern: number at end of table row (strictly avoiding strength units like mg/mcg/ml)
+  if (!/\b\d+\.?\d*\s*(?:mg|mcg|gm?|ml|%)\s*$/i.test(row)) {
+    const trailingMatch = row.match(/\b(\d{1,3})\s*(?:tab(?:let)?s?|cap(?:sule)?s?|nos?\.?|pcs?\.?|packets?|sachets?|strips?|bottles?)?\s*$/i);
+    if (trailingMatch) {
+      const n = parseInt(trailingMatch[1], 10);
+      if (n >= 1 && n <= 500) return n;
+    }
+  }
+
+  // 7. Middle wrapped table quantity: OCR table column for 'duration' / 'days' followed by qty number.
   const middleQtyMatch = row.match(/\b(?:ameo\s+Aas|Aas|Alois|dlaitvs|dlais|dials|dais|dare|lave|days?)\s+(\d{1,2})\b/i);
   if (middleQtyMatch) {
     const n = parseInt(middleQtyMatch[1], 10);
     if (n >= 1 && n <= 200) return n;
   }
 
-  // 3b. Trailing "N dais" / "N dare" / "N days" at very end of row (e.g. "5 dais 10")
-  const trailDaysMatch = row.match(/\b(\d{1,3})\s+(?:dais|dare|dials|days?)\s*\d*\s*$/i);
-  if (trailDaysMatch) {
-    const n = parseInt(trailDaysMatch[1], 10);
-    if (n >= 1 && n <= 200) return n;
+  // 8. Explicit unit suffix: '10 tabs', '10 tablets', '6 nos', '5 caps', '1 packet'
+  // (strictly excluding dosage instructions like '1 Tab OD', '1 Cap BD')
+  const unitQtyMatch = row.match(/\b(\d{1,3})\s*(?:tab(?:let)?s?|cap(?:sule)?s?|nos?\.?|pcs?\.?|packets?|sachets?|strips?|bottles?)\b(?!\s*(?:od|bd|tds|qid|daily|once|twice|sos|hs|before|after|per|\/))/i);
+  if (unitQtyMatch) {
+    const n = parseInt(unitQtyMatch[1], 10);
+    if (n > 0 && n <= 500) return n;
   }
 
-  // 4. Trailing number pattern: number at end of table row
-  const trailingMatch = row.match(TRAILING_QTY_RE);
-  if (trailingMatch) {
-    const n = parseInt(trailingMatch[1], 10);
-    if (n >= 1 && n <= 200) return n;
+  // 9. Embedded table numbers near Oral / route / days
+  const embeddedMatch = row.match(/\b(?:oral|route|days?)\s+(?:[0-9a-zA-Z]+\s+)?(\d{1,3})\b(?!\s*(?:mg|mcg|ml|gm?|%|g\b))/i);
+  if (embeddedMatch) {
+    const n = parseInt(embeddedMatch[1], 10);
+    if (n >= 1 && n <= 500) return n;
   }
 
   return null;
@@ -722,26 +776,51 @@ function processPrescriptionText(rawText, medicinesCatalog) {
     const dur = '';
 
     if (matches.length === 0) {
-      // 1. Not in 50-item catalogue
+      // Discard non-medicine text that has neither catalogue match nor pharmaceutical indicator
+      const hasMedIndicator = MEDICINE_ROW_INDICATORS.some(re => re.test(row));
+      if (!hasMedIndicator && !strength) {
+        continue;
+      }
+
+      // 1. Not in 50-item catalogue -> Query secondary auxiliary reference lexicon
+      const rxType = identifyPrescriptionType({ medicineName, rawName: rawRow }, medicinesCatalog);
+      const ocrMatcher = require('./ocrMatcher');
+      const auxCandidates = ocrMatcher.searchAuxiliaryLexicon(medicineName, {
+        strength,
+        rawLine: rawRow,
+        topK: 4
+      });
+      const hasAux = auxCandidates && auxCandidates.length > 0;
+      const topAux = hasAux ? auxCandidates[0] : null;
+
       detectedItems.push({
         rawName: rawRow,
         medicineName,
         strength: strength || null,
-        matchedMedicineId: null,
+        matchedMedicineId: null, // STRICT INVENTORY BOUNDARY
         matchedMedicineName: null,
         matchedMedicine: null,
+        isGeneric: Boolean(rxType.isGeneric),
+        prescribedGenericName: rxType.isGeneric ? (rxType.targetGeneric || medicineName) : null,
         allMatches: [],
-        confidence: 0.0,
+        auxiliaryCandidates: auxCandidates || [],
+        confidence: topAux ? topAux.matchScore : 0.0,
         needsMapping: true,
         isNonCatalogue: true,
         status: 'NOT_IN_CATALOGUE',
         extractedQuantity: extractedQty,
         quantity: extractedQty || 1,
-        dosage,
+        dosage: dosage || (topAux ? topAux.strength : 'See prescription'),
         frequency: freq,
         duration: dur,
-        evidenceSummary: `"${medicineName}" is not available in current MediFind catalogue.`,
-        isConfirmed: false
+        evidenceSummary: hasAux
+          ? `Not found in authoritative 50-medicine inventory. Reference lexicon suggestion: "${topAux.brandName}" (${topAux.genericName}). Clinical confirmation required.`
+          : (rxType.isGeneric
+              ? `Generic formulation "${medicineName}" is not available in current MediFind catalogue.`
+              : `"${medicineName}" is not available in current MediFind catalogue.`),
+        isConfirmed: false,
+        isAuxiliarySuggestion: hasAux,
+        requiresConfirmation: true
       });
     } else {
       const top = matches[0];
@@ -753,7 +832,42 @@ function processPrescriptionText(rawText, medicinesCatalog) {
       const isAliasBeatenByPrimaryBrand = topIsDirectBrand && !secondIsDirectBrand;
       const hasCloseCompetitor = !isAliasBeatenByPrimaryBrand && Boolean(second && second.confidence >= 0.65 && (top.confidence - second.confidence < 0.10));
 
-      if (isConfident && !hasCloseCompetitor) {
+      const rxType = identifyPrescriptionType({ medicineName, rawName: rawRow }, medicinesCatalog);
+      const isGenericPrescription = rxType.isGeneric && !topIsDirectBrand;
+
+      if (isGenericPrescription) {
+        const matchingBrands = findMatchingBrands({ medicineName, rawName: rawRow, strength }, medicinesCatalog);
+        const candidateMatches = matchingBrands.length > 0
+          ? matchingBrands.map(b => ({
+              medicine: b,
+              confidence: b.isExactStrength ? 0.95 : 0.85,
+              evidence: { combinedScore: b.isExactStrength ? 0.95 : 0.85 }
+            }))
+          : matches.slice(0, 5);
+
+        detectedItems.push({
+          rawName: rawRow,
+          medicineName,
+          strength: strength || null,
+          matchedMedicineId: null,
+          matchedMedicineName: null,
+          matchedMedicine: null,
+          isGeneric: true,
+          prescribedGenericName: rxType.targetGeneric || medicineName,
+          allMatches: candidateMatches,
+          confidence: top ? top.confidence : 0.85,
+          needsMapping: true,
+          isNonCatalogue: false,
+          status: 'AMBIGUOUS',
+          extractedQuantity: extractedQty,
+          quantity: extractedQty || 1,
+          dosage,
+          frequency: freq,
+          duration: dur,
+          evidenceSummary: `Prescribed as generic active ingredient "${medicineName}". Suitable matching brand options available.`,
+          isConfirmed: false
+        });
+      } else if (isConfident && !hasCloseCompetitor) {
         // 2. High confidence, decisive single match — AUTO-MATCHED
         detectedItems.push({
           rawName: rawRow,
@@ -762,6 +876,8 @@ function processPrescriptionText(rawText, medicinesCatalog) {
           matchedMedicineId: top.medicine.id,
           matchedMedicineName: top.medicine.brandName,
           matchedMedicine: top.medicine,
+          isGeneric: false,
+          prescribedGenericName: null,
           allMatches: matches.slice(0, 5),
           confidence: top.confidence,
           needsMapping: false,
@@ -784,6 +900,8 @@ function processPrescriptionText(rawText, medicinesCatalog) {
           matchedMedicineId: null,
           matchedMedicineName: null,
           matchedMedicine: null,
+          isGeneric: false,
+          prescribedGenericName: null,
           allMatches: matches.slice(0, 5),
           confidence: top.confidence,
           needsMapping: true,
@@ -886,6 +1004,7 @@ async function runOCR(imagePath) {
         return {
           success: true,
           engine: pyResult.engine?.primary || 'PaddleOCR / PP-OCRv5',
+          engines: pyResult.engine || {},
           rawText: pyResult.rawText || pyResult.medicineLines.map(m => m.rawLine).join('\n'),
           confidence: calculatedConf,
           wordCount: (pyResult.rawText || '').split(/\s+/).filter(Boolean).length,
@@ -899,19 +1018,17 @@ async function runOCR(imagePath) {
       }
     }
 
-    // PaddleOCR ran but returned zero text → safe UNREADABLE state.
-    // Do NOT fall back to Tesseract — the patient receives a clear error.
+    // PaddleOCR ran but returned zero readable text blocks (safe UNREADABLE state)
+    console.warn('[OCR] PaddleOCR produced no readable text blocks from image.');
     return {
       success: false,
       rawText: '',
       confidence: 0,
-      engine: 'PaddleOCR / PP-OCRv5',
+      engine: pyResult?.engine?.primary || 'PaddleOCR / PP-OCRv5',
       error: pyResult?.error || 'PaddleOCR processed the image but could not extract readable text. Please upload a clearer image.'
     };
   } catch (pyErr) {
-    // PaddleOCR worker itself crashed/timed out → safe UNREADABLE state.
-    // Do NOT fall back to Tesseract.
-    console.error(`[OCR-Bridge] Python OCR worker failed: ${pyErr.message}`);
+    console.error(`[OCR-Bridge] Python OCR worker error: ${pyErr.message}`);
     return {
       success: false,
       rawText: '',

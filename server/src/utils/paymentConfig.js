@@ -106,31 +106,55 @@ function calculateOrderTotals(items, fulfillmentType, options = {}) {
     : 0;
 
   let medicineSubtotal = null;
+  let taxAmount = null;
+  let baseAmount = null;
+
   if (allItemsPriced) {
     medicineSubtotal = items.reduce((sum, item) => {
-      const p = Number(item.unitPrice);
-      return sum + p * Number(item.quantity || 1);
+      const lineSub = item.subtotal != null && !isNaN(item.subtotal) && Number(item.subtotal) > 0
+        ? Number(item.subtotal)
+        : Number(item.unitPrice) * Number(item.quantity || 1);
+      return sum + lineSub;
     }, 0);
-    medicineSubtotal = Number(medicineSubtotal.toFixed(2));
+    medicineSubtotal = Math.round((medicineSubtotal + Number.EPSILON) * 100) / 100;
+
+    // Standard 12% GST breakdown from inclusive retail price
+    const taxRate = options.taxRate !== undefined ? Number(options.taxRate) : 0.12;
+    if (taxRate > 0) {
+      baseAmount = Math.round(((medicineSubtotal / (1 + taxRate)) + Number.EPSILON) * 100) / 100;
+      taxAmount = Math.round(((medicineSubtotal - baseAmount) + Number.EPSILON) * 100) / 100;
+    } else {
+      baseAmount = medicineSubtotal;
+      taxAmount = 0.0;
+    }
   }
 
   const fulfillmentFee = getFulfillmentFee(fulfillmentType);
 
-  const isPlatformFeeEnabled = options.includePlatformFee !== undefined
-    ? Boolean(options.includePlatformFee)
-    : (options.platformFee !== undefined ? options.platformFee > 0 : (process.env.ENABLE_PLATFORM_FEE === 'true'));
-
-  const platformFee = isPlatformFeeEnabled ? PLATFORM_FEE : 0.0;
+  let platformFee = 0.0;
+  if (options.platformFee !== undefined) {
+    platformFee = Number(options.platformFee);
+  } else if (options.isChildOrder) {
+    // Gate 4.2.2.2: Child orders never receive a fee just because ENABLE_PLATFORM_FEE is enabled
+    platformFee = 0.0;
+  } else if (options.includePlatformFee !== undefined) {
+    platformFee = options.includePlatformFee ? PLATFORM_FEE : 0.0;
+  } else {
+    platformFee = (process.env.ENABLE_PLATFORM_FEE !== 'false') ? PLATFORM_FEE : 0.0;
+  }
 
   // When medicineSubtotal is null, totalAmount is null (never fabricated into ₹0 or fake fee-only total)
   const totalAmount = medicineSubtotal != null
-    ? Number((medicineSubtotal + fulfillmentFee + platformFee).toFixed(2))
+    ? Math.round(((medicineSubtotal + fulfillmentFee + platformFee) + Number.EPSILON) * 100) / 100
     : null;
 
   return {
     medicineSubtotal,
-    fulfillmentFee: Number(fulfillmentFee.toFixed(2)),
-    platformFee: Number(platformFee.toFixed(2)),
+    taxAmount,
+    baseAmount,
+    isTaxIncluded: true,
+    fulfillmentFee: Math.round((fulfillmentFee + Number.EPSILON) * 100) / 100,
+    platformFee: Math.round((platformFee + Number.EPSILON) * 100) / 100,
     totalAmount,
     currency: 'INR',
     requiresCounterPayment: medicineSubtotal === null,

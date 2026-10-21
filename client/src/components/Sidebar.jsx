@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { usePortalGreeting } from '../utils/greetingUtils';
 import MediFindLogo from './MediFindLogo';
 
 /**
@@ -15,6 +17,53 @@ import MediFindLogo from './MediFindLogo';
  * - Tooltip on hover in collapsed mode
  * - Prefers-reduced-motion awareness
  */
+/**
+ * AnimatedHamburgerIcon — Authentic Barba.js Menu Trigger Animation
+ * Matches https://barba.js.org/docs/getstarted/lifecycle/ exactly:
+ * - Outer circle stroke dashoffset sweep
+ * - 3 horizontal bars:
+ *   - Top bar: drops to 50% & rotates +45deg
+ *   - Middle bar: slides out to the right (translate(200%, -50%)) & fades to opacity 0
+ *   - Bottom bar: rises to 50% & rotates -45deg
+ *   - Easing: cubic-bezier(0.16, 1, 0.3, 1) & 0.4s duration
+ */
+export function AnimatedHamburgerIcon({
+  isOpen = false,
+  size = 36,
+  color = '#032f28',
+  circleColor = '#2e685d',
+  className = '',
+  onClick
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={`barba-menu-trigger ${isOpen ? 'is-open' : ''} ${className}`}
+      style={{
+        width: size,
+        height: size,
+        color: color,
+        flexShrink: 0
+      }}
+      aria-label={isOpen ? 'Close menu' : 'Open menu'}
+    >
+      {/* Barba Circular Stroke Shape */}
+      <svg
+        viewBox="0 0 50 50"
+        className="barba-menu-trigger__shape"
+        style={{ color: circleColor }}
+      >
+        <circle r="23" cx="25" cy="25" />
+      </svg>
+
+      {/* 3 Animated Horizontal Bars matching Barba.js */}
+      <span className="barba-menu-trigger__bar" />
+      <span className="barba-menu-trigger__bar" />
+      <span className="barba-menu-trigger__bar" />
+    </div>
+  );
+}
+
 export default function Sidebar({
   isOpen = false,
   onClose = () => {},
@@ -24,6 +73,8 @@ export default function Sidebar({
   unreadNotifsCount = 0
 }) {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const { fullName: userDisplayName } = usePortalGreeting(user, user?.role || 'PHARMACIST');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const shouldReduceMotion = useReducedMotion();
@@ -177,6 +228,54 @@ export default function Sidebar({
 
   const navItems = getNavItems();
 
+  // Dynamic assistant profile fetching for dynamic track & relay status
+  const [assistantData, setAssistantData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('medifind_assistant_profile_cache');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (role !== 'ASSISTANT') return;
+    const token = localStorage.getItem('medifind_token');
+    if (!token) return;
+
+    let isMounted = true;
+    async function loadAssistantProfile() {
+      try {
+        const res = await fetch('/api/assistant/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (isMounted && data.success && data.profile) {
+          setAssistantData(data.profile);
+          try {
+            localStorage.setItem('medifind_assistant_profile_cache', JSON.stringify(data.profile));
+          } catch (e) {}
+        }
+      } catch (e) {
+        // Fallback gracefully to cache
+      }
+    }
+    loadAssistantProfile();
+
+    const handleStorageUpdate = (e) => {
+      if (e.key === 'medifind_assistant_profile_cache' && e.newValue) {
+        try {
+          setAssistantData(JSON.parse(e.newValue));
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
+  }, [role, user?.id]);
+
   const getPortalInfo = () => {
     switch (role) {
       case 'PHARMACIST':
@@ -186,13 +285,39 @@ export default function Sidebar({
           subtext: 'Inventory Sync Network',
           statusBadge: 'Inventory Sync Active'
         };
-      case 'ASSISTANT':
+      case 'ASSISTANT': {
+        const hasTrack = Boolean(assistantData?.assistantType);
+        const isDelivery = assistantData?.assistantType === 'DELIVERY_ASSISTANT';
+        const isHealth = assistantData?.assistantType === 'HEALTHCARE_PROFESSIONAL';
+        const isAvailable = assistantData?.isAvailable !== false;
+        const opCity = assistantData?.operatingCity || 'Chengannur';
+
+        let badge = 'Assistant Portal';
+        let subtext = 'Participation Track Pending';
+
+        if (isDelivery) {
+          badge = 'Delivery Assistant';
+          subtext = `Logistics Network • ${opCity}`;
+        } else if (isHealth) {
+          badge = assistantData.professionTitle || 'Healthcare Professional';
+          subtext = `Clinical Support • ${assistantData.verificationStatus || 'PENDING'}`;
+        } else if (!hasTrack) {
+          badge = 'Onboarding Track';
+          subtext = 'Choose Delivery or Healthcare';
+        }
+
+        let statusBadge = isAvailable ? 'Relay Active' : 'Relay Paused (Off-Duty)';
+        if (!hasTrack) {
+          statusBadge = 'Setup In Progress';
+        }
+
         return {
           portalName: 'Assistant Portal',
-          badge: 'Delivery Assistant',
-          subtext: 'Logistics Network',
-          statusBadge: 'Relay Active'
+          badge,
+          subtext,
+          statusBadge
         };
+      }
       case 'ADMIN':
         return {
           portalName: 'Operations Center',
@@ -219,7 +344,7 @@ export default function Sidebar({
 
   const springTransition = shouldReduceMotion
     ? { duration: 0 }
-    : { type: 'spring', stiffness: 380, damping: 35, mass: 0.75 };
+    : { type: 'spring', stiffness: 450, damping: 35, mass: 0.8 };
 
   return (
     <>
@@ -236,65 +361,64 @@ export default function Sidebar({
       <motion.aside
         ref={drawerRef}
         tabIndex={-1}
-        layout
+        animate={{
+          width: isCollapsed ? 80 : 288,
+          x: isOpen ? 0 : (typeof window !== 'undefined' && window.innerWidth < 768 ? -320 : 0)
+        }}
         transition={springTransition}
         aria-label="Sidebar Navigation"
         className={`
           fixed md:sticky top-0 left-0 bottom-0 z-50 h-screen
-          bg-[#ecfdf7] text-[#0f1e1b] border-r border-[#e0f2eb]
-          flex flex-col justify-between
-          transition-transform duration-300
-          md:translate-x-0
-          ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
-          ${isCollapsed ? 'md:w-20' : 'md:w-72 w-80 max-w-[85vw]'}
+          bg-[#ecfdf7] dark:bg-[#212529] text-[#0f1e1b] dark:text-[#f8f9fa] border-r border-[#e0f2eb] dark:border-[#3d4349]
+          flex flex-col justify-between overflow-hidden
+          ${isOpen ? 'shadow-2xl' : ''}
         `}
       >
         {/* Top Header & Navigation Links */}
         <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
           
           {/* Header Brand Bar */}
-          <div className="bg-white border-b border-[#e0f2eb] flex items-center"
+          <div className="bg-white dark:bg-[#1a1d21] border-b border-[#e0f2eb] dark:border-[#3d4349] flex items-center justify-between transition-colors overflow-hidden"
             style={{ padding: '0.75rem', gap: '0.5rem', minHeight: '60px' }}>
 
-            {isCollapsed ? (
-              /* Collapsed: just the expand button, centered */
-              <button
-                type="button"
-                onClick={() => setIsCollapsed(false)}
-                className="hidden md:flex w-full h-10 rounded-xl bg-[#e6f8f1] hover:bg-[#b0ecdd] text-[#032f28] items-center justify-center transition-colors"
-                title="Expand sidebar (Press B)"
-                aria-label="Expand sidebar"
-              >
-                <span className="material-symbols-outlined" style={{fontSize:20}}>dock_to_right</span>
-              </button>
-            ) : (
-              /* Expanded: logo + collapse button */
-              <>
-                <div className="flex-1 min-w-0">
+            <AnimatePresence initial={false}>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex-1 min-w-0 overflow-hidden"
+                >
                   <MediFindLogo size="sm" showSubtitle={false} />
-                </div>
-                {/* Desktop collapse */}
-                <button
-                  type="button"
-                  onClick={() => setIsCollapsed(true)}
-                  className="hidden md:flex shrink-0 w-8 h-8 rounded-xl bg-[#e6f8f1] hover:bg-[#b0ecdd] text-[#032f28] items-center justify-center transition-colors"
-                  title="Collapse to icon rail (Press B)"
-                  aria-label="Collapse sidebar"
-                >
-                  <span className="material-symbols-outlined" style={{fontSize:18}}>dock_to_left</span>
-                </button>
-                {/* Mobile close */}
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="md:hidden shrink-0 w-8 h-8 rounded-xl bg-[#e6f8f1] hover:bg-[#b0ecdd] text-[#032f28] flex items-center justify-center transition-colors"
-                  title="Close drawer"
-                  aria-label="Close sidebar"
-                >
-                  <span className="material-symbols-outlined" style={{fontSize:18}}>close</span>
-                </button>
-              </>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Desktop persistent toggle button (morphs smoothly 3-bars <-> X) */}
+            <motion.button
+              layout
+              type="button"
+              onClick={() => setIsCollapsed(prev => !prev)}
+              className={`hidden md:flex rounded-full items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
+                isCollapsed ? 'w-full h-10' : 'w-9 h-9'
+              }`}
+              title={isCollapsed ? 'Expand sidebar (Press B)' : 'Collapse to icon rail (Press B)'}
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <AnimatedHamburgerIcon isOpen={!isCollapsed} size={34} color="#032f28" circleColor="#2e685d" />
+            </motion.button>
+
+            {/* Mobile close toggle */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="md:hidden shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+              title="Close drawer"
+              aria-label="Close sidebar"
+            >
+              <AnimatedHamburgerIcon isOpen={true} size={34} color="#032f28" circleColor="#2e685d" />
+            </button>
           </div>
 
           {/* Portal Status Pill Card (Hidden when collapsed) */}
@@ -341,7 +465,7 @@ export default function Sidebar({
                     <motion.div
                       layoutId="sidebar-active-indicator"
                       transition={springTransition}
-                      className="absolute inset-0 bg-[#032f28] rounded-2xl shadow-md -z-0"
+                      className="absolute inset-0 bg-gradient-to-r from-[#032f28] to-[#0a4f43] rounded-2xl shadow-[0_4px_16px_rgba(3,47,40,0.3)] -z-0"
                     />
                   )}
 
@@ -443,51 +567,101 @@ export default function Sidebar({
                 <span className="material-symbols-outlined text-sm text-[#2e685d]">verified_user</span>
                 <span>{portalInfo.statusBadge}</span>
               </div>
-              <div className="font-semibold text-[#2e685d] truncate">Participating Network • Chengannur</div>
+              <div className="font-semibold text-[#2e685d] truncate">
+                {role === 'ASSISTANT' && assistantData?.operatingCity
+                  ? `Participating Network • ${assistantData.operatingCity}`
+                  : 'Participating Network • Chengannur'}
+              </div>
             </div>
           )}
 
-          {/* Logout confirmed via center-screen modal portal — see below */}
-
-          {/* User Profile Pill */}
-          <div className="p-2 rounded-2xl bg-[#f8fafc] border border-[#e0f2eb] flex items-center justify-between gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                onTabChange('profile');
-                onClose();
-              }}
-              title={isCollapsed ? `Profile: ${user.name}` : 'View & Edit Profile'}
-              className="flex items-center gap-2 min-w-0 text-left hover:opacity-85 transition-opacity flex-1 bg-transparent border-none cursor-pointer p-0"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#b0ecdd] text-[#032f28] flex items-center justify-center text-xs font-extrabold uppercase shrink-0 shadow-xs">
-                {user.name ? user.name.charAt(0) : 'U'}
+          {/* Theme Toggle Pill in Sidebar */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isCollapsed ? (isDark ? "Switch to Light Mode" : "Switch to Dark Mode") : undefined}
+            className={`w-full p-2 rounded-2xl bg-white hover:bg-[#e6f8f1] border border-[#e0f2eb] flex items-center ${
+              isCollapsed ? 'justify-center' : 'justify-between'
+            } transition-colors cursor-pointer text-left`}
+            aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#e6f8f1] text-[#032f28] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-base">
+                  {isDark ? 'light_mode' : 'dark_mode'}
+                </span>
               </div>
               {!isCollapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-[#032f28] truncate">
-                    {user.name}
-                  </span>
-                  <span className="text-[10px] font-semibold text-[#2e685d] uppercase tracking-wider truncate">
-                    {user.role}
-                  </span>
+                  <span className="text-xs font-bold text-[#032f28]">Theme</span>
+                  <span className="text-[10px] text-[#717976]">{isDark ? 'Dark Mode' : 'Light Mode'}</span>
                 </div>
               )}
-            </button>
+            </div>
+            {!isCollapsed && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#e6f8f1] text-[#2e685d]">
+                {isDark ? 'Dark' : 'Light'}
+              </span>
+            )}
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setShowLogoutConfirm(prev => !prev)}
-              className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer ${
-                showLogoutConfirm
-                  ? 'bg-[#ffdad6] text-[#ba1a1a] border-[#ffb3ab]'
-                  : 'bg-white hover:bg-[#ffdad6] text-[#717976] hover:text-[#ba1a1a] border-[#e0f2eb]'
-              }`}
-              title="Sign out of MediFind"
-            >
-              <span className="material-symbols-outlined text-sm">logout</span>
-            </button>
-          </div>
+          {/* User Profile Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              onTabChange('profile');
+              onClose();
+            }}
+            title={isCollapsed ? `Profile: ${userDisplayName}` : 'View & Edit Profile'}
+            className={`w-full p-2 rounded-2xl bg-[#f8fafc] hover:bg-[#e6f8f1] border border-[#e0f2eb] flex items-center ${
+              isCollapsed ? 'justify-center' : 'gap-2.5'
+            } transition-colors cursor-pointer text-left`}
+          >
+            <div className="w-8 h-8 rounded-full bg-[#b0ecdd] text-[#032f28] flex items-center justify-center text-xs font-extrabold uppercase shrink-0 shadow-xs">
+              {userDisplayName ? userDisplayName.charAt(0) : 'U'}
+            </div>
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs font-bold text-[#032f28] truncate">
+                  {userDisplayName}
+                </span>
+                <span className="text-[10px] font-semibold text-[#2e685d] uppercase tracking-wider truncate">
+                  {user.role}
+                </span>
+              </div>
+            )}
+            {!isCollapsed && (
+              <span className="material-symbols-outlined text-sm text-[#717976]">account_circle</span>
+            )}
+          </button>
+
+          {/* Full Clickable Logout Button & Label */}
+          <button
+            type="button"
+            id="sidebar-logout-btn"
+            onClick={() => setShowLogoutConfirm(true)}
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-2' : 'justify-between px-3 py-2.5'
+            } rounded-2xl bg-[#fff5f5] hover:bg-[#ffdad6] border border-[#ffdad6] text-[#ba1a1a] transition-all cursor-pointer shadow-2xs group`}
+            title="Sign out of MediFind"
+          >
+            <div className="flex items-center gap-2.5 pointer-events-none">
+              <div className="w-7 h-7 rounded-lg bg-[#ffdad6] group-hover:bg-[#ffb4ab] text-[#ba1a1a] flex items-center justify-center shrink-0 transition-colors">
+                <span className="material-symbols-outlined text-sm">logout</span>
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-col text-left">
+                  <span className="text-xs font-bold text-[#ba1a1a] leading-tight">Sign Out</span>
+                  <span className="text-[10px] text-[#93000a] leading-tight">End session</span>
+                </div>
+              )}
+            </div>
+            {!isCollapsed && (
+              <span className="material-symbols-outlined text-xs text-[#ba1a1a]/70 group-hover:translate-x-0.5 transition-transform pointer-events-none">
+                chevron_right
+              </span>
+            )}
+          </button>
         </div>
       </motion.aside>
 
@@ -522,7 +696,7 @@ export default function Sidebar({
                   <div>
                     <p className="text-base font-extrabold text-[#1a0002]">Sign out of MediFind?</p>
                     <p className="text-xs text-[#717976] mt-0.5">
-                      Signed in as <span className="font-bold text-[#032f28]">{user.name}</span>
+                      Signed in as <span className="font-bold text-[#032f28]">{userDisplayName}</span>
                     </p>
                   </div>
                 </div>

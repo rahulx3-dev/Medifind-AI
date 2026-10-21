@@ -1,0 +1,410 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String
+  name           String
+  phone          String?
+  role           String          @default("PATIENT") // PATIENT, PHARMACIST, ASSISTANT, ADMIN
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  pharmacy       Pharmacy?
+  orders         Order[]
+  assistantTasks AssistantTask[]
+  notifications  Notification[]
+  prescriptions  Prescription[]
+  assistantProfile AssistantProfile?
+  addresses      PatientAddress[]
+  restockRequests RestockRequest[]
+  patientAppointments      HealthcareAppointment[] @relation("PatientAppointments")
+  professionalAppointments HealthcareAppointment[] @relation("ProfessionalAppointments")
+}
+
+model AssistantProfile {
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio                  String?
+  isActive             Boolean   @default(true)
+  isAvailable          Boolean   @default(true)
+  capabilities         String    @default("")
+
+  // Phase 1 Assistant Role & Onboarding Foundation
+  assistantType        String?   // DELIVERY_ASSISTANT | HEALTHCARE_PROFESSIONAL
+  onboardingCompleted  Boolean   @default(false)
+  onboardingStep       String    @default("ROLE_SELECTION") // ROLE_SELECTION | PROFILE_SETUP | COMPLETED
+
+  // Delivery Assistant Operational Profile
+  operatingCity        String?   @default("Chengannur")
+  operatingRadiusKm    Float?    @default(10.0)
+  vehicleType          String?   // BICYCLE, MOTORCYCLE, SCOOTER, CAR, ON_FOOT
+  maxActiveTasks       Int       @default(2)
+
+  // Phase 1 & Phase 2 Healthcare Professional Foundation & Verification Lifecycle
+  professionTitle      String?   // e.g. "Registered Nurse", "Clinical Health Worker"
+  registrationNumber   String?   // Professional Registration / License Number
+  qualifications       String?   // Education / Degrees / Certifications
+  serviceAreasApplied  String?   // JSON string or comma-separated list of clinical categories applied for
+  issuingAuthority     String?   // Professional registration council / licensing board
+  yearsOfExperience    Int?      // Years of clinical/healthcare experience
+  declarationAccepted  Boolean   @default(false) // Applicant declaration of truthfulness
+  declarationAcceptedAt DateTime? // Timestamp of applicant declaration
+  verificationStatus   String    @default("NOT_SUBMITTED") // DRAFT | PENDING | UNDER_REVIEW | NEEDS_CORRECTION | APPROVED | REJECTED | SUSPENDED
+  verificationNotes    String?   // Internal or shared notes
+  rejectionReason      String?   // Required explanation visible to applicant upon rejection
+  correctionReason     String?   // Required explanation visible to applicant when correction requested
+  suspensionReason     String?   // Required explanation if suspended
+  approvedServices     String?   // JSON array of service categories individually approved by admin
+  reviewedById         String?   // Admin user ID who reviewed/approved
+  submittedAt          DateTime?
+  reviewedAt           DateTime?
+
+  documents            VerificationDocument[]
+  reviewLogs           VerificationReviewLog[]
+
+  // Healthcare Professional Scheduling & Availability (Phase 3)
+  workingDays          String?   @default("[\"MONDAY\",\"TUESDAY\",\"WEDNESDAY\",\"THURSDAY\",\"FRIDAY\"]") // JSON array
+  workingHoursStart    String?   @default("09:00")
+  workingHoursEnd      String?   @default("17:00")
+  slotDurationMinutes  Int       @default(60)
+  serviceFee           Float?    // Custom base fee; if null, defaults to catalogue baseFee
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model VerificationDocument {
+  id                 String           @id @default(uuid())
+  assistantProfileId String
+  assistantProfile   AssistantProfile @relation(fields: [assistantProfileId], references: [id], onDelete: Cascade)
+  documentType       String           // REGISTRATION_CERTIFICATE, DEGREE_CERTIFICATE, ID_PROOF, EXPERIENCE_CERTIFICATE
+  originalFileName   String
+  fileName           String           // server-controlled stored filename
+  filePath           String           // secure disk path relative to uploads root
+  fileSize           Int              // in bytes
+  mimeType           String           // application/pdf, image/jpeg, image/png
+  fileHash           String?          // SHA-256 hash for integrity
+  status             String           @default("PENDING") // PENDING, VERIFIED, REJECTED
+  uploadedAt         DateTime         @default(now())
+
+  @@index([assistantProfileId])
+}
+
+model VerificationReviewLog {
+  id                 String           @id @default(uuid())
+  assistantProfileId String
+  assistantProfile   AssistantProfile @relation(fields: [assistantProfileId], references: [id], onDelete: Cascade)
+  adminId            String
+  adminName          String
+  adminEmail         String
+  previousStatus     String
+  newStatus          String
+  action             String           // START_REVIEW, REQUEST_CORRECTION, APPROVE, REJECT, SUSPEND, RESUBMIT
+  reason             String?          // Required for correction, rejection, suspension
+  approvedServices   String?          // JSON array if services were approved
+  createdAt          DateTime         @default(now())
+
+  @@index([assistantProfileId])
+}
+
+model Pharmacy {
+  id                    String      @id @default(uuid())
+  name                  String
+  licenseNumber         String?     @unique
+  address               String
+  latitude              Float?
+  longitude             Float?
+  phone                 String
+  isOpen                Boolean     @default(true)
+  is24x7                Boolean     @default(false)
+  isVerified            Boolean     @default(true)
+  verificationStatus    String      @default("VERIFIED") // PENDING, VERIFIED, SUSPENDED, TEST
+  rating                Float?      @default(0.0)
+  openingHours          String      @default("8:00 AM - 10:00 PM")
+  googleMapsUrl         String?
+  emergencyAvailability Boolean     @default(false)
+  deliveryAvailable     Boolean     @default(false)
+  dataSource            String      @default("PHARMACY_PROVIDED")
+  managerId             String      @unique
+  manager               User        @relation(fields: [managerId], references: [id])
+  inventory             Inventory[]
+  orders                Order[]
+  restockRequests       RestockRequest[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model Medicine {
+  id                   String        @id @default(uuid())
+  brandName            String
+  genericName          String
+  dosageForm           String        // Tablet, Syrup, Injection, Capsule, Drops, Ointment
+  strength             String        // 500mg, 10mg, etc.
+  category             String        // Antibiotic, Analgesic, Antipyretic, Antidiabetic, Antihypertensive, etc.
+  manufacturer         String
+  isEmergency          Boolean       @default(false)
+  requiresPrescription Boolean       @default(true)
+  description          String?
+  sideEffects          String?
+  commonUses           String?
+  alternativeGenerics  String?       // JSON string or comma-separated
+  inventoryItems       Inventory[]
+  orderItems           OrderItem[]
+  restockRequests      RestockRequest[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+model Inventory {
+  id          String    @id @default(uuid())
+  pharmacyId  String
+  pharmacy    Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicineId  String
+  medicine    Medicine  @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  stock       Int?      @default(0)
+  price       Float?    @default(0.0)
+  status      String    @default("AVAILABLE") // AVAILABLE, OUT_OF_STOCK
+  batchNumber String?
+  expiryDate  DateTime?
+  dataSource  String    @default("PHARMACY_PROVIDED")
+  lastUpdated DateTime  @default(now())
+
+  @@unique([pharmacyId, medicineId])
+}
+
+model Prescription {
+  id                 String             @id @default(uuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalFileName   String
+  filePath           String
+  ocrRawText         String?
+  status             String             @default("PENDING") // PENDING, PROCESSED, VERIFIED, COMPLETED, FAILED
+  fileHash           String?
+  screeningStatus    String?            // NO_OBVIOUS_ISSUES, NEEDS_MANUAL_REVIEW, POTENTIALLY_SUSPICIOUS, UNABLE_TO_ASSESS
+  screeningResult    String?            // JSON string containing detailed checks and explanations
+  detectedMedicines  DetectedMedicine[]
+  appointments       HealthcareAppointment[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model DetectedMedicine {
+  id                  String       @id @default(uuid())
+  prescriptionId      String
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  rawName             String
+  matchedMedicineId   String?
+  matchedMedicineName String?
+  confidence          Float        @default(0.0)
+  dosage              String?
+  frequency           String?
+  duration            String?
+  quantity            Int          @default(1)
+  isConfirmed         Boolean      @default(false)
+  needsMapping        Boolean      @default(false)
+  evidenceSummary     String?
+  extractedQuantity   Int?
+  createdAt           DateTime     @default(now())
+}
+
+model Order {
+  id               String              @id @default(uuid())
+  orderNumber      String              @unique
+  userId           String
+  user             User                @relation(fields: [userId], references: [id])
+  pharmacyId       String
+  pharmacy         Pharmacy            @relation(fields: [pharmacyId], references: [id])
+  status           String              @default("PENDING") // PENDING, CONFIRMED, READY_FOR_PICKUP, COMPLETED, CANCELLED, REJECTED
+  orderType        String              @default("RESERVATION") // RESERVATION, ASSISTED_DELIVERY, EMERGENCY
+  fulfillmentType  String?             // PICKUP, DELIVERY, ASSISTANT_DELIVERY — set at checkout
+  assistantServiceType String?         // For ASSISTANT_DELIVERY: MEDICINE_COLLECTION | PHARMACY_VISIT | PHARMACY_COMPANION | MEDICINE_DELIVERY | DIGITAL_ASSISTANCE | PHARMACY_COMMS | RESTOCK_ASSISTANCE | PRESCRIPTION_ASSISTANCE
+  totalAmount      Float               @default(0.0)
+  medicineSubtotal Float?
+  deliveryFee      Float               @default(0.0)
+  platformFee      Float               @default(0.0)
+  deliveryAddress  String?             // Required for DELIVERY and ASSISTANT_DELIVERY
+  addressId        String?
+  address          PatientAddress?     @relation(fields: [addressId], references: [id])
+  selectedAssistantId String?          // Specifically booked Medicine Access Assistant
+  prescriptionId   String?
+  verificationPin  String?             // for collection/handover
+  notes            String?
+  items            OrderItem[]
+  assistantTask    AssistantTask?
+  statusHistory    OrderStatusHistory[]
+  payment          Payment?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+model PatientAddress {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String   @default("Home") // Home, Work, Other
+  recipientName String?
+  phone         String?
+  addressLine1  String
+  addressLine2  String?
+  landmark      String?
+  city          String   @default("Chengannur")
+  state         String   @default("Kerala")
+  postalCode    String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orders        Order[]
+  appointments  HealthcareAppointment[]
+}
+
+// Payment model — separate concern from Order.status
+// Status: PENDING | PAID | FAILED | REFUNDED
+// Method: ONLINE | COD
+model Payment {
+  id               String    @id @default(uuid())
+  orderId          String    @unique
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount           Float     // amount in INR (authoritative, backend-calculated)
+  currency         String    @default("INR")
+  method           String    @default("ONLINE") // ONLINE | COD
+  status           String    @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  gateway          String    @default("RAZORPAY")
+  gatewayOrderId   String?   // Razorpay order_id
+  gatewayPaymentId String?   // Razorpay payment_id (set on success)
+  gatewaySignature String?   // Razorpay signature (stored only if genuinely needed for audit; not logged)
+  failureReason    String?   // Safe non-sensitive reason string
+  createdAt        DateTime  @default(now())
+  paidAt           DateTime?
+  refundedAt       DateTime?
+  updatedAt        DateTime  @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  quantity   Int      @default(1)
+  unitPrice  Float?
+  subtotal   Float?
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model AssistantTask {
+  id              String    @id @default(uuid())
+  orderId         String    @unique
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assistantId     String?
+  assistant       User?     @relation(fields: [assistantId], references: [id])
+  status          String    @default("AVAILABLE") // AVAILABLE -> ACCEPTED -> COLLECTING -> IN_TRANSIT -> DELIVERED -> CONFIRMED
+  serviceType     String?   // MEDICINE_COLLECTION | PHARMACY_VISIT | PHARMACY_COMPANION | MEDICINE_DELIVERY | DIGITAL_ASSISTANCE | PHARMACY_COMMS | RESTOCK_ASSISTANCE | PRESCRIPTION_ASSISTANCE
+  acceptedAt      DateTime?
+  collectedAt     DateTime?
+  deliveredAt     DateTime?
+  deliveryAddress String?   // Patient/service destination; optional for non-delivery service types
+  serviceNote     String?   // Service-specific notes (replaces deliveryNotes semantically)
+  deliveryNotes   String?   // Retained for backward compatibility — maps to serviceNote for delivery tasks
+  handoverPin     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, ORDER_STATUS, EMERGENCY, ASSISTANT
+  isRead    Boolean  @default(false)
+  linkUrl   String?
+  createdAt DateTime @default(now())
+}
+
+model RestockRequest {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine  @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  pharmacyId String
+  pharmacy   Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  status     String    @default("ACTIVE") // ACTIVE, FULFILLED, CANCELLED
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([pharmacyId, medicineId, status])
+}
+
+// Healthcare Professional Appointments & Booking Lifecycle (Phase 3)
+// Status: REQUESTED -> ACCEPTED -> IN_PROGRESS -> COMPLETED
+// Alternative: REQUESTED -> REJECTED | REQUESTED -> CANCELLED | ACCEPTED -> CANCELLED
+model HealthcareAppointment {
+  id                 String                   @id @default(uuid())
+  appointmentNumber  String                   @unique
+  patientId          String
+  patient            User                     @relation("PatientAppointments", fields: [patientId], references: [id])
+  professionalId     String
+  professional       User                     @relation("ProfessionalAppointments", fields: [professionalId], references: [id])
+  serviceType        String                   // NURSING_VISIT, VITAL_SIGN_MEASUREMENT, POST_HOSPITAL_CARE, WOUND_CARE_ASSISTANCE, HOME_NURSING_SUPPORT
+  status             String                   @default("REQUESTED") // REQUESTED, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED, REJECTED
+  scheduledDate      String                   // "YYYY-MM-DD"
+  timeSlot           String                   // "09:00 - 10:00"
+  startAt            DateTime
+  endAt              DateTime
+  serviceAddress     String                   // Full service address for visit
+  addressId          String?
+  address            PatientAddress?          @relation(fields: [addressId], references: [id])
+  feeAmount          Float                    @default(0.0) // Authoritative fee snapshot in INR
+  currency           String                   @default("INR")
+  paymentStatus      String                   @default("PENDING") // PENDING, PAID
+  consentAccepted    Boolean                  @default(false)
+  consentAcceptedAt  DateTime?
+  consentVersion     String?                  @default("v1.0")
+  prescriptionId     String?
+  prescription       Prescription?            @relation(fields: [prescriptionId], references: [id])
+  patientNotes       String?
+  rejectionReason    String?
+  cancellationReason String?
+  statusHistory      AppointmentStatusHistory[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([patientId])
+  @@index([professionalId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+model AppointmentStatusHistory {
+  id            String                @id @default(uuid())
+  appointmentId String
+  appointment   HealthcareAppointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  status        String
+  comment       String?
+  changedById   String?
+  createdAt     DateTime              @default(now())
+
+  @@index([appointmentId])
+}

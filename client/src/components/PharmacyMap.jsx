@@ -1,30 +1,29 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 /**
- * PharmacyMap — Stitch-Faithful Interactive Map Component
- *
- * Implements:
- * - Part 7A: Minimal Stitch-style center search origin crosshair centroid marker
- * - Part 7B: Stitch pharmacy marker pins with crisp interactive map popover cards
- * - Real-time radius circle matching Stitch teal styling
+ * PharmacyMap — Interactive Map Component with Patient Current Location & Pharmacy Distances
  */
 export default function PharmacyMap({
   pharmacies = [],
-  center = [9.3200, 76.6160],
+  center = [9.3170, 76.6145],
   radiusKm = 30,
   selectedPharmacyId = null,
+  selectedPharmacy = null,
   onSelectPharmacy,
   className = '',
   height = '420px',
-  activeRequestItems = []
+  activeRequestItems = [],
+  selectedMedicineName = null
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
   const originMarkerRef = useRef(null);
   const radiusCircleRef = useRef(null);
+  const directionLineRef = useRef(null);
+  const directionMidpointMarkerRef = useRef(null);
   const markersByIdRef = useRef({});
 
   // Initialize Map
@@ -57,7 +56,7 @@ export default function PharmacyMap({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update center, origin crosshair, and radius circle
+  // Update center and Patient Current Location marker (Radius circle removed per requirements)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -65,44 +64,86 @@ export default function PharmacyMap({
     if (center && Array.isArray(center) && center.length === 2) {
       map.setView(center, map.getZoom() || 12);
 
-      // Part 7A: Minimal Stitch-style Search Origin Crosshair Marker
+      // Patient Current Location Point with Pulsing Beacon & "You are here" label
       if (originMarkerRef.current) {
         map.removeLayer(originMarkerRef.current);
       }
 
-      const minimalCrosshairHtml = `
-        <div style="width: 28px; height: 28px; position: relative; display: flex; align-items: center; justify-content: center; pointer-events: none;">
-          <div style="position: absolute; width: 28px; height: 28px; border-radius: 50%; background: rgba(3, 47, 40, 0.08); border: 1px solid rgba(46, 104, 93, 0.3);"></div>
-          <div style="position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #032f28;"></div>
-          <div style="position: absolute; width: 24px; height: 1.5px; background: #032f28; opacity: 0.65;"></div>
-          <div style="position: absolute; height: 24px; width: 1.5px; background: #032f28; opacity: 0.65;"></div>
+      const userLocationMarkerHtml = `
+        <div class="user-current-location-marker" style="
+          position: relative;
+          width: 48px;
+          height: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        ">
+          <!-- Pulsing Radar Halo -->
+          <div class="user-loc-pulse" style="
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 102, 204, 0.35);
+          "></div>
+          <!-- Solid Core Disc -->
+          <div style="
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 3px 10px rgba(0, 80, 180, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div style="
+              width: 14px;
+              height: 14px;
+              border-radius: 50%;
+              background: #0066cc;
+            "></div>
+          </div>
+          <!-- "You are here" Tooltip Tag -->
+          <div style="
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            background: #003870;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1.5px 8px;
+            border-radius: 999px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.02em;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+          ">
+            You are here
+          </div>
         </div>
       `;
 
       const originIcon = L.divIcon({
-        html: minimalCrosshairHtml,
-        className: 'stitch-origin-crosshair',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+        html: userLocationMarkerHtml,
+        className: 'user-location-pin',
+        iconSize: [48, 48],
+        iconAnchor: [24, 24]
       });
 
-      originMarkerRef.current = L.marker(center, { icon: originIcon, interactive: false }).addTo(map);
+      originMarkerRef.current = L.marker(center, { icon: originIcon, interactive: false, zIndexOffset: 800 }).addTo(map);
 
-      // Radius Circle
+      // Clean up any previous radius circle if present
       if (radiusCircleRef.current) {
         map.removeLayer(radiusCircleRef.current);
+        radiusCircleRef.current = null;
       }
-
-      radiusCircleRef.current = L.circle(center, {
-        radius: (radiusKm || 10) * 1000,
-        color: '#2e685d',
-        fillColor: '#b0ecdd',
-        fillOpacity: 0.08,
-        weight: 1.5,
-        dashArray: '6, 6'
-      }).addTo(map);
     }
-  }, [center, radiusKm]);
+  }, [center]);
 
   // Update Pharmacy Markers
   useEffect(() => {
@@ -322,18 +363,166 @@ export default function PharmacyMap({
     }
   }, [selectedPharmacyId]);
 
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round((R * c) * 10) / 10;
+}
+
+  // Calculate authoritative distances from patient location to each pharmacy
+  const pharmaciesWithDistance = useMemo(() => {
+    const [userLat, userLon] = Array.isArray(center) ? center : [9.3200, 76.6160];
+    return (pharmacies || []).map((p, idx) => {
+      const lat = (typeof p.latitude === 'number' && !isNaN(p.latitude))
+        ? p.latitude
+        : ((p.name && p.name.toLowerCase().includes('max care')) ? 9.3186 : ((p.name && p.name.toLowerCase().includes('karuna')) ? 9.3150 : (p.lat || null)));
+      const lon = (typeof p.longitude === 'number' && !isNaN(p.longitude))
+        ? p.longitude
+        : ((p.name && p.name.toLowerCase().includes('max care')) ? 76.6135 : ((p.name && p.name.toLowerCase().includes('karuna')) ? 76.6110 : (p.lon || null)));
+
+      let dist = p.distanceKm;
+      if ((dist == null || isNaN(dist)) && lat && lon && userLat && userLon) {
+        dist = calculateHaversineKm(userLat, userLon, lat, lon);
+      }
+      return {
+        ...p,
+        resolvedLat: lat,
+        resolvedLon: lon,
+        resolvedDistanceKm: dist != null ? (typeof dist === 'number' ? dist.toFixed(1) : dist) : null,
+        rankNum: idx + 1
+      };
+    });
+  }, [pharmacies, center]);
+
+  const activePharmacy = useMemo(() => {
+    if (selectedPharmacyId) {
+      const found = pharmaciesWithDistance.find(p => p.id === selectedPharmacyId);
+      if (found) return found;
+    }
+    if (selectedPharmacy?.id) {
+      const found = pharmaciesWithDistance.find(p => p.id === selectedPharmacy.id);
+      if (found) return found;
+    }
+    return pharmaciesWithDistance[0] || null;
+  }, [pharmaciesWithDistance, selectedPharmacyId, selectedPharmacy]);
+
+  // Draw / Update dynamic direction route from "You are here" to selected store
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (directionLineRef.current) {
+      map.removeLayer(directionLineRef.current);
+      directionLineRef.current = null;
+    }
+    if (directionMidpointMarkerRef.current) {
+      map.removeLayer(directionMidpointMarkerRef.current);
+      directionMidpointMarkerRef.current = null;
+    }
+
+    if (activePharmacy?.resolvedLat && activePharmacy?.resolvedLon && center && Array.isArray(center) && center.length === 2) {
+      const uLat = center[0];
+      const uLon = center[1];
+      const pLat = activePharmacy.resolvedLat;
+      const pLon = activePharmacy.resolvedLon;
+
+      const polyline = L.polyline([[uLat, uLon], [pLat, pLon]], {
+        color: '#0066cc',
+        weight: 3.5,
+        dashArray: '7, 9',
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+
+      directionLineRef.current = polyline;
+
+      const midLat = (uLat + pLat) / 2;
+      const midLon = (uLon + pLon) / 2;
+      const dist = activePharmacy.resolvedDistanceKm;
+
+      if (dist != null) {
+        const midIcon = L.divIcon({
+          html: `<div style="
+            background: #ffffff;
+            color: #0066cc;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2.5px 8px;
+            border-radius: 999px;
+            box-shadow: 0 2px 10px rgba(0,102,204,0.3);
+            border: 1.5px solid #0066cc;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+          "><span>🧭</span> <span>${dist} km</span></div>`,
+          className: 'route-midpoint-badge',
+          iconSize: [72, 22],
+          iconAnchor: [36, 11]
+        });
+        directionMidpointMarkerRef.current = L.marker([midLat, midLon], { icon: midIcon, interactive: false, zIndexOffset: 700 }).addTo(map);
+      }
+    }
+  }, [activePharmacy, center]);
+
   return (
     <div className={`relative w-full rounded-3xl overflow-hidden border border-outline-variant/30 shadow-md ${className}`} style={{ height, minHeight: '380px' }}>
       <div ref={mapContainerRef} className="w-full h-full" style={{ minHeight: '380px' }} />
 
-      {/* Floating Privacy Badge */}
-      <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-outline-variant/30 text-[11px] font-semibold text-primary shadow-sm flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-sm text-secondary">privacy_tip</span>
-        <span>Private Area Mode (Approx. Origin)</span>
+      {/* Dynamic Pharmacy Distance Indicator Header */}
+      <div className="absolute top-3 left-3 z-[400] max-w-[calc(100%-75px)] flex flex-wrap items-center gap-1.5 pointer-events-auto">
+        {activePharmacy && (
+          <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-secondary/30 text-[11px] font-bold text-primary shadow-md flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#0066cc] animate-pulse shrink-0"></span>
+            <span className="text-secondary font-medium">
+              {selectedMedicineName
+                ? `Distance for ${selectedMedicineName} to ${activePharmacy.name}:`
+                : `Distance to ${activePharmacy.name}:`}
+            </span>
+            <span className="bg-secondary/15 text-primary px-2 py-0.5 rounded-full font-black text-[11px]">
+              {activePharmacy.resolvedDistanceKm != null ? `${activePharmacy.resolvedDistanceKm} km` : 'Near you'}
+            </span>
+          </div>
+        )}
+        {pharmaciesWithDistance.length > 1 && (
+          <div className="hidden sm:flex items-center gap-1 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full border border-outline-variant/30 text-[10px] text-on-surface shadow-sm">
+            {pharmaciesWithDistance.map(p => {
+              const isSelected = p.id === activePharmacy?.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onSelectPharmacy && onSelectPharmacy(p)}
+                  className={`px-2 py-0.5 rounded-full font-semibold transition-colors flex items-center gap-1 ${
+                    isSelected
+                      ? 'bg-primary text-white font-bold'
+                      : 'bg-surface-container hover:bg-secondary/15 text-on-surface'
+                  }`}
+                  title={`${p.name} (${p.resolvedDistanceKm != null ? `${p.resolvedDistanceKm} km` : 'nearby'})`}
+                >
+                  <span>#{p.rankNum}</span>
+                  <span className="truncate max-w-[80px]">{p.name.split(' ')[0]}</span>
+                  <span className="opacity-90">{p.resolvedDistanceKm != null ? `${p.resolvedDistanceKm}km` : ''}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Map Legend Capsule */}
+      {/* Map Legend Capsule with Your Location */}
       <div className="absolute bottom-4 left-4 z-[400] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-outline-variant/30 text-[11px] text-on-surface shadow-sm flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#0066cc] inline-block border border-white"></span>
+          <span className="font-semibold text-[#0066cc]">Your Location</span>
+        </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span>
           <span className="font-semibold text-primary">All Rx Ready</span>
@@ -344,8 +533,16 @@ export default function PharmacyMap({
         </div>
       </div>
 
-      {/* Embedded Leaflet Custom Card Popup Styles */}
+      {/* Embedded Leaflet Custom Card Popup & Beacon Styles */}
       <style>{`
+        @keyframes userLocationPulse {
+          0% { transform: scale(0.6); opacity: 0.9; }
+          70% { transform: scale(1.6); opacity: 0; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+        .user-loc-pulse {
+          animation: userLocationPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
         .stitch-leaflet-popup .leaflet-popup-content-wrapper {
           background: #ffffff !important;
           border-radius: 18px !important;

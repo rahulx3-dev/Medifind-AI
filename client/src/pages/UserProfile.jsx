@@ -1,1496 +1,1413 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import { broadcastUpdate } from '../utils/realtimeUpdates';
 
-// Default Avatars
+// Curated High-Resolution Preset Avatars
 const PRESET_AVATARS = [
   {
-    id: 'doc-maya',
+    id: 'asst-delivery-1',
+    label: 'Logistics Specialist (Male)',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'asst-delivery-2',
+    label: 'Logistics Specialist (Female)',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'clinical-specialist',
     label: 'Clinician / Specialist',
     url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=400'
   },
   {
-    id: 'dr-alex',
-    label: 'Medical Director',
+    id: 'medical-director',
+    label: 'Supervising Pharmacist',
     url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=400'
   },
   {
-    id: 'patient-priya',
-    label: 'Community Patient',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'assistant-rahul',
-    label: 'Field Assistant',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'sage-emblem',
-    label: 'Clinical Shield',
-    url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=400'
+    id: 'admin-lead',
+    label: 'Operations Administrator',
+    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400'
   }
 ];
 
-// Default Banners
+// Curated Hero Banners
 const PRESET_BANNERS = [
   {
-    id: 'alpine',
-    label: 'Alpine Panorama',
-    url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=1600'
+    id: 'workspace-desk',
+    label: 'Operations Command',
+    url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=1600'
   },
   {
-    id: 'clinical-gradient',
-    label: 'Clinical Sage Gradient',
+    id: 'clinical-sage',
+    label: 'Clinical Sage Panorama',
     url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=1600'
   },
   {
-    id: 'modern-facility',
-    label: 'Healthcare Campus',
-    url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1600'
-  },
-  {
-    id: 'architecture',
-    label: 'Clean Architecture',
+    id: 'city-dispatch',
+    label: 'Transit & Route Network',
     url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=1600'
   }
 ];
 
+// Authoritative Participating Pharmacies (Exactly 2 in entire platform)
+const REAL_PHARMACIES = [
+  {
+    id: 'max-care-pharmacy',
+    name: 'Max Care Pharmacy',
+    tag: 'Accredited Dispensary Hub',
+    address: '20/375, Govt. Hospital Junction, Chengannur, Kerala – 689121, India',
+    phone: '+91 479 299 3291',
+    rawPhone: '04792993291',
+    hours: '09:30 AM – 08:00 PM',
+    mapsUrl: 'https://maps.app.goo.gl/W5EYF7wtx33cLpfL7',
+    license: 'KL-ALP-2024-8841',
+    features: ['Cold-Chain Storage', 'Prescription Counter', '4-Digit PIN Handover', 'EV Route Access']
+  },
+  {
+    id: 'karuna-medicals',
+    name: 'Karuna Medicals',
+    tag: 'Accredited Dispensary Hub',
+    address: 'XI/567(1), Chengannur, Alappuzha, Kerala – 689121, India',
+    phone: '+91 96057 18151',
+    rawPhone: '9605718151',
+    hours: '09:30 AM – 07:00 PM',
+    mapsUrl: 'https://maps.app.goo.gl/jaszQixVujJRX9yc9?g_st=ac',
+    license: 'KL-ALP-2023-4102',
+    features: ['Digital PIN Dispensary', 'Walk-in Counter', 'Emergency Stock Ready', 'Verified Relay']
+  }
+];
+
+const KERALA_TOWN_PRESETS = [
+  'Chengannur, Kerala',
+  'Mavelikara, Kerala',
+  'Haripad, Kerala',
+  'Thiruvalla, Kerala',
+  'Kayamkulam, Kerala',
+  'Kallissery, Kerala'
+];
+
 export default function UserProfile({ role: propRole, onNavigate }) {
   const { user, setUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const role = propRole || user?.role || 'PATIENT';
   const storageKey = `medifind_user_profile_${user?.id || role}`;
 
-  // Default initial profile based on role
+  // Default initial profile tailored per role (Clean real operational attributes only)
   const getDefaultProfile = () => {
-    if (role === 'PATIENT') {
+    if (role === 'ASSISTANT') {
       return {
-        name: user?.name || 'Rohan Sharma',
-        email: user?.email || 'patient@medifind.com',
-        phone: user?.phone || '+91 98765 43210',
-        address: '42 MG Road, Chengannur, Kerala 689121',
-        emergencyContact: 'Anita Sharma (+91 98765 43211)',
-        bloodGroup: 'O+',
-        allergies: 'Penicillin (mild rash), Dust mites',
-        healthId: 'ABHA-KL-8821-4921',
-        consultingDoctor: 'Not specified',
-        avatarUrl: PRESET_AVATARS[2].url,
-        bannerUrl: PRESET_BANNERS[0].url,
-        avatarScale: 1,
-        avatarPosition: 'center',
-        bannerPosition: 'center',
-        bio: 'Prescription holder registered with MediFind AI for verified dispensary collection and emergency medicine access.'
+        name: user?.name || 'Keerthana Nair',
+        email: user?.email || 'assistant@medifind.com',
+        phone: user?.phone || '+91 98471 88201',
+        title: 'Medicine Access & Dispatch Assistant',
+        location: 'Chengannur, Kerala, India',
+        operatingCity: 'Chengannur, Kerala',
+        operatingRadiusKm: 15,
+        vehicleType: 'Electric Two-Wheeler (EV Scooter)',
+        verificationStatus: 'PENDING', // Live dynamic: 'APPROVED' | 'PENDING'
+        bio: 'Certified community assistant providing doorstep prescription handover, temperature-monitored cold-chain transit, and patient 4-digit PIN verification across Chengannur.',
+        joinedDate: 'January 2024',
+        workingHours: '08:00 AM – 08:00 PM',
+        avatarUrl: PRESET_AVATARS[0].url,
+        bannerUrl: PRESET_BANNERS[2].url,
+        skills: [
+          'Cold-Chain Transit',
+          'Doorstep Handover',
+          '4-Digit PIN Security',
+          'Dispensary Relay',
+          'EV Fleet Route',
+          'Prescription Check'
+        ]
       };
     }
     if (role === 'PHARMACIST') {
       return {
-        name: user?.name || 'Pharmacist Manager',
+        name: user?.name || 'Dr. Thomas Varghese',
         email: user?.email || 'pharmacist@maxcare.example.com',
-        phone: user?.phone || '+91 98471 23456',
-        address: '20/375, Govt. Hospital Junction, Chengannur, Kerala 689121',
+        phone: user?.phone || '+91 479 299 3291',
+        title: 'Supervising Pharmacist & Dispensary Manager',
+        location: 'Govt. Hospital Junction, Chengannur, Kerala',
         pharmacyName: 'Max Care Pharmacy',
-        licenseNumber: 'KL-AL-2024-001',
-        qualification: 'B.Pharm, Registered Pharmacist',
-        experienceYears: '10+ Years',
-        workingHours: '9:30 AM – 8:00 PM (Mon – Sat)',
-        avatarUrl: PRESET_AVATARS[0].url,
-        bannerUrl: PRESET_BANNERS[1].url,
-        avatarScale: 1,
-        avatarPosition: 'center',
-        bannerPosition: 'center',
-        bio: 'Supervising pharmacist coordinating patient intake, counter PIN authentication, and cold-chain inventory management.'
-      };
-    }
-    if (role === 'ASSISTANT') {
-      return {
-        name: user?.name || 'Kavita Patel',
-        email: user?.email || 'assistant@medifind.com',
-        phone: user?.phone || '+91 98765 11223',
-        handle: '@kavita_access',
-        address: 'Hub Station 2, Station Road, Chengannur, Kerala 689121',
-        vehicleType: 'Electric Two-Wheeler (EV Scooter)',
-        vehicleNumber: 'KL-30-E-4421',
-        serviceTerritory: 'Chengannur / Alappuzha Hubs',
-        boxId: 'CCB-9021 (2°C – 8°C Monitored)',
-        emergencyContact: 'Central Field Dispatch (+91 479 245 9999)',
+        licenseNumber: 'KL-ALP-2024-8841',
+        qualification: 'B.Pharm, Registered Pharmacist (KSPC)',
+        workingHours: '09:30 AM – 08:00 PM',
+        operatingRadiusKm: 12,
+        verificationStatus: 'APPROVED',
+        bio: 'Supervising registered pharmacist overseeing clinical prescription safety, cold-chain biologics management, tamper-evident packaging, and encrypted patient PIN counter handovers.',
+        joinedDate: 'August 2023',
         avatarUrl: PRESET_AVATARS[3].url,
-        bannerUrl: PRESET_BANNERS[0].url,
-        avatarScale: 1,
-        avatarPosition: 'center',
-        bannerPosition: 'center',
-        bio: 'Certified Medicine Access Assistant providing prompt last-mile collection and secure recipient PIN handovers.'
+        bannerUrl: PRESET_BANNERS[1].url,
+        skills: [
+          'Prescription Verification',
+          'Cold-Chain Storage',
+          'Controlled Substances',
+          'Dispensary Protocol',
+          'Patient Consultation',
+          'Stock Telemetry'
+        ]
       };
     }
-    // ADMIN
+    if (role === 'ADMIN') {
+      return {
+        name: user?.name || 'MediFind System Admin',
+        email: user?.email || 'admin@medifind.com',
+        phone: user?.phone || '+91 479 245 0001',
+        title: 'Platform Operations & Security Lead',
+        location: 'Operations Command Hub, Chengannur, Kerala',
+        clearanceLevel: 'Superuser Level 3 (RBAC)',
+        workingHours: '24/7 Operations Monitoring',
+        verificationStatus: 'APPROVED',
+        bio: 'Platform administrator overseeing real participating pharmacies (Max Care Pharmacy & Karuna Medicals), assistant credential verification queue, and regulatory compliance.',
+        joinedDate: 'July 2023',
+        avatarUrl: PRESET_AVATARS[4].url,
+        bannerUrl: PRESET_BANNERS[0].url,
+        skills: [
+          'RBAC Governance',
+          'Assistant Credentialing',
+          'Dispensary Audits',
+          'Security Telemetry',
+          'Cryptographic PIN Audits',
+          'Operations Hub'
+        ]
+      };
+    }
+    // PATIENT
     return {
-      name: user?.name || 'MediFind System Admin',
-      email: user?.email || 'admin@medifind.com',
-      phone: user?.phone || '+91 479 245 0001',
-      department: 'Operations & Infrastructure Security',
-      region: 'Chengannur / Alappuzha Command Hub, Kerala',
-      emergencyCode: 'SEC-ROOT-L3-KERALA',
-      clearanceLevel: 'Superuser Level 3',
+      name: user?.name || 'Rohan Sharma',
+      email: user?.email || 'patient@medifind.com',
+      phone: user?.phone || '+91 98765 43210',
+      title: 'Verified Patient & Prescription Holder',
+      location: 'MG Road, Chengannur, Kerala, India',
+      bloodGroup: 'O+',
+      healthId: 'ABHA-KL-8821-4921',
+      verificationStatus: 'APPROVED',
+      bio: 'Registered patient utilizing MediFind AI for verified dispensary reservation, certified assistant doorstep collection, and digital prescription tracking.',
+      joinedDate: 'October 2024',
+      workingHours: 'Home Delivery Contact: 08:00 AM – 09:00 PM',
       avatarUrl: PRESET_AVATARS[1].url,
       bannerUrl: PRESET_BANNERS[0].url,
-      avatarScale: 1,
-      avatarPosition: 'center',
-      bannerPosition: 'center',
-      bio: 'Executive administrator overseeing clinical data safety, role RBAC enforcement, and participating dispensary network verification.'
+      skills: [
+        'Prescription Management',
+        'ABHA Health ID',
+        'Doorstep Handover',
+        'Emergency Reserving',
+        'PIN Authentication'
+      ]
     };
   };
 
-  // State management
   const [profile, setProfile] = useState(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        return { ...getDefaultProfile(), ...JSON.parse(saved) };
+      const keys = [
+        user?.id ? `medifind_user_profile_${user.id}` : null,
+        user?.role ? `medifind_user_profile_${user.role}` : null,
+        `medifind_user_profile_${role}`,
+        storageKey
+      ].filter(Boolean);
+
+      for (const k of keys) {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.name) {
+            const clean = { ...parsed };
+            // Strip out deprecated dummy fields if found in old storage
+            delete clean.rating;
+            delete clean.completedHandovers;
+            delete clean.onTimeRate;
+            return { ...getDefaultProfile(), ...clean };
+          }
+        }
       }
-    } catch (e) {
-      console.warn('Failed to load profile from storage:', e);
-    }
+    } catch (e) {}
     return getDefaultProfile();
   });
 
-  const [activeSubTab, setActiveSubTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
-  const [mediaModalType, setMediaModalType] = useState('avatar'); // 'avatar' | 'banner'
-
-  // Draft profile for editing modal
-  const [editDraft, setEditDraft] = useState({ ...profile });
-
-  // Draft media adjustments
-  const [mediaDraft, setMediaDraft] = useState({
-    url: profile.avatarUrl,
-    scale: profile.avatarScale || 1,
-    position: profile.avatarPosition || 'center'
-  });
-
+  const [mediaType, setMediaType] = useState('avatar'); // 'avatar' | 'banner'
+  const [copiedKey, setCopiedKey] = useState(null);
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
+  const [editForm, setEditForm] = useState({ ...profile });
   const fileInputRef = useRef(null);
 
-  // Sync to localStorage and auth state
-  const saveProfile = (updated) => {
-    setProfile(updated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      if (setUser && user) {
-        setUser(prev => ({
-          ...prev,
-          name: updated.name,
-          email: updated.email,
-          phone: updated.phone
-        }));
+  // Live Assistant verification sync
+  useEffect(() => {
+    if (role === 'ASSISTANT') {
+      const token = localStorage.getItem('medifind_token');
+      if (token) {
+        fetch('/api/assistant/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && data.profile) {
+              setProfile(prev => ({
+                ...prev,
+                verificationStatus: data.profile.verificationStatus || 'PENDING',
+                assistantType: data.profile.assistantType,
+                operatingCity: data.profile.operatingCity || prev.operatingCity,
+                operatingRadiusKm: data.profile.operatingRadiusKm || prev.operatingRadiusKm,
+                vehicleType: data.profile.vehicleType || prev.vehicleType
+              }));
+            }
+          })
+          .catch(() => {});
       }
-      window.dispatchEvent(new Event('medifind_profile_updated'));
-    } catch (e) {
-      console.error('Failed to save profile:', e);
     }
-    showToast('Profile updated successfully!', 'success');
-  };
+  }, [role]);
+
+  // Synchronize when authenticated user changes
+  useEffect(() => {
+    if (user && user.name) {
+      setProfile(prev => ({
+        ...prev,
+        name: user.name,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone
+      }));
+    }
+  }, [user]);
 
   const showToast = (message, type = 'success') => {
     setFeedback({ show: true, message, type });
-    setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 3500);
+    setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 3200);
   };
 
-  const handleOpenEdit = () => {
-    setEditDraft({ ...profile });
+  const copyToClipboard = (text, keyName, label) => {
+    if (!text) return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(keyName);
+      showToast(`${label} copied to clipboard!`, 'success');
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
+  };
+
+  const saveProfileData = async (updated) => {
+    // Strip dummy fields
+    delete updated.rating;
+    delete updated.completedHandovers;
+    delete updated.onTimeRate;
+
+    setProfile(updated);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      if (user?.role) localStorage.setItem(`medifind_user_profile_${user.role}`, JSON.stringify(updated));
+      if (user?.id) localStorage.setItem(`medifind_user_profile_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`medifind_user_profile_${role}`, JSON.stringify(updated));
+
+      if (setUser) {
+        setUser(prev => prev ? ({ ...prev, name: updated.name, phone: updated.phone }) : prev);
+      }
+
+      // Persist to database if authenticated
+      const token = localStorage.getItem('medifind_token');
+      if (token) {
+        await fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: updated.name, phone: updated.phone })
+        }).catch(() => {});
+      }
+
+      broadcastUpdate('profile', { role, profile: updated });
+      window.dispatchEvent(new Event('medifind_profile_updated'));
+      showToast('Profile updated successfully!', 'success');
+    } catch (e) {
+      console.error('Save error:', e);
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    setEditForm({ ...profile });
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEditModal = (e) => {
     e.preventDefault();
-    saveProfile(editDraft);
+    saveProfileData(editForm);
     setIsEditModalOpen(false);
   };
 
-  const handleOpenMediaModal = (type) => {
-    setMediaModalType(type);
-    if (type === 'avatar') {
-      setMediaDraft({
-        url: profile.avatarUrl,
-        scale: profile.avatarScale || 1,
-        position: profile.avatarPosition || 'center'
-      });
-    } else {
-      setMediaDraft({
-        url: profile.bannerUrl,
-        scale: profile.bannerScale || 1,
-        position: profile.bannerPosition || 'center'
-      });
-    }
+  const handleOpenMedia = (type) => {
+    setMediaType(type);
     setIsMediaModalOpen(true);
+  };
+
+  const handleSelectPresetMedia = (url) => {
+    if (mediaType === 'avatar') {
+      const updated = { ...profile, avatarUrl: url };
+      saveProfileData(updated);
+    } else {
+      const updated = { ...profile, bannerUrl: url };
+      saveProfileData(updated);
+    }
+    setIsMediaModalOpen(false);
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        showToast('Image size should be less than 5MB', 'error');
+        showToast('Image file size must be under 5MB', 'error');
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setMediaDraft(prev => ({ ...prev, url: event.target.result }));
+      reader.onload = (ev) => {
+        const url = ev.target.result;
+        if (mediaType === 'avatar') {
+          saveProfileData({ ...profile, avatarUrl: url });
+        } else {
+          saveProfileData({ ...profile, bannerUrl: url });
+        }
+        setIsMediaModalOpen(false);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSaveMedia = () => {
-    if (mediaModalType === 'avatar') {
-      saveProfile({
-        ...profile,
-        avatarUrl: mediaDraft.url,
-        avatarScale: mediaDraft.scale,
-        avatarPosition: mediaDraft.position
-      });
-    } else {
-      saveProfile({
-        ...profile,
-        bannerUrl: mediaDraft.url,
-        bannerScale: mediaDraft.scale,
-        bannerPosition: mediaDraft.position
-      });
-    }
-    setIsMediaModalOpen(false);
-  };
+  const isApproved = profile.verificationStatus === 'APPROVED';
 
-  // Distinct Role Badges with Unique Glyphs
-  const renderRoleBadge = () => {
-    if (role === 'PHARMACIST') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#b0ecdd] to-[#cbf4ea] text-[#00201b] border border-[#2e685d]/40 text-xs font-bold tracking-wide shadow-xs">
-          <span className="material-symbols-outlined text-[17px] text-[#1e453e]">prescriptions</span>
-          <span>LICENSED PHARMACIST</span>
-          <span className="material-symbols-outlined text-[13px] text-[#2e685d]">verified</span>
-        </span>
-      );
-    }
-    if (role === 'ASSISTANT') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#fef3c7] to-[#fde68a] text-[#78350f] border border-[#d97706]/40 text-xs font-bold tracking-wide shadow-xs">
-          <span className="material-symbols-outlined text-[17px] text-[#b45309]">electric_moped</span>
-          <span>MEDICINE ACCESS ASSISTANT</span>
-          <span className="material-symbols-outlined text-[13px] text-[#b45309]">bolt</span>
-        </span>
-      );
-    }
-    if (role === 'ADMIN') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#032f28] to-[#0f4d42] text-white border border-[#b0ecdd]/50 text-xs font-bold tracking-wide shadow-sm">
-          <span className="material-symbols-outlined text-[17px] text-[#a6cfc5]">admin_panel_settings</span>
-          <span>SYSTEM ADMINISTRATOR</span>
-          <span className="material-symbols-outlined text-[13px] text-[#f59e0b]">stars</span>
-        </span>
-      );
-    }
-    // Patient
-    return (
-      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#e0f2eb] to-[#cbece2] text-[#032f28] border border-[#97d2c4] text-xs font-bold tracking-wide shadow-xs">
-        <span className="material-symbols-outlined text-[17px] text-[#2e685d]">health_and_safety</span>
-        <span>VERIFIED PATIENT</span>
-        <span className="material-symbols-outlined text-[13px] text-[#2e685d]">verified</span>
-      </span>
-    );
-  };
+  // Navigation tab definitions
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: 'account_circle' },
+    { id: 'territory', label: 'Operating Hub & Radius', icon: 'pin_drop' },
+    { id: 'security', label: 'Security & Verification', icon: 'shield' },
+    { id: 'pharmacies', label: 'Participating Pharmacies', icon: 'local_pharmacy' }
+  ];
 
   return (
-    <div className="w-full min-h-[calc(100vh-140px)] bg-surface text-on-surface py-6 px-4 sm:px-6 lg:px-8">
-      {/* Toast Notification */}
-      {feedback.show && (
-        <div
-          className={`fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs font-semibold animate-in fade-in slide-in-from-top-4 duration-200 ${
-            feedback.type === 'error'
-              ? 'bg-[#ffdad6] text-[#ba1a1a] border-[#ba1a1a]/30'
-              : 'bg-[#b0ecdd] text-[#00201b] border-[#2e685d]/30'
-          }`}
-        >
-          <span className="material-symbols-outlined text-base">
-            {feedback.type === 'error' ? 'error' : 'check_circle'}
-          </span>
-          <span>{feedback.message}</span>
+    <div className="w-full min-h-screen bg-[#f4f7f6] dark:bg-[#121517] text-[#1e2925] dark:text-[#f1f5f3] pb-20 transition-colors">
+      
+      {/* Toast Alert */}
+      <AnimatePresence>
+        {feedback.show && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            className={`fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border text-xs font-bold ${
+              feedback.type === 'error'
+                ? 'bg-[#ffdad6] text-[#ba1a1a] border-[#ba1a1a]/30'
+                : 'bg-[#b0ecdd] text-[#00201b] border-[#2e685d]/30'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">
+              {feedback.type === 'error' ? 'error' : 'check_circle'}
+            </span>
+            <span>{feedback.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 1. HERO COVER BANNER WITH INTERACTIVE ACTIONS ── */}
+      <div className="relative w-full h-56 sm:h-72 lg:h-80 overflow-hidden bg-[#032f28]">
+        <img
+          src={profile.bannerUrl || PRESET_BANNERS[0].url}
+          alt="Profile Header Banner"
+          className="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+
+        {/* Top-Right Header Actions */}
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2 z-20">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            onClick={() => handleOpenMedia('banner')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-md text-white text-xs font-bold border border-white/20 transition-all shadow-md cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-sm">photo_camera</span>
+            <span className="hidden sm:inline">Change Cover</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            onClick={() => copyToClipboard(window.location.href, 'profileUrl', 'Profile link')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/90 hover:bg-white text-[#032f28] text-xs font-extrabold shadow-md transition-all cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-sm">
+              {copiedKey === 'profileUrl' ? 'check' : 'share'}
+            </span>
+            <span>{copiedKey === 'profileUrl' ? 'Link Copied!' : 'Share Profile'}</span>
+          </motion.button>
         </div>
-      )}
+      </div>
 
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      {/* ── 2. MAIN WORKSPACE CONTAINER ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 sm:-mt-24 relative z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-        {/* ========================================================================= */}
-        {/* ROLE 1: PATIENT PROFILE — INSPIRED BY REFERENCE IMAGE 3 (Clean Card)     */}
-        {/* ========================================================================= */}
-        {role === 'PATIENT' && (
-          <div className="flex flex-col gap-6">
-            {/* Top Minimalist Header */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2e685d]"></span>
-                <h1 className="text-xl sm:text-2xl font-bold text-primary tracking-tight">Patient Profile</h1>
-              </div>
-
-              {/* Sub-navigation Pills */}
-              <div className="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-full overflow-x-auto">
+          {/* ── LEFT COLUMN: IDENTITY & INTERACTIVE CONTACT STACK (4 Cols) ── */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white dark:bg-[#1a1d21] rounded-3xl p-6 sm:p-7 border border-[#e0f2eb] dark:border-[#2a3036] shadow-md flex flex-col gap-5 text-center sm:text-left transition-colors"
+            >
+              
+              {/* Circular Avatar with Camera Trigger */}
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-white dark:border-[#1a1d21] shadow-xl overflow-hidden mx-auto sm:mx-0 group shrink-0 bg-[#e0f2eb]">
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.name}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                />
                 <button
-                  onClick={() => setActiveSubTab('overview')}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    activeSubTab === 'overview'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-on-surface-variant hover:text-primary'
-                  }`}
+                  type="button"
+                  onClick={() => handleOpenMedia('avatar')}
+                  className="absolute inset-0 bg-black/45 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer backdrop-blur-xs"
+                  title="Update profile photo"
                 >
-                  Personal Information
-                </button>
-                <button
-                  onClick={() => setActiveSubTab('documents')}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    activeSubTab === 'documents'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-on-surface-variant hover:text-primary'
-                  }`}
-                >
-                  Health Pass &amp; Records
-                </button>
-                <button
-                  onClick={() => setActiveSubTab('support')}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    activeSubTab === 'support'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-on-surface-variant hover:text-primary'
-                  }`}
-                >
-                  Help &amp; Support
-                </button>
-              </div>
-            </div>
-
-            {/* Main Image 3-Style Profile Showcase Card */}
-            {activeSubTab === 'overview' && (
-              <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-10 border border-outline-variant/30 shadow-sm flex flex-col lg:flex-row items-start gap-8 lg:gap-12 relative overflow-hidden">
-                {/* Left Side: Avatar Box & Document Actions */}
-                <div className="flex flex-col items-center sm:items-start gap-4 shrink-0 w-full sm:w-auto">
-                  <div className="relative group w-48 h-48 sm:w-56 sm:h-56 rounded-3xl bg-surface-container-low overflow-hidden border border-outline-variant/40 shadow-inner flex items-center justify-center">
-                    <img
-                      src={profile.avatarUrl}
-                      alt={profile.name}
-                      style={{
-                        transform: `scale(${profile.avatarScale || 1})`,
-                        objectPosition: profile.avatarPosition || 'center'
-                      }}
-                      className="w-full h-full object-cover transition-transform"
-                    />
-
-                    {/* Camera Change Button (Matching Ref Image 3) */}
-                    <button
-                      onClick={() => handleOpenMediaModal('avatar')}
-                      className="absolute top-3 left-3 w-9 h-9 rounded-xl bg-white/90 backdrop-blur-sm text-primary flex items-center justify-center shadow-md hover:bg-white transition-all border border-outline-variant/20"
-                      title="Update avatar"
-                      aria-label="Update avatar"
-                    >
-                      <span className="material-symbols-outlined text-lg">photo_camera</span>
-                    </button>
-                  </div>
-
-                  {/* Document & Logo Badges (from Ref Image 3) */}
-                  <div className="grid grid-cols-2 gap-2.5 w-full">
-                    <button
-                      onClick={() => onNavigate ? onNavigate('prescription') : setActiveSubTab('documents')}
-                      className="p-3 rounded-2xl border-2 border-dashed border-[#a6cfc5] bg-surface-container-low/40 hover:bg-[#e0f2eb] flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer group"
-                    >
-                      <span className="material-symbols-outlined text-secondary text-xl group-hover:scale-110 transition-transform">
-                        description
-                      </span>
-                      <span className="text-[10px] font-bold text-primary tracking-wider uppercase">
-                        Prescriptions
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => onNavigate ? onNavigate('orders') : setActiveSubTab('documents')}
-                      className="p-3 rounded-2xl border-2 border-dashed border-[#a6cfc5] bg-surface-container-low/40 hover:bg-[#e0f2eb] flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer group"
-                    >
-                      <span className="material-symbols-outlined text-secondary text-xl group-hover:scale-110 transition-transform">
-                        receipt_long
-                      </span>
-                      <span className="text-[10px] font-bold text-primary tracking-wider uppercase">
-                        My Orders
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Right Side: Key Patient Info Fields */}
-                <div className="flex-1 flex flex-col justify-between w-full h-full">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        {renderRoleBadge()}
-                        <h2 className="text-2xl sm:text-3xl font-bold text-primary mt-2 tracking-tight">
-                          {profile.name}
-                        </h2>
-                        <span className="text-xs text-on-surface-variant font-mono">
-                          ID: {profile.healthId || 'ABHA-KL-8821-4921'}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={handleOpenEdit}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-primary/20 text-primary hover:bg-primary hover:text-white font-bold text-xs transition-all shadow-xs"
-                      >
-                        <span className="material-symbols-outlined text-base">edit</span>
-                        <span>EDIT PROFILE</span>
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low/50 border border-outline-variant/20 flex flex-col">
-                        <span className="text-[11px] font-semibold text-on-surface-variant">Registered Email</span>
-                        <span className="text-sm font-bold text-primary mt-0.5">{profile.email}</span>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low/50 border border-outline-variant/20 flex flex-col">
-                        <span className="text-[11px] font-semibold text-on-surface-variant">Mobile Contact</span>
-                        <span className="text-sm font-bold text-primary mt-0.5">{profile.phone}</span>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low/50 border border-outline-variant/20 flex flex-col md:col-span-2">
-                        <span className="text-[11px] font-semibold text-on-surface-variant">Delivery &amp; Residential Address</span>
-                        <span className="text-sm font-medium text-primary mt-0.5">{profile.address}</span>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low/50 border border-outline-variant/20 flex flex-col">
-                        <span className="text-[11px] font-semibold text-on-surface-variant">Emergency Contact</span>
-                        <span className="text-sm font-bold text-primary mt-0.5">{profile.emergencyContact}</span>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low/50 border border-outline-variant/20 flex flex-col">
-                        <span className="text-[11px] font-semibold text-on-surface-variant">Blood Group &amp; Allergies</span>
-                        <span className="text-sm font-bold text-primary mt-0.5">
-                          {profile.bloodGroup} • {profile.allergies || 'No known drug allergies'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bio statement */}
-                  <div className="mt-5 p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 text-xs text-on-surface-variant flex items-start gap-2.5">
-                    <span className="material-symbols-outlined text-secondary text-lg shrink-0 mt-0.5">info</span>
-                    <span>{profile.bio}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Documents Sub-Tab */}
-            {activeSubTab === 'documents' && (
-              <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 border border-outline-variant/30 shadow-sm flex flex-col gap-5">
-                <h3 className="text-lg font-bold text-primary">Patient Health Pass &amp; Records</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-secondary text-2xl">qr_code_2</span>
-                      <span className="text-sm font-bold text-primary">Digital Health Pass</span>
-                    </div>
-                    <p className="text-xs text-on-surface-variant">
-                      Cryptographically verified token for dispensary counter authentication.
-                    </p>
-                    <span className="text-[11px] font-mono text-secondary font-semibold">TOKEN: #MF-PAT-9081</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-secondary text-2xl">clinical_notes</span>
-                      <span className="text-sm font-bold text-primary">Consulting Physician</span>
-                    </div>
-                    <p className="text-xs text-on-surface-variant">
-                      {profile.consultingDoctor || 'Not specified'}
-                    </p>
-                    <span className="text-[11px] text-primary font-semibold">Physician Consultation Record</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-secondary text-2xl">verified_user</span>
-                      <span className="text-sm font-bold text-primary">Privacy Level</span>
-                    </div>
-                    <p className="text-xs text-on-surface-variant">
-                      Role-isolated access active. Assistants receive address without prescription image.
-                    </p>
-                    <span className="text-[11px] text-secondary font-bold">Standard Patient Insulation</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Help & Support Sub-Tab */}
-            {activeSubTab === 'support' && (
-              <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 border border-outline-variant/30 shadow-sm flex flex-col gap-6">
-                <div>
-                  <h3 className="text-lg font-bold text-primary">Patient Help &amp; Clinical Support</h3>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    Direct access to emergency hotlines, dispensary assistance, and platform guidance.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-2xl bg-[#ffdad6]/40 border border-[#ba1a1a]/20 flex flex-col gap-2">
-                    <span className="text-xs font-bold text-[#ba1a1a]">National Emergency</span>
-                    <span className="text-2xl font-black text-primary font-mono">112</span>
-                    <span className="text-[11px] text-on-surface-variant">Police, Fire &amp; Rescue</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-[#ffdad6]/40 border border-[#ba1a1a]/20 flex flex-col gap-2">
-                    <span className="text-xs font-bold text-[#ba1a1a]">Ambulance Service</span>
-                    <span className="text-2xl font-black text-primary font-mono">108</span>
-                    <span className="text-[11px] text-on-surface-variant">24/7 Trauma Transport</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-secondary-container/40 border border-secondary/20 flex flex-col gap-2">
-                    <span className="text-xs font-bold text-secondary">Kerala Health Helpline</span>
-                    <span className="text-2xl font-black text-primary font-mono">1056</span>
-                    <span className="text-[11px] text-on-surface-variant">Disha Health Advisory</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-2">
-                    <span className="text-xs font-bold text-primary">MediFind Support</span>
-                    <span className="text-base font-bold text-primary font-mono mt-1">support@medifind.care</span>
-                    <span className="text-[11px] text-on-surface-variant">General Platform Queries</span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-surface-container-low text-xs text-on-surface-variant flex flex-col gap-2">
-                  <span className="font-bold text-primary">Frequently Asked Questions:</span>
-                  <p>• <strong>How is my prescription protected?</strong> Extracted prescription formulations require explicit verification before dispensary routing.</p>
-                  <p>• <strong>Who sees my delivery PIN?</strong> Only you and your fulfilling dispensary or delivery assistant at the point of physical handover.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* ========================================================================= */}
-        {/* ROLE 2: ADMIN PROFILE — INSPIRED BY REFERENCE IMAGE 2 (Wide Scenic Banner) */}
-        {/* ========================================================================= */}
-        {role === 'ADMIN' && (
-          <div className="flex flex-col gap-6">
-            {/* Wide Banner Image with Edit Action */}
-            <div className="relative w-full h-48 sm:h-64 rounded-3xl overflow-hidden shadow-sm border border-outline-variant/30 group">
-              <img
-                src={profile.bannerUrl}
-                alt="Admin Banner"
-                style={{
-                  transform: `scale(${profile.bannerScale || 1})`,
-                  objectPosition: profile.bannerPosition || 'center'
-                }}
-                className="w-full h-full object-cover transition-transform"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
-
-              <button
-                onClick={() => handleOpenMediaModal('banner')}
-                className="absolute top-4 right-4 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-sm text-primary hover:bg-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-sm">panorama</span>
-                <span>Change Banner</span>
-              </button>
-            </div>
-
-            {/* Overlapping Profile Header Box (Matching Ref Image 2) */}
-            <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 border border-outline-variant/30 shadow-sm relative -mt-16 sm:-mt-20 z-10 mx-2 sm:mx-6 flex flex-col md:flex-row items-center md:items-start gap-6">
-              {/* Circular Overlapping Avatar with Camera */}
-              <div className="relative shrink-0 -mt-12 sm:-mt-16">
-                <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-white shadow-xl bg-surface-container-low">
-                  <img
-                    src={profile.avatarUrl}
-                    alt={profile.name}
-                    style={{
-                      transform: `scale(${profile.avatarScale || 1})`,
-                      objectPosition: profile.avatarPosition || 'center'
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <button
-                  onClick={() => handleOpenMediaModal('avatar')}
-                  className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shadow-md hover:bg-primary-container transition-all border-2 border-white"
-                  title="Change avatar"
-                  aria-label="Change avatar"
-                >
-                  <span className="material-symbols-outlined text-base">photo_camera</span>
+                  <span className="material-symbols-outlined text-2xl">photo_camera</span>
                 </button>
               </div>
 
-              {/* Executive Metadata */}
-              <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
-                <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
-                  {renderRoleBadge()}
-                  <span className="text-xs font-mono font-bold text-secondary bg-surface-container px-2.5 py-0.5 rounded-full">
-                    {profile.clearanceLevel || 'Superuser Level 3'}
-                  </span>
-                </div>
-
-                <h2 className="text-2xl sm:text-3xl font-bold text-primary mt-1 tracking-tight">
-                  {profile.name}
-                </h2>
-                <p className="text-xs sm:text-sm text-on-surface-variant font-medium">
-                  {profile.department || 'Operations & Infrastructure Security'}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 text-xs text-on-surface-variant justify-center md:justify-start">
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm text-secondary">location_on</span>
-                    {profile.region || 'Chengannur / Alappuzha Hub, Kerala'}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 font-mono">
-                    <span className="material-symbols-outlined text-sm text-secondary">mail</span>
-                    {profile.email}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 font-mono">
-                    <span className="material-symbols-outlined text-sm text-secondary">call</span>
-                    {profile.phone}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <button
-                  onClick={handleOpenEdit}
-                  className="px-4 py-2 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined text-base">tune</span>
-                  <span>Edit Profile</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Lower Showcase Cards (Matching Ref Image 2: Intro/Matrix/Stats) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-3xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between gap-4">
-                <div className="flex items-center gap-2 text-primary font-bold">
-                  <span className="material-symbols-outlined text-secondary">shield</span>
-                  <span>Security &amp; RBAC Matrix</span>
-                </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Server-authoritative role isolation enforced. Admin controls verified network approvals and emergency task oversight.
-                </p>
-                <div className="pt-2 border-t border-surface-container flex items-center justify-between text-xs font-mono font-bold text-secondary">
-                  <span>ROOT CLEARANCE</span>
-                  <span>ACTIVE</span>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between gap-4">
-                <div className="flex items-center gap-2 text-primary font-bold">
-                  <span className="material-symbols-outlined text-secondary">dns</span>
-                  <span>Regional Dispensary Nodes</span>
-                </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  3 seed test dispensaries active across Chengannur, Haripad, and Alappuzha with real-time stock sync.
-                </p>
-                <div className="pt-2 border-t border-surface-container flex items-center justify-between text-xs font-mono font-bold text-secondary">
-                  <span>DISPENSARIES</span>
-                  <span>3 CONNECTED</span>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between gap-4">
-                <div className="flex items-center gap-2 text-primary font-bold">
-                  <span className="material-symbols-outlined text-secondary">support_agent</span>
-                  <span>Admin Escalation</span>
-                </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Direct hotwire to State Drug Regulatory and technical operations desks for emergency dispatch override.
-                </p>
-                <div className="pt-2 border-t border-surface-container flex items-center justify-between text-xs font-mono font-bold text-primary">
-                  <span>CODE:</span>
-                  <span className="text-secondary">{profile.emergencyCode || 'SEC-ROOT-L3'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {/* ========================================================================= */}
-        {/* ROLE 3: PHARMACIST PROFILE — INSPIRED BY REFERENCE IMAGE 1 (Candidate/Tab)*/}
-        {/* ========================================================================= */}
-        {role === 'PHARMACIST' && (
-          <div className="flex flex-col gap-6">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2e685d]"></span>
-                <h1 className="text-xl sm:text-2xl font-bold text-primary tracking-tight">Pharmacist Specialist Dossier</h1>
-              </div>
-
-              <button
-                onClick={handleOpenEdit}
-                className="px-4 py-2 rounded-full border border-primary/20 text-primary hover:bg-primary hover:text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-base">edit</span>
-                <span>Edit Credentials</span>
-              </button>
-            </div>
-
-            {/* Split 2-Column Workspace (Matching Ref Image 1) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column (4 cols): Candidate / Specialist Profile Card */}
-              <div className="lg:col-span-4 bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm flex flex-col gap-5">
-                {/* Avatar with Camera */}
-                <div className="relative w-full aspect-[4/3] rounded-2xl bg-surface-container-low overflow-hidden border border-outline-variant/30">
-                  <img
-                    src={profile.avatarUrl}
-                    alt={profile.name}
-                    style={{
-                      transform: `scale(${profile.avatarScale || 1})`,
-                      objectPosition: profile.avatarPosition || 'center'
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    onClick={() => handleOpenMediaModal('avatar')}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm text-primary flex items-center justify-center shadow-md hover:bg-white transition-all"
-                    title="Change picture"
-                  >
-                    <span className="material-symbols-outlined text-base">photo_camera</span>
-                  </button>
-                </div>
-
-                {/* Specialist Identity */}
-                <div>
-                  <div className="mb-1">{renderRoleBadge()}</div>
-                  <h2 className="text-xl font-bold text-primary mt-1">{profile.name}</h2>
-                  <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-                    {profile.qualification || 'PharmD, Clinical Pharmacy'}
-                  </p>
-                  <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-surface-container text-xs font-semibold text-primary">
-                    {profile.experienceYears || '12 Years'} Clinical Practice
-                  </span>
-                </div>
-
-                {/* Match / Performance Gauge (Ref Image 1: 96% Match Rate) */}
-                <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-primary">Fulfillment Accuracy</span>
-                    <span className="text-lg font-black text-secondary font-mono">99.4%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
-                    <div className="w-[99%] h-full bg-[#2e685d] rounded-full"></div>
-                  </div>
-                  <span className="text-[10px] text-on-surface-variant">450+ verified counter PIN dispensations</span>
-                </div>
-
-                {/* Contact Drawer */}
-                <div className="flex flex-col gap-2 pt-2 border-t border-surface-container text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">License #</span>
-                    <span className="font-mono font-bold text-primary">{profile.licenseNumber || 'KL-PH-4920'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">Direct Line</span>
-                    <span className="font-mono font-bold text-primary">{profile.phone}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">Hours</span>
-                    <span className="font-semibold text-primary">{profile.workingHours || '9 AM - 9 PM'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column (8 cols): Tabbed Professional Sections */}
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                {/* Tabs Top Bar (Ref Image 1: Resume / Attachment / Interview) */}
-                <div className="bg-surface-container-lowest p-2 rounded-full border border-outline-variant/30 shadow-xs flex items-center gap-2 overflow-x-auto">
-                  <button
-                    onClick={() => setActiveSubTab('overview')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                      activeSubTab === 'overview'
-                        ? 'bg-primary text-white shadow-xs'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
-                  >
-                    Dispensary Information
-                  </button>
-                  <button
-                    onClick={() => setActiveSubTab('credentials')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                      activeSubTab === 'credentials'
-                        ? 'bg-primary text-white shadow-xs'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
-                  >
-                    Board Credentials
-                  </button>
-                  <button
-                    onClick={() => setActiveSubTab('support')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                      activeSubTab === 'support'
-                        ? 'bg-primary text-white shadow-xs'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
-                  >
-                    Dispensary Support
-                  </button>
-                </div>
-
-                {/* Tab Content */}
-                <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 border border-outline-variant/30 shadow-sm flex flex-col gap-6">
-                  {activeSubTab === 'overview' && (
-                    <div className="flex flex-col gap-4">
-                      <h3 className="text-lg font-bold text-primary">Affiliated Dispensary Facility</h3>
-                      <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-2">
-                        <span className="text-xs font-bold text-primary">{profile.pharmacyName}</span>
-                        <p className="text-xs text-on-surface-variant">{profile.address}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[11px] font-bold">
-                            TEST FIXTURE NODE
-                          </span>
-                          <span className="text-xs text-secondary font-semibold">Inventory Sync Active</span>
-                        </div>
-                      </div>
-
-                      <h4 className="text-sm font-bold text-primary mt-2">Specialist Biography &amp; Practice Focus</h4>
-                      <p className="text-xs text-on-surface-variant leading-relaxed">
-                        {profile.bio}
-                      </p>
-                    </div>
-                  )}
-
-                  {activeSubTab === 'credentials' && (
-                    <div className="flex flex-col gap-4">
-                      <h3 className="text-lg font-bold text-primary">State Pharmacy Council Credentials</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-1">
-                          <span className="text-[11px] text-on-surface-variant">Registration Authority</span>
-                          <span className="text-sm font-bold text-primary">Kerala State Pharmacy Council</span>
-                        </div>
-                        <div className="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-1">
-                          <span className="text-[11px] text-on-surface-variant">Certificate Registration #</span>
-                          <span className="text-sm font-bold text-primary font-mono">{profile.licenseNumber}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSubTab === 'support' && (
-                    <div className="flex flex-col gap-4">
-                      <h3 className="text-lg font-bold text-primary">Dispensary Escalation &amp; Assistance</h3>
-                      <p className="text-xs text-on-surface-variant">
-                        For system outages, inventory discrepancies, or prescription integrity escalations:
-                      </p>
-                      <div className="p-4 rounded-2xl bg-surface-container-low text-xs flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <span>Drug Controller Office:</span>
-                          <span className="font-mono font-bold text-primary">0471-230-8000</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>MediFind Technical Operations:</span>
-                          <span className="font-mono font-bold text-secondary">tech-support@medifind.care</span>
-                        </div>
-                      </div>
-                    </div>
+              {/* Name, Headline, and Location */}
+              <div>
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-black text-[#032f28] dark:text-[#f8f9fa] tracking-tight">
+                    {profile.name}
+                  </h1>
+                  {isApproved && (
+                    <span className="material-symbols-outlined text-[#2e685d] dark:text-emerald-400 text-xl" title="Verified Account">
+                      verified
+                    </span>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {/* ========================================================================= */}
-        {/* ROLE 4: ASSISTANT PROFILE — INSPIRED BY REFERENCE IMAGE 4 (Twitter/Stream) */}
-        {/* ========================================================================= */}
-        {role === 'ASSISTANT' && (
-          <div className="flex flex-col gap-6">
-            {/* Wide Banner Image (Ref Image 4) */}
-            <div className="relative w-full h-48 sm:h-64 rounded-3xl overflow-hidden shadow-sm border border-outline-variant/30 group">
-              <img
-                src={profile.bannerUrl}
-                alt="Assistant Banner"
-                style={{
-                  transform: `scale(${profile.bannerScale || 1})`,
-                  objectPosition: profile.bannerPosition || 'center'
-                }}
-                className="w-full h-full object-cover transition-transform"
-              />
-              <button
-                onClick={() => handleOpenMediaModal('banner')}
-                className="absolute top-4 right-4 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-sm text-primary hover:bg-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-sm">edit</span>
-                <span>Change Banner</span>
-              </button>
-            </div>
-
-            {/* Layout with Left Floating Profile Card (Ref Image 4) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 -mt-16 sm:-mt-20 z-10 px-2 sm:px-4">
-              {/* Left Floating Card (Ref Image 4) */}
-              <div className="lg:col-span-4 bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-md flex flex-col gap-4">
-                {/* Circular Overlapping Avatar */}
-                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-white shadow-lg bg-surface-container-low mx-auto lg:mx-0">
-                  <img
-                    src={profile.avatarUrl}
-                    alt={profile.name}
-                    style={{
-                      transform: `scale(${profile.avatarScale || 1})`,
-                      objectPosition: profile.avatarPosition || 'center'
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    onClick={() => handleOpenMediaModal('avatar')}
-                    className="absolute inset-0 bg-black/40 text-white opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity"
-                    title="Change picture"
-                  >
-                    <span className="material-symbols-outlined text-xl">photo_camera</span>
-                  </button>
-                </div>
-
-                <div className="text-center lg:text-left">
-                  <div className="flex items-center gap-1.5 justify-center lg:justify-start">
-                    <h2 className="text-xl font-bold text-primary">{profile.name}</h2>
-                    <span className="material-symbols-outlined text-secondary text-base">verified</span>
-                  </div>
-                  <span className="text-xs text-on-surface-variant font-mono">{profile.handle || '@kavita_access'}</span>
-                  <div className="mt-2">{renderRoleBadge()}</div>
-                </div>
-
-                <p className="text-xs text-on-surface-variant leading-relaxed text-center lg:text-left">
-                  {profile.bio}
+                <p className="text-xs sm:text-sm font-semibold text-[#414846] dark:text-[#a0aba6] mt-1 leading-snug">
+                  {profile.title}
                 </p>
-
-                <div className="flex flex-col gap-2 pt-3 border-t border-surface-container text-xs text-on-surface-variant">
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-secondary">moped</span>
-                    {profile.vehicleType}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-secondary">pin_drop</span>
-                    {profile.serviceTerritory}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-secondary">star</span>
-                    <strong>4.9 ★</strong> (120+ verified handovers)
-                  </span>
-                </div>
-
                 <button
-                  onClick={handleOpenEdit}
-                  className="w-full py-2.5 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                  type="button"
+                  onClick={() => copyToClipboard(profile.location || profile.operatingCity || 'Chengannur, Kerala', 'location', 'Location')}
+                  className="inline-flex items-center justify-center sm:justify-start gap-1 text-xs text-[#717976] dark:text-[#889590] mt-2 hover:text-[#032f28] dark:hover:text-emerald-300 transition-colors cursor-pointer group"
+                >
+                  <span className="material-symbols-outlined text-sm text-[#2e685d] dark:text-emerald-400 group-hover:scale-110 transition-transform">location_on</span>
+                  <span>{profile.location || profile.operatingCity || 'Chengannur, Kerala'}</span>
+                  <span className="text-[10px] opacity-0 group-hover:opacity-100 text-[#2e685d] font-bold ml-1 transition-opacity">
+                    {copiedKey === 'location' ? 'Copied!' : 'Copy'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Primary Interactive Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  className="w-full py-2.5 px-3 rounded-2xl bg-[#032f28] hover:bg-[#1a4b41] text-white text-xs font-extrabold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-base">edit</span>
                   <span>Edit Profile</span>
-                </button>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={() => showToast('Dispatch status is Active and available.', 'success')}
+                  className="w-full py-2.5 px-3 rounded-2xl bg-[#e0f2eb] hover:bg-[#b0ecdd] text-[#032f28] text-xs font-extrabold border border-[#2e685d]/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#2e685d] animate-pulse"></span>
+                  <span>Available</span>
+                </motion.button>
               </div>
 
-              {/* Right Activity Stream / Tabs (Ref Image 4) */}
-              <div className="lg:col-span-8 flex flex-col gap-4">
-                {/* Sub Tab Bar */}
-                <div className="bg-surface-container-lowest p-1.5 rounded-full border border-outline-variant/30 shadow-xs flex items-center gap-2">
-                  <button
-                    onClick={() => setActiveSubTab('overview')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                      activeSubTab === 'overview'
-                        ? 'bg-primary text-white shadow-xs'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
-                  >
-                    Field Activity &amp; Tasks
-                  </button>
-                  <button
-                    onClick={() => setActiveSubTab('vehicle')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                      activeSubTab === 'vehicle'
-                        ? 'bg-primary text-white shadow-xs'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
-                  >
-                    Vehicle &amp; Equipment
-                  </button>
-                  <button
-                    onClick={() => setActiveSubTab('support')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                      activeSubTab === 'support'
-                        ? 'bg-primary text-white shadow-xs'
-                        : 'text-on-surface-variant hover:text-primary'
-                    }`}
-                  >
-                    Dispatch Hotline
-                  </button>
+              {/* ── Dynamic Verification Status Card (Interactive) ── */}
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                className={`p-4 rounded-2xl border text-left flex items-start gap-3 transition-colors ${
+                  isApproved
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-xl mt-0.5 shrink-0 ${
+                  isApproved ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
+                }`}>
+                  {isApproved ? 'verified_user' : 'pending_actions'}
+                </span>
+                <div className="text-xs">
+                  <div className={`font-black uppercase tracking-wider text-[11px] ${
+                    isApproved ? 'text-emerald-900 dark:text-emerald-300' : 'text-amber-900 dark:text-amber-300'
+                  }`}>
+                    {isApproved
+                      ? (role === 'ASSISTANT' ? 'Verified Dispatch Partner' : 'Regulatory Approved')
+                      : 'Verification Pending Review'}
+                  </div>
+                  <p className={`mt-0.5 text-[11.5px] leading-relaxed ${
+                    isApproved ? 'text-emerald-800 dark:text-emerald-400' : 'text-amber-800 dark:text-amber-400'
+                  }`}>
+                    {isApproved
+                      ? 'Credentials and operational scope verified by MediFind Platform Authority.'
+                      : 'Application registered. Awaiting administrator verification before live task allocation.'}
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* ── Verified Operational Capabilities (Interactive chips) ── */}
+              <div className="pt-3 border-t border-[#e0f2eb] dark:border-[#2a3036]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#717976] dark:text-[#889590] mb-2.5">
+                  Verified Operational Scopes
+                </h2>
+                <div className="flex flex-wrap gap-1.5">
+                  {(profile.skills || []).map((skill, idx) => (
+                    <motion.span
+                      key={idx}
+                      whileHover={{ scale: 1.05, y: -1 }}
+                      className="px-3 py-1 rounded-full bg-[#f0fdf4] dark:bg-[#1a2e26] text-[#166534] dark:text-[#86efac] border border-[#bbf7d0] dark:border-[#166534] text-[11px] font-bold cursor-default select-none shadow-2xs"
+                    >
+                      {skill}
+                    </motion.span>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Interactive Contact Stack (Click to Copy) ── */}
+              <div className="pt-3 border-t border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-2.5 text-xs text-[#414846] dark:text-[#a0aba6]">
+                
+                {/* Email Chip */}
+                <motion.div
+                  whileHover={{ x: 2 }}
+                  onClick={() => copyToClipboard(profile.email, 'email', 'Email')}
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-[#f8fafc] dark:hover:bg-[#212529] cursor-pointer transition-colors group"
+                >
+                  <span className="flex items-center gap-2 text-[#717976]">
+                    <span className="material-symbols-outlined text-sm text-[#2e685d]">mail</span>
+                    <span>Email</span>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-[#032f28] dark:text-[#f8f9fa] truncate max-w-[170px]">
+                      {profile.email}
+                    </span>
+                    <span className="material-symbols-outlined text-xs text-[#717976] opacity-0 group-hover:opacity-100 transition-opacity">
+                      {copiedKey === 'email' ? 'done' : 'content_copy'}
+                    </span>
+                  </div>
+                </motion.div>
+
+                {/* Phone Chip */}
+                <motion.div
+                  whileHover={{ x: 2 }}
+                  onClick={() => copyToClipboard(profile.phone, 'phone', 'Phone')}
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-[#f8fafc] dark:hover:bg-[#212529] cursor-pointer transition-colors group"
+                >
+                  <span className="flex items-center gap-2 text-[#717976]">
+                    <span className="material-symbols-outlined text-sm text-[#2e685d]">call</span>
+                    <span>Phone</span>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-bold text-[#032f28] dark:text-[#f8f9fa]">
+                      {profile.phone}
+                    </span>
+                    <span className="material-symbols-outlined text-xs text-[#717976] opacity-0 group-hover:opacity-100 transition-opacity">
+                      {copiedKey === 'phone' ? 'done' : 'content_copy'}
+                    </span>
+                  </div>
+                </motion.div>
+
+                {/* Transit Vehicle Mode */}
+                {profile.vehicleType && (
+                  <div className="flex items-center justify-between p-2 rounded-xl">
+                    <span className="flex items-center gap-2 text-[#717976]">
+                      <span className="material-symbols-outlined text-sm text-[#2e685d]">electric_moped</span>
+                      <span>Transit Mode</span>
+                    </span>
+                    <span className="font-semibold text-[#032f28] dark:text-[#f8f9fa] text-right text-[11.5px]">
+                      {profile.vehicleType}
+                    </span>
+                  </div>
+                )}
+
+                {/* Network Joined */}
+                <div className="flex items-center justify-between p-2 rounded-xl">
+                  <span className="flex items-center gap-2 text-[#717976]">
+                    <span className="material-symbols-outlined text-sm text-[#2e685d]">calendar_month</span>
+                    <span>Member Since</span>
+                  </span>
+                  <span className="font-semibold text-[#032f28] dark:text-[#f8f9fa]">
+                    {profile.joinedDate || '2024'}
+                  </span>
                 </div>
 
-                {/* Activity Feed */}
-                <div className="flex flex-col gap-3">
-                  <div className="p-6 rounded-3xl bg-surface-container-lowest border border-outline-variant/30 text-center flex flex-col items-center justify-center gap-2">
-                    <span className="material-symbols-outlined text-2xl text-primary">history</span>
-                    <span className="text-xs font-bold text-primary">No Completed Dispatches</span>
-                    <p className="text-xs text-on-surface-variant max-w-sm">
-                      Completed medicine collections and verified handovers will be logged here.
+              </div>
+
+            </motion.div>
+          </div>
+
+          {/* ── RIGHT COLUMN: RICH INTERACTIVE TABBED WORKSPACE (8 Cols) ── */}
+          <div className="lg:col-span-8 flex flex-col gap-6">
+
+            {/* ── FLUID SLIDING TAB SWITCHER (Using AuthPage motion indicator) ── */}
+            <div className="relative flex items-center p-1.5 rounded-2xl bg-white/90 dark:bg-[#1a1d21]/90 backdrop-blur-md border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm gap-1.5 overflow-x-auto">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap z-10 ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-[#414846] dark:text-[#a0aba6] hover:text-[#032f28] dark:hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="profileActiveTabIndicator"
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#032f28] to-[#0a4f43] dark:from-[#2e685d] dark:to-[#1e453e] shadow-[0_2px_10px_rgba(3,47,40,0.3)] -z-10"
+                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                      />
+                    )}
+                    <span className="material-symbols-outlined text-sm">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── TAB 1: OVERVIEW ── */}
+            {activeTab === 'overview' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="flex flex-col gap-6"
+              >
+
+                {/* Card 1: Professional Scope & Bio */}
+                <motion.div
+                  whileHover={{ y: -2 }}
+                  className="bg-white dark:bg-[#1a1d21] rounded-3xl p-6 sm:p-7 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-3 transition-shadow hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-extrabold text-[#032f28] dark:text-[#f8f9fa] flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg text-[#2e685d]">person</span>
+                      <span>Operational Focus &amp; Profile Summary</span>
+                    </h2>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={handleOpenEditModal}
+                      className="text-xs font-bold text-[#2e685d] dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">edit</span>
+                      <span>Edit</span>
+                    </motion.button>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#414846] dark:text-[#c0c8c5] leading-relaxed">
+                    {profile.bio}
+                  </p>
+                  
+                  {/* Verified Service Commitment Banner */}
+                  <div className="p-3.5 rounded-2xl bg-[#f0fdf4] dark:bg-[#162720] border border-[#bbf7d0] dark:border-[#1e453e] text-xs text-[#166534] dark:text-emerald-300 flex items-center gap-2.5 mt-1">
+                    <span className="material-symbols-outlined text-base text-[#2e685d] shrink-0">verified</span>
+                    <span><strong>Service Commitment:</strong> Strict adherence to zero-leakage 4-digit PIN authentication and secure dispensary counter handovers.</span>
+                  </div>
+                </motion.div>
+
+                {/* Card 2: Real Key Operational Attributes (Clean, No Fake Counters/Ratings) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  
+                  <motion.div
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    className="bg-white dark:bg-[#1a1d21] rounded-3xl p-5 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-1.5 transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-[#e0f2eb] dark:bg-[#1a2e26] text-[#2e685d] dark:text-emerald-300 flex items-center justify-center shrink-0 mb-1">
+                      <span className="material-symbols-outlined text-base">pin_drop</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Anchor Dispatch Hub</span>
+                    <span className="text-sm font-black text-[#032f28] dark:text-[#f8f9fa] truncate">
+                      {profile.operatingCity || 'Chengannur, Kerala'}
+                    </span>
+                    <span className="text-[11px] text-[#2e685d] dark:text-emerald-400 font-semibold">Active Geocoded Anchor</span>
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    className="bg-white dark:bg-[#1a1d21] rounded-3xl p-5 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-1.5 transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-[#e0f2eb] dark:bg-[#1a2e26] text-[#2e685d] dark:text-emerald-300 flex items-center justify-center shrink-0 mb-1">
+                      <span className="material-symbols-outlined text-base">radar</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Service Coverage</span>
+                    <span className="text-sm font-black text-[#032f28] dark:text-[#f8f9fa]">
+                      {profile.operatingRadiusKm || 15} km Radius
+                    </span>
+                    <span className="text-[11px] text-[#717976] font-medium">Automatic Route Bounds</span>
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    className="bg-white dark:bg-[#1a1d21] rounded-3xl p-5 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-1.5 transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-[#e0f2eb] dark:bg-[#1a2e26] text-[#2e685d] dark:text-emerald-300 flex items-center justify-center shrink-0 mb-1">
+                      <span className="material-symbols-outlined text-base">lock</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Security Protocol</span>
+                    <span className="text-sm font-black text-[#032f28] dark:text-[#f8f9fa]">
+                      4-Digit PIN Handover
+                    </span>
+                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">Zero-Fraud Protection</span>
+                  </motion.div>
+
+                </div>
+
+                {/* Card 3: Connected Participating Pharmacies (ONLY 2 REAL ONES) */}
+                <motion.div
+                  whileHover={{ y: -2 }}
+                  className="bg-white dark:bg-[#1a1d21] rounded-3xl p-6 sm:p-7 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-4"
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h2 className="text-base font-extrabold text-[#032f28] dark:text-[#f8f9fa] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-lg text-[#2e685d]">hub</span>
+                        <span>Connected Dispensary Hubs ({REAL_PHARMACIES.length} Real Participating Pharmacies)</span>
+                      </h2>
+                      <p className="text-xs text-[#717976] dark:text-[#889590] mt-0.5">
+                        Authoritative licensed dispensaries registered in your dispatch network
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('pharmacies')}
+                      className="text-xs font-bold text-[#2e685d] dark:text-emerald-400 hover:underline cursor-pointer"
+                    >
+                      View Full Details →
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {REAL_PHARMACIES.map((pharm) => (
+                      <motion.div
+                        key={pharm.id}
+                        whileHover={{ scale: 1.01, y: -2 }}
+                        className="p-4 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#e0f2eb] dark:bg-[#1a2e26] text-[#2e685d] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-xl">local_pharmacy</span>
+                          </div>
+                          <div className="text-xs flex-1">
+                            <strong className="text-sm text-[#032f28] dark:text-[#f8f9fa] block">
+                              {pharm.name}
+                            </strong>
+                            <span className="text-[#717976] text-[11px] block mt-0.5 line-clamp-2">
+                              {pharm.address}
+                            </span>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                • {pharm.hours}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Direct Action Links */}
+                        <div className="flex items-center justify-between pt-2 border-t border-[#e0f2eb] dark:border-[#30363a] text-xs">
+                          <a
+                            href={`tel:${pharm.rawPhone}`}
+                            className="font-mono font-bold text-[#2e685d] dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">call</span>
+                            <span>{pharm.phone}</span>
+                          </a>
+                          <a
+                            href={pharm.mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold text-[#032f28] dark:text-[#f8f9fa] hover:text-[#2e685d] flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <span>Maps</span>
+                            <span className="material-symbols-outlined text-xs">open_in_new</span>
+                          </a>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+
+              </motion.div>
+            )}
+
+            {/* ── TAB 2: TERRITORY & HUB LOGISTICS ── */}
+            {activeTab === 'territory' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="bg-white dark:bg-[#1a1d21] rounded-3xl p-6 sm:p-7 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-6"
+              >
+                <div>
+                  <h2 className="text-base font-extrabold text-[#032f28] dark:text-[#f8f9fa] flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg text-[#2e685d]">pin_drop</span>
+                    <span>Geographic Operating Territory &amp; Radius Configuration</span>
+                  </h2>
+                  <p className="text-xs text-[#717976] dark:text-[#889590] mt-1">
+                    Orders and prescription reservations outside your configured radial threshold are filtered automatically.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Operating Hub */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-2"
+                  >
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Anchor Center Hub</span>
+                    <span className="text-lg font-black text-[#032f28] dark:text-[#f8f9fa]">
+                      {profile.operatingCity || 'Chengannur, Kerala'}
+                    </span>
+                    <p className="text-xs text-[#717976]">
+                      All distance calculations and pharmacy collection relays reference this anchor location.
                     </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenEditModal}
+                      className="mt-2 text-xs font-bold text-[#2e685d] dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer self-start"
+                    >
+                      <span className="material-symbols-outlined text-sm">my_location</span>
+                      <span>Update Anchor City</span>
+                    </button>
+                  </motion.div>
+
+                  {/* Operating Radius */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-2"
+                  >
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Max Radial Threshold</span>
+                    <span className="text-lg font-black text-[#032f28] dark:text-[#f8f9fa]">
+                      {profile.operatingRadiusKm || 15} km Radial Distance
+                    </span>
+                    <p className="text-xs text-[#717976]">
+                      Ensures temperature-sensitive cold-chain transit can be completed within 45 minutes safely.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenEditModal}
+                      className="mt-2 text-xs font-bold text-[#2e685d] dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer self-start"
+                    >
+                      <span className="material-symbols-outlined text-sm">tune</span>
+                      <span>Adjust Radius</span>
+                    </button>
+                  </motion.div>
+
+                </div>
+
+                {/* Quick Kerala Territory Presets */}
+                <div className="pt-4 border-t border-[#e0f2eb] dark:border-[#2a3036]">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#717976] dark:text-[#889590] mb-2.5">
+                    Nearby Kerala Hub Presets
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {KERALA_TOWN_PRESETS.map((town) => (
+                      <motion.button
+                        key={town}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={() => saveProfileData({ ...profile, operatingCity: town, location: town })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                          profile.operatingCity === town
+                            ? 'bg-[#032f28] text-white shadow-xs'
+                            : 'bg-[#e0f2eb] text-[#032f28] hover:bg-[#b0ecdd]'
+                        }`}
+                      >
+                        {town.split(',')[0]}
+                      </motion.button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
 
+              </motion.div>
+            )}
+
+            {/* ── TAB 3: SECURITY & VERIFICATION ── */}
+            {activeTab === 'security' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="bg-white dark:bg-[#1a1d21] rounded-3xl p-6 sm:p-7 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-6"
+              >
+                <div>
+                  <h2 className="text-base font-extrabold text-[#032f28] dark:text-[#f8f9fa] flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg text-[#2e685d]">shield</span>
+                    <span>Security Credentials, Protocol &amp; Verification State</span>
+                  </h2>
+                  <p className="text-xs text-[#717976] dark:text-[#889590] mt-1">
+                    MediFind AI enforces strict cryptographic PIN verification and role-based access control.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Account Verification Status */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-1.5"
+                  >
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Verification Authority</span>
+                    <span className={`text-base font-black ${isApproved ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                      {isApproved ? 'Verified & Authorized' : 'Pending Administrator Review'}
+                    </span>
+                    <p className="text-xs text-[#717976] mt-0.5">
+                      {isApproved
+                        ? 'Account credentials authenticated against official regulatory standard.'
+                        : 'Review in progress. Once verified, live task relays will activate.'}
+                    </p>
+                  </motion.div>
+
+                  {/* 4-Digit Handover PIN Standard */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-1.5"
+                  >
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Handover Verification</span>
+                    <span className="text-base font-black text-[#032f28] dark:text-[#f8f9fa]">
+                      4-Digit OTP / PIN Protocol
+                    </span>
+                    <p className="text-xs text-[#717976] mt-0.5">
+                      Ensures medicines can only be released when the patient's generated PIN matches at doorstep or counter.
+                    </p>
+                  </motion.div>
+
+                  {/* Session Auth Bearer */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-1.5"
+                  >
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Session Guard</span>
+                    <span className="text-base font-black text-[#032f28] dark:text-[#f8f9fa]">
+                      JWT Bearer Authentication
+                    </span>
+                    <p className="text-xs text-[#717976] mt-0.5">
+                      Encrypted token authentication with strict role-based capability boundaries.
+                    </p>
+                  </motion.div>
+
+                  {/* Portal Role */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col gap-1.5"
+                  >
+                    <span className="text-[11px] font-bold text-[#717976] uppercase tracking-wider">Assigned Role</span>
+                    <span className="text-base font-black text-[#2e685d] dark:text-emerald-400">
+                      {role} Portal User
+                    </span>
+                    <p className="text-xs text-[#717976] mt-0.5">
+                      Configured for {role.toLowerCase()} operations across the MediFind network.
+                    </p>
+                  </motion.div>
+
+                </div>
+
+              </motion.div>
+            )}
+
+            {/* ── TAB 4: REAL PARTICIPATING PHARMACIES (Max Care & Karuna Medicals) ── */}
+            {activeTab === 'pharmacies' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="bg-white dark:bg-[#1a1d21] rounded-3xl p-6 sm:p-7 border border-[#e0f2eb] dark:border-[#2a3036] shadow-sm flex flex-col gap-6"
+              >
+                <div>
+                  <h2 className="text-base font-extrabold text-[#032f28] dark:text-[#f8f9fa] flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg text-[#2e685d]">store</span>
+                    <span>Accredited Participating Pharmacy Directory</span>
+                  </h2>
+                  <p className="text-xs text-[#717976] dark:text-[#889590] mt-1">
+                    The MediFind platform operates in direct partnership with these 2 licensed pharmacies in Chengannur:
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {REAL_PHARMACIES.map((pharm) => (
+                    <motion.div
+                      key={pharm.id}
+                      whileHover={{ scale: 1.008, y: -2 }}
+                      className="p-5 rounded-2xl bg-[#f8fafc] dark:bg-[#212529] border border-[#e0f2eb] dark:border-[#2a3036] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-[#e0f2eb] dark:bg-[#1a2e26] text-[#2e685d] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-2xl">local_pharmacy</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-base font-extrabold text-[#032f28] dark:text-[#f8f9fa]">
+                              {pharm.name}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-300 dark:border-emerald-800">
+                              {pharm.tag}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#717976] dark:text-[#a0aba6] mt-1 max-w-xl">
+                            {pharm.address}
+                          </p>
+                          <div className="flex items-center gap-4 mt-2 text-xs">
+                            <span className="text-[#414846] dark:text-[#c0c8c5]">
+                              <strong>Hours:</strong> {pharm.hours}
+                            </span>
+                            <span className="text-[#414846] dark:text-[#c0c8c5]">
+                              <strong>License:</strong> {pharm.license}
+                            </span>
+                          </div>
+                          
+                          {/* Features Pills */}
+                          <div className="flex flex-wrap gap-1.5 mt-2.5">
+                            {pharm.features.map((feat, fIdx) => (
+                              <span
+                                key={fIdx}
+                                className="px-2 py-0.5 rounded-md bg-white dark:bg-[#14181a] border border-[#e0f2eb] dark:border-[#30363a] text-[10.5px] font-semibold text-[#032f28] dark:text-[#e0f2eb]"
+                              >
+                                {feat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Interactive Buttons */}
+                      <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#e0f2eb] dark:border-[#30363a]">
+                        <motion.a
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          href={`tel:${pharm.rawPhone}`}
+                          className="px-4 py-2 rounded-xl bg-[#032f28] hover:bg-[#1a4b41] text-white text-xs font-extrabold shadow-sm flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">call</span>
+                          <span>Call Dispensary</span>
+                        </motion.a>
+
+                        <motion.button
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          type="button"
+                          onClick={() => copyToClipboard(pharm.address, pharm.id, 'Pharmacy Address')}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#e0f2eb] hover:bg-[#b0ecdd] text-[#032f28] text-xs font-bold border border-[#2e685d]/30 flex items-center gap-1 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            {copiedKey === pharm.id ? 'done' : 'content_copy'}
+                          </span>
+                          <span>{copiedKey === pharm.id ? 'Copied' : 'Copy Address'}</span>
+                        </motion.button>
+
+                        <motion.a
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          href={pharm.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-bold text-[#2e685d] dark:text-emerald-400 hover:underline flex items-center gap-0.5 cursor-pointer pt-0.5"
+                        >
+                          <span>Open in Google Maps</span>
+                          <span className="material-symbols-outlined text-xs">open_in_new</span>
+                        </motion.a>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+              </motion.div>
+            )}
+
+          </div>
+        </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* EDIT PROFILE MODAL                                                        */}
-      {/* ========================================================================= */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-outline-variant/40 flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-surface-container">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-2xl">account_circle</span>
-                <h3 className="text-lg font-bold text-primary">Edit Profile Details</h3>
-              </div>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="flex flex-col gap-4 text-xs">
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold text-primary">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={editDraft.name}
-                  onChange={e => setEditDraft(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-primary">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    value={editDraft.email}
-                    onChange={e => setEditDraft(prev => ({ ...prev, email: e.target.value }))}
-                    className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                  />
+      {/* ── 3. EDIT PROFILE POPUP MODAL (Clean, Focused, Separated) ── */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 15 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+              className="bg-white dark:bg-[#1e2226] rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 border border-[#e0f2eb] dark:border-[#3d4349] shadow-2xl flex flex-col gap-6"
+            >
+              
+              <div className="flex items-center justify-between pb-3 border-b border-[#e0f2eb] dark:border-[#30363a]">
+                <div>
+                  <h3 className="text-xl font-black text-[#032f28] dark:text-[#f8f9fa]">
+                    Edit Profile &amp; Operational Details
+                  </h3>
+                  <p className="text-xs text-[#717976] mt-0.5">
+                    Update your contact info, location territory, and operational bio
+                  </p>
                 </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-primary">Phone Contact</label>
-                  <input
-                    type="text"
-                    required
-                    value={editDraft.phone}
-                    onChange={e => setEditDraft(prev => ({ ...prev, phone: e.target.value }))}
-                    className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold text-primary">Primary Address / Office</label>
-                <input
-                  type="text"
-                  value={editDraft.address || ''}
-                  onChange={e => setEditDraft(prev => ({ ...prev, address: e.target.value }))}
-                  className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                />
-              </div>
-
-              {/* Role-Specific Fields */}
-              {role === 'PATIENT' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Blood Group</label>
-                    <input
-                      type="text"
-                      value={editDraft.bloodGroup || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, bloodGroup: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Emergency Contact</label>
-                    <input
-                      type="text"
-                      value={editDraft.emergencyContact || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, emergencyContact: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 sm:col-span-2">
-                    <label className="font-semibold text-primary">Known Allergies</label>
-                    <input
-                      type="text"
-                      value={editDraft.allergies || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, allergies: e.target.value }))}
-                      placeholder="e.g. Penicillin (mild rash)"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">ABHA Health ID</label>
-                    <input
-                      type="text"
-                      value={editDraft.healthId || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, healthId: e.target.value }))}
-                      placeholder="ABHA-XX-XXXX-XXXX"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Consulting Doctor</label>
-                    <input
-                      type="text"
-                      value={editDraft.consultingDoctor || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, consultingDoctor: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {role === 'PHARMACIST' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1 sm:col-span-2">
-                    <label className="font-semibold text-primary">Pharmacy / Dispensary Name</label>
-                    <input
-                      type="text"
-                      value={editDraft.pharmacyName || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, pharmacyName: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">License Number</label>
-                    <input
-                      type="text"
-                      value={editDraft.licenseNumber || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, licenseNumber: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Qualification</label>
-                    <input
-                      type="text"
-                      value={editDraft.qualification || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, qualification: e.target.value }))}
-                      placeholder="e.g. PharmD, Clinical Pharmacy"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Years of Experience</label>
-                    <input
-                      type="text"
-                      value={editDraft.experienceYears || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, experienceYears: e.target.value }))}
-                      placeholder="e.g. 12 Years"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Working Hours</label>
-                    <input
-                      type="text"
-                      value={editDraft.workingHours || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, workingHours: e.target.value }))}
-                      placeholder="e.g. 9:00 AM – 9:00 PM"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {role === 'ASSISTANT' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Handle / Username</label>
-                    <input
-                      type="text"
-                      value={editDraft.handle || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, handle: e.target.value }))}
-                      placeholder="@kavita_access"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Vehicle Model &amp; Type</label>
-                    <input
-                      type="text"
-                      value={editDraft.vehicleType || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, vehicleType: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Vehicle Registration No.</label>
-                    <input
-                      type="text"
-                      value={editDraft.vehicleNumber || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, vehicleNumber: e.target.value }))}
-                      placeholder="e.g. KL-30-E-4421"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Service Territory</label>
-                    <input
-                      type="text"
-                      value={editDraft.serviceTerritory || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, serviceTerritory: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 sm:col-span-2">
-                    <label className="font-semibold text-primary">Cold-Chain Box ID</label>
-                    <input
-                      type="text"
-                      value={editDraft.boxId || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, boxId: e.target.value }))}
-                      placeholder="e.g. CCB-9021 (2°C – 8°C Monitored)"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {role === 'ADMIN' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1 sm:col-span-2">
-                    <label className="font-semibold text-primary">Department</label>
-                    <input
-                      type="text"
-                      value={editDraft.department || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, department: e.target.value }))}
-                      placeholder="e.g. Operations & Infrastructure Security"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Operational Region</label>
-                    <input
-                      type="text"
-                      value={editDraft.region || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, region: e.target.value }))}
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-primary">Clearance Level</label>
-                    <input
-                      type="text"
-                      value={editDraft.clearanceLevel || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, clearanceLevel: e.target.value }))}
-                      placeholder="e.g. Superuser Level 3"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 sm:col-span-2">
-                    <label className="font-semibold text-primary">Emergency Security Code</label>
-                    <input
-                      type="text"
-                      value={editDraft.emergencyCode || ''}
-                      onChange={e => setEditDraft(prev => ({ ...prev, emergencyCode: e.target.value }))}
-                      placeholder="e.g. SEC-ROOT-L3-KERALA"
-                      className="h-10 px-3.5 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold text-primary">Biography &amp; Notes</label>
-                <textarea
-                  rows="3"
-                  value={editDraft.bio || ''}
-                  onChange={e => setEditDraft(prev => ({ ...prev, bio: e.target.value }))}
-                  className="p-3 rounded-xl border border-outline-variant/60 focus:border-secondary outline-none text-sm"
-                />
-              </div>
-
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-full border border-outline-variant text-on-surface-variant font-bold hover:bg-surface-container"
+                  className="w-9 h-9 rounded-full bg-[#f8fafc] dark:bg-[#2c3034] text-[#414846] dark:text-[#c0c8c5] flex items-center justify-center hover:bg-[#e0f2eb] cursor-pointer"
                 >
-                  Cancel
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditModal} className="flex flex-col gap-4">
+                
+                {/* Photo Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-2">
+                    Profile Avatar Picture
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={editForm.avatarUrl}
+                      alt="Selected Avatar"
+                      className="w-14 h-14 rounded-full object-cover border-2 border-[#2e685d] shrink-0"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      {PRESET_AVATARS.map(av => (
+                        <button
+                          key={av.id}
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, avatarUrl: av.url }))}
+                          className={`w-9 h-9 rounded-full overflow-hidden border-2 cursor-pointer transition-all ${
+                            editForm.avatarUrl === av.url ? 'border-[#032f28] scale-110 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={av.url} alt={av.label} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenMedia('avatar')}
+                        className="px-3 py-1.5 rounded-full bg-[#e0f2eb] text-[#032f28] text-xs font-bold hover:bg-[#b0ecdd] cursor-pointer"
+                      >
+                        Custom Photo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Full Display Name */}
+                <div>
+                  <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-1">
+                    Full Display Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#c0c8c5] dark:border-[#3d4349] bg-white dark:bg-[#14181a] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#2e685d]"
+                    placeholder="Name"
+                  />
+                </div>
+
+                {/* Contact Phone */}
+                <div>
+                  <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-1">
+                    Contact Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editForm.phone}
+                    onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#c0c8c5] dark:border-[#3d4349] bg-white dark:bg-[#14181a] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#2e685d]"
+                    placeholder="Phone"
+                  />
+                </div>
+
+                {/* Operating City / Territory with Presets */}
+                <div>
+                  <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-1">
+                    Operating City / Dispatch Hub Area
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.operatingCity || editForm.location || ''}
+                    onChange={e => setEditForm(prev => ({
+                      ...prev,
+                      operatingCity: e.target.value,
+                      location: e.target.value
+                    }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#c0c8c5] dark:border-[#3d4349] bg-white dark:bg-[#14181a] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#2e685d]"
+                    placeholder="Town"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[11px] text-[#717976] font-semibold">Quick Presets:</span>
+                    {KERALA_TOWN_PRESETS.map(town => (
+                      <button
+                        key={town}
+                        type="button"
+                        onClick={() => setEditForm(prev => ({
+                          ...prev,
+                          operatingCity: town,
+                          location: town
+                        }))}
+                        className="px-2.5 py-0.5 rounded-full bg-[#e0f2eb] text-[#032f28] text-[10.5px] font-bold hover:bg-[#b0ecdd] cursor-pointer"
+                      >
+                        {town.split(',')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Operating Radius & Vehicle (for Assistant) */}
+                {role === 'ASSISTANT' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-1">
+                        Operating Radius ({editForm.operatingRadiusKm || 15} km)
+                      </label>
+                      <input
+                        type="range"
+                        min="3"
+                        max="40"
+                        value={editForm.operatingRadiusKm || 15}
+                        onChange={e => setEditForm(prev => ({ ...prev, operatingRadiusKm: parseInt(e.target.value, 10) }))}
+                        className="w-full accent-[#2e685d]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-1">
+                        Vehicle Type
+                      </label>
+                      <select
+                        value={editForm.vehicleType || 'Electric Two-Wheeler (EV Scooter)'}
+                        onChange={e => setEditForm(prev => ({ ...prev, vehicleType: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-xl border border-[#c0c8c5] dark:border-[#3d4349] bg-white dark:bg-[#14181a] text-xs font-semibold"
+                      >
+                        <option value="Electric Two-Wheeler (EV Scooter)">Electric Two-Wheeler (EV Scooter)</option>
+                        <option value="Motorcycle / Scooter">Motorcycle / Scooter</option>
+                        <option value="Bicycle">Bicycle (Eco Route)</option>
+                        <option value="Four-Wheeler / Car">Four-Wheeler / Car</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Professional Bio */}
+                <div>
+                  <label className="block text-xs font-bold text-[#032f28] dark:text-[#e0f2eb] mb-1">
+                    About Me / Operational Bio
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editForm.bio || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#c0c8c5] dark:border-[#3d4349] bg-white dark:bg-[#14181a] text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#2e685d]"
+                    placeholder="Bio"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e0f2eb] dark:border-[#30363a]">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-5 py-2.5 rounded-full text-xs font-bold text-[#414846] dark:text-[#a0aba6] hover:bg-[#e0f2eb] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-full bg-[#032f28] hover:bg-[#1a4b41] text-white text-xs font-extrabold shadow-md cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 4. CUSTOM PHOTO / BANNER UPLOAD MODAL ── */}
+      <AnimatePresence>
+        {isMediaModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+              className="bg-white dark:bg-[#1e2226] rounded-3xl max-w-lg w-full p-6 border border-[#e0f2eb] dark:border-[#3d4349] shadow-2xl flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-[#e0f2eb] dark:border-[#30363a]">
+                <h3 className="text-base font-black text-[#032f28] dark:text-[#f8f9fa]">
+                  {mediaType === 'avatar' ? 'Select Profile Picture' : 'Select Cover Banner'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsMediaModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-[#f8fafc] text-[#414846] flex items-center justify-center cursor-pointer hover:bg-[#e0f2eb]"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-[#717976] block mb-2">Preset Options:</span>
+                <div className="grid grid-cols-3 gap-3">
+                  {(mediaType === 'avatar' ? PRESET_AVATARS : PRESET_BANNERS).map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleSelectPresetMedia(item.url)}
+                      className="group relative rounded-2xl overflow-hidden border-2 border-transparent hover:border-[#2e685d] aspect-video cursor-pointer"
+                    >
+                      <img src={item.url} alt={item.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] font-bold p-1 truncate block text-center">
+                        {item.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#e0f2eb] dark:border-[#30363a] flex items-center justify-between">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 rounded-full bg-[#e0f2eb] text-[#032f28] text-xs font-extrabold hover:bg-[#b0ecdd] cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-sm">upload</span>
+                  <span>Upload From Device</span>
                 </button>
                 <button
-                  type="submit"
-                  className="px-6 py-2 rounded-full bg-primary hover:bg-primary-container text-white font-bold shadow-xs"
+                  type="button"
+                  onClick={() => setIsMediaModalOpen(false)}
+                  className="px-4 py-2 rounded-full text-xs font-bold text-[#717976] cursor-pointer"
                 >
-                  Save Profile Changes
+                  Close
                 </button>
               </div>
-            </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
-      {/* ========================================================================= */}
-      {/* MEDIA (AVATAR / BANNER) UPLOAD & ADJUSTMENT MODAL                          */}
-      {/* ========================================================================= */}
-      {isMediaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-outline-variant/40 flex flex-col gap-5">
-            <div className="flex items-center justify-between pb-3 border-b border-surface-container">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-2xl">
-                  {mediaModalType === 'avatar' ? 'face' : 'panorama'}
-                </span>
-                <h3 className="text-lg font-bold text-primary">
-                  {mediaModalType === 'avatar' ? 'Adjust Profile Picture' : 'Adjust Banner Image'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsMediaModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            {/* Live Preview Container */}
-            <div className="flex flex-col items-center justify-center gap-3">
-              {mediaModalType === 'avatar' ? (
-                <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-[#2e685d] shadow-lg bg-surface-container-low flex items-center justify-center">
-                  <img
-                    src={mediaDraft.url}
-                    alt="Preview"
-                    style={{
-                      transform: `scale(${mediaDraft.scale || 1})`,
-                      objectPosition: mediaDraft.position || 'center'
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-32 rounded-2xl overflow-hidden border-2 border-[#2e685d] shadow-md bg-surface-container-low flex items-center justify-center">
-                  <img
-                    src={mediaDraft.url}
-                    alt="Banner Preview"
-                    style={{
-                      transform: `scale(${mediaDraft.scale || 1})`,
-                      objectPosition: mediaDraft.position || 'center'
-                    }}
-                    className="w-full h-full object-cover transition-transform"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Scale / Zoom Slider for both Avatar and Banner */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-primary">
-                <span>Zoom / Scale Adjustment</span>
-                <span className="font-mono text-secondary font-bold">{Math.round((mediaDraft.scale || 1) * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0.8"
-                max="2.5"
-                step="0.05"
-                value={mediaDraft.scale || 1}
-                onChange={e => setMediaDraft(prev => ({ ...prev, scale: parseFloat(e.target.value) }))}
-                className="w-full accent-[#2e685d] cursor-pointer"
-              />
-            </div>
-
-            {/* Framing & Position Selector */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-primary">Framing &amp; Vertical Position</span>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'top', label: 'Top' },
-                  { id: 'center', label: 'Center' },
-                  { id: 'bottom', label: 'Bottom' }
-                ].map((pos) => (
-                  <button
-                    key={pos.id}
-                    type="button"
-                    onClick={() => setMediaDraft(prev => ({ ...prev, position: pos.id }))}
-                    className={`py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                      mediaDraft.position === pos.id
-                        ? 'bg-[#1e453e] text-white border-[#1e453e] shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant border-outline-variant/40 hover:bg-surface-container'
-                    }`}
-                  >
-                    {pos.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Preset Library (4-5 presets as requested) */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-primary">Choose from default presets:</span>
-              <div className="grid grid-cols-5 gap-2">
-                {(mediaModalType === 'avatar' ? PRESET_AVATARS : PRESET_BANNERS).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setMediaDraft(prev => ({ ...prev, url: item.url }))}
-                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all p-0.5 ${
-                      mediaDraft.url === item.url ? 'border-primary scale-105 shadow-md' : 'border-outline-variant/40 hover:border-secondary'
-                    }`}
-                    title={item.label}
-                  >
-                    <img src={item.url} alt={item.label} className="w-full h-full object-cover rounded-lg" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Upload Button */}
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2.5 rounded-xl border border-dashed border-[#2e685d] text-[#032f28] hover:bg-[#e0f2eb] text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-base">upload_file</span>
-                <span>Upload Custom Image from Computer</span>
-              </button>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container">
-              <button
-                type="button"
-                onClick={() => setIsMediaModalOpen(false)}
-                className="px-4 py-2 rounded-full border border-outline-variant text-on-surface-variant font-bold hover:bg-surface-container text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveMedia}
-                className="px-5 py-2 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-xs"
-              >
-                Apply &amp; Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

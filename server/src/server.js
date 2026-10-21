@@ -18,7 +18,10 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const checkoutRoutes = require('./routes/checkoutRoutes');
 const addressRoutes = require('./routes/addressRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
+const clinicalAssistanceRoutes = require('./routes/clinicalAssistanceRoutes');
 const { getPaymentConfigStatus } = require('./utils/paymentConfig');
+const { startClinicalTimeoutWorker } = require('./utils/clinicalTimeoutWorker');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,7 +32,11 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // NOTE: /uploads is NOT served as public static to protect sensitive prescription images.
@@ -57,6 +64,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/clinical-assistance', clinicalAssistanceRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -95,6 +104,9 @@ app.listen(PORT, () => {
   console.log(`   - TEST MODE key: ${paymentStatus.isTestMode}`);
   console.log(`   - Configured: ${paymentStatus.isConfigured}`);
   console.log(`====================================================`);
+  
+  // Start the Gate 8 Clinical Assistance timeout escalation background worker
+  startClinicalTimeoutWorker();
 });
 
 module.exports = app;

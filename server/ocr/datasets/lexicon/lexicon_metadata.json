@@ -1,0 +1,41 @@
+{
+  "datasetName": "MediFind AI Indian Medicine Reference Lexicon",
+  "version": "1.0.0",
+  "releaseDate": "2026-10-20",
+  "provenance": {
+    "originalRepository": "https://github.com/junioralive/Indian-Medicine-Dataset",
+    "author": "JuniorAlive",
+    "licence": "MIT License",
+    "licenceUrl": "https://raw.githubusercontent.com/junioralive/Indian-Medicine-Dataset/main/LICENSE",
+    "originalFileName": "indian_medicine_data.csv",
+    "accessDate": "2026-10-20"
+  },
+  "statistics": {
+    "rawDatasetRows": 253973,
+    "discontinuedRowsExcluded": 7905,
+    "nonAllopathicRowsExcluded": 0,
+    "missingCompositionExcluded": 0,
+    "deduplicatedFormulationsTotal": 241917,
+    "curatedLexiconEntries": 2200,
+    "singleIngredientEntries": 1398,
+    "combinationDrugEntries": 802,
+    "uniqueGenericEntities": 529,
+    "uniqueManufacturers": 30
+  },
+  "dosageFormBreakdown": {
+    "Tablet": 1326,
+    "Capsule": 206,
+    "Syrup": 139,
+    "Gel": 29,
+    "Oral Suspension": 87,
+    "Injection": 216,
+    "Cream": 24,
+    "Other": 82,
+    "Eye Drops": 42,
+    "Ointment": 6,
+    "Drops": 15,
+    "Nasal Spray": 25,
+    "Powder": 1,
+    "Ear Drops": 2
+  }
+}

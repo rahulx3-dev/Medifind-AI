@@ -446,16 +446,7 @@ export default function MediFind3DHero({
   }, [isRotating]);
 
   const [isDragging, setIsDragging] = useState(false);
-  const [activeHub, setActiveHub] = useState('Regional Node Alpha');
   const animFrameRef = useRef(null);
-
-  // Illustrative Regional Network Nodes (Product Visualization)
-  const hubs = [
-    { name: 'Regional Node Alpha', lat: 9.3176, lng: 76.6178, label: 'Central Corridor' },
-    { name: 'Medicine Access Point 1', lat: 9.3400, lng: 76.7000, label: 'Eastern Sector' },
-    { name: 'Pharmacy Network Node', lat: 9.3835, lng: 76.5741, label: 'Northern Corridor' },
-    { name: 'Regional Node Beta', lat: 9.4981, lng: 76.3388, label: 'Coastal Corridor' }
-  ];
 
   const motionRef = useRef(createMotion());
   const globeMotionRef = useRef(createGlobeMotion());
@@ -478,8 +469,15 @@ export default function MediFind3DHero({
     let height = container.clientHeight || 520;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0.15, 6.4);
+    const camera = new THREE.OrthographicCamera(
+      -width / 2,
+      width / 2,
+      height / 2,
+      -height / 2,
+      0.1,
+      30
+    );
+    camera.position.set(0, 0, 9);
 
     const isMobile = window.innerWidth < 768;
     const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75);
@@ -507,65 +505,45 @@ export default function MediFind3DHero({
       return;
     }
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // Lighting matching Orbit Delivery palette
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfffaed, 2.8);
-    sunLight.position.set(5, 7, 5);
+    const hemiLight = new THREE.HemisphereLight(0xf1f5ff, 0x8aabc5, 1.4);
+    scene.add(hemiLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff8f1, 2.6);
+    sunLight.position.set(-3, 5, 5);
     scene.add(sunLight);
 
-    const blueRimLight = new THREE.DirectionalLight(0x7ee8fa, 1.6);
-    blueRimLight.position.set(-6, -2, -3);
+    const blueRimLight = new THREE.DirectionalLight(0xc5deff, 1.8);
+    blueRimLight.position.set(3, 2, -2);
     scene.add(blueRimLight);
-
-    const emeraldKeyLight = new THREE.DirectionalLight(0x34d399, 1.0);
-    emeraldKeyLight.position.set(0, -6, 2);
-    scene.add(emeraldKeyLight);
 
     // Master Planet Group
     const planetGroup = new THREE.Group();
-    planetGroup.position.set(0, -0.3, 0);
     scene.add(planetGroup);
+
+    // Responsive camera zoom & planet vertical offset positioning
+    const updateCameraAndPlanet = (w, h) => {
+      const small = w < 700;
+      const zoom = w / (small ? 5.65 : 5.25);
+      camera.left = -w / 2;
+      camera.right = w / 2;
+      camera.top = h / 2;
+      camera.bottom = -h / 2;
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+
+      const centerY = (h / zoom) * (small ? 0.08 : 0.19) - 2.17;
+      planetGroup.position.set(0, centerY, 0);
+    };
+
+    updateCameraAndPlanet(width, height);
 
     // Globe Pivot
     const globePivot = new THREE.Group();
     planetGroup.add(globePivot);
-
-    // Hub Markers Group
-    const hubMarkersGroup = new THREE.Group();
-    globePivot.add(hubMarkersGroup);
-
-    const latLngToVector3 = (lat, lng, radius) => {
-      const phi = (90 - lat) * (Math.PI / 180);
-      const theta = (lng + 180) * (Math.PI / 180);
-      return new THREE.Vector3(
-        -(radius * Math.sin(phi) * Math.cos(theta)),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta)
-      );
-    };
-
-    hubs.forEach((hub) => {
-      const pos = latLngToVector3(hub.lat, hub.lng, 2.22);
-      const markerGroup = new THREE.Group();
-      markerGroup.position.copy(pos);
-      markerGroup.lookAt(0, 0, 0);
-
-      const pinGeo = new THREE.CylinderGeometry(0.02, 0.05, 0.22, 8);
-      const pinMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.3, metalness: 0.4 });
-      const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-      pinMesh.rotation.x = Math.PI / 2;
-      markerGroup.add(pinMesh);
-
-      const beaconGeo = new THREE.SphereGeometry(0.07, 12, 12);
-      const beaconMat = new THREE.MeshBasicMaterial({ color: 0x6ee7b7 });
-      const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
-      beaconMesh.position.z = 0.16;
-      markerGroup.add(beaconMesh);
-
-      hubMarkersGroup.add(markerGroup);
-    });
 
     // ── Courier Runner Hierarchy ──
     const runner = new THREE.Group();
@@ -834,17 +812,30 @@ export default function MediFind3DHero({
 
     const handleResize = () => {
       if (!container) return;
-      const w = container.clientWidth || 600;
-      const h = container.clientHeight || 520;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const w = container.clientWidth || 800;
+      const h = container.clientHeight || 700;
       renderer.setSize(w, h);
+      updateCameraAndPlanet(w, h);
     };
+
+    const observer = typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver(([entry]) => {
+          isVisible = entry.isIntersecting;
+        }, { threshold: 0.05 })
+      : null;
+    if (observer) observer.observe(container);
+
+    const handleVisibility = () => {
+      isTabActive = !document.hidden;
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     window.addEventListener('resize', handleResize);
 
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (observer) observer.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
       if (renderer.domElement && renderer.domElement.parentNode) {
@@ -894,12 +885,7 @@ export default function MediFind3DHero({
     }
   }, []);
 
-  const handleHubSelect = (hub) => {
-    setActiveHub(hub.name);
-    const m = motionRef.current;
-    m.planetVelocity += 0.4;
-    m.lastInteraction = m.time;
-  };
+
 
   return (
     <section
@@ -908,14 +894,14 @@ export default function MediFind3DHero({
         background: 'linear-gradient(160deg, #011a15 0%, #032f28 40%, #021f1a 100%)'
       }}
     >
-      {/* ─── Center Hero Content & 3D Interactive World ───────────── */}
-      <div className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 flex flex-col lg:flex-row items-center justify-between gap-8 flex-1">
+      {/* ─── Center Hero Content (Left Copy) ───────────── */}
+      <div className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 lg:py-16 flex-1 flex flex-col justify-center">
         
         {/* Left Column: Hero Typography & Actions */}
-        <div className="flex-1 max-w-2xl text-left space-y-6">
+        <div className="w-full max-w-xl lg:max-w-2xl text-left space-y-6 pointer-events-none">
           
           {/* Illustrative Product Visualization Badge */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-emerald-500/15 border border-emerald-400/40 backdrop-blur-md text-xs font-semibold text-emerald-300 shadow-sm">
+          <div className="pointer-events-auto inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-emerald-500/15 border border-emerald-400/40 backdrop-blur-md text-xs font-semibold text-emerald-300 shadow-sm">
             <span className="material-symbols-outlined text-sm text-emerald-400">hub</span>
             <span>Medicine Access Network Visualization</span>
           </div>
@@ -925,7 +911,7 @@ export default function MediFind3DHero({
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.12]"
             style={{ color: '#ffffff' }}
           >
-            Critical Medicines.{' '}
+            Prescription Access.{' '}
             <span
               className="text-transparent bg-clip-text bg-gradient-to-r from-[#6ee7b7] via-[#a7f3d0] to-[#38bdf8]"
               style={{ color: 'transparent' }}
@@ -936,11 +922,11 @@ export default function MediFind3DHero({
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg font-normal leading-relaxed max-w-xl" style={{ color: '#e2e8f0' }}>
-            MediFind AI connects patients and emergency responders with participating community pharmacies, prescription verification, and coordinated medicine delivery.
+            MediFind AI unifies Kerala's community pharmacy and care ecosystem — featuring handwritten prescription OCR extraction, real-time verified stock reservation, multi-pharmacy order coordination, 24/7 emergency night locators, and bedside healthcare assistance with 4-digit PIN escrow security.
           </p>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3.5 pt-2">
+          <div className="pointer-events-auto flex flex-wrap items-center gap-3.5 pt-2">
             <button
               id="hero-proceed-app-btn"
               type="button"
@@ -977,89 +963,46 @@ export default function MediFind3DHero({
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Right Column: 3D Globe with Human Courier Runner */}
-        <div className="flex-1 w-full max-w-xl flex flex-col items-center justify-center relative">
-          
-          {/* Container that holds canvas at fixed height — no loading overlay */}
-          <div className="relative w-full h-[420px] sm:h-[500px]">
-            {/* 3D Canvas Container — always in-flow so renderer gets correct dimensions */}
-            <div
-              ref={mountRef}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onLostPointerCapture={handlePointerUp}
-              tabIndex={0}
-              role="region"
-              aria-label="3D Interactive Kerala Pharmacy Globe. Drag to rotate."
-              className="absolute inset-0 rounded-3xl cursor-grab active:cursor-grabbing outline-none select-none z-10"
-            />
-          </div>
+      {/* ─── Visual Column: 3D Grand Globe Horizon (Top Half Visible) ───────── */}
+      <div className="absolute right-[-6%] lg:right-[-4%] top-0 bottom-0 w-full md:w-[75%] lg:w-[68%] xl:w-[65%] h-full z-1 pointer-events-none">
+        {/* 3D Canvas Container */}
+        <div
+          ref={mountRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
+          tabIndex={0}
+          role="region"
+          aria-label="3D Interactive Kerala Pharmacy Globe. Drag to rotate."
+          className="w-full h-full cursor-grab active:cursor-grabbing outline-none select-none pointer-events-auto"
+        />
 
-          {/* Ethereal Cloud Bank at Planet Base */}
-          <div className="cloud-bank" aria-hidden="true">
-            <i /><i /><i /><i /><i />
-          </div>
-
-          {/* "Drag to turn the world" Arrow Prompt */}
-          <div className={`planet-caption ${isDragging ? 'is-dragging' : ''}`} aria-hidden="true">
-            <p className="text-emerald-300 font-bold text-xs sm:text-sm">
-              {!isRotating ? 'Orbit Paused' : isDragging ? 'Exploring Kerala' : 'Drag to turn'}
-              <br />
-              {!isRotating ? 'Tap Resume' : isDragging ? 'Network Grid' : 'the world'}
-            </p>
-            <svg viewBox="0 0 180 165" fill="none">
-              <path
-                d="M161 148C137 82 103 39 28 14m0 0 6 16m-6-16 19-2"
-                stroke="#6ee7b7"
-                strokeWidth="2.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-
-          {/* Interactive Controls Bar */}
-          {worldLoaded && !hasError && (
-            <div className="mt-2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-5 py-2 rounded-full border border-white/20 text-xs text-white z-20 shadow-lg">
-              <button
-                type="button"
-                onClick={() => setIsRotating(prev => !prev)}
-                className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 cursor-pointer font-bold"
-                title={isRotating ? 'Pause planet rotation' : 'Resume planet rotation'}
-              >
-                <span className="material-symbols-outlined text-base text-emerald-400">
-                  {isRotating ? 'pause_circle' : 'play_circle'}
-                </span>
-                <span>{isRotating ? 'Pause Orbit' : 'Resume Orbit'}</span>
-              </button>
-              <span className="text-white/30">•</span>
-              <span className="text-emerald-300 font-medium">Drag to rotate</span>
-            </div>
-          )}
-
-          {/* Regional Kerala Hub Chips */}
-          <div className="flex flex-wrap justify-center gap-2 mt-3 max-w-md z-20">
-            {hubs.map(hub => (
-              <button
-                key={hub.name}
-                type="button"
-                onClick={() => handleHubSelect(hub)}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer backdrop-blur-md ${
-                  activeHub === hub.name
-                    ? 'bg-emerald-500 text-white shadow-md scale-105 border border-emerald-300/50'
-                    : 'bg-black/55 text-white border border-emerald-400/50 hover:bg-emerald-900/60 hover:border-emerald-400/80 hover:scale-[1.03]'
-                }`}
-              >
-                {hub.name}
-              </button>
-            ))}
-          </div>
-
+        {/* Ethereal Cloud Bank at Planet Base */}
+        <div className="cloud-bank" aria-hidden="true">
+          <i /><i /><i /><i /><i />
         </div>
 
+        {/* "Drag to turn the world" Arrow Prompt */}
+        <div className={`planet-caption ${isDragging ? 'is-dragging' : ''}`} aria-hidden="true">
+          <p className="text-emerald-300 font-bold text-xs sm:text-sm">
+            {!isRotating ? 'Orbit Paused' : isDragging ? 'Exploring Kerala' : 'Drag to turn'}
+            <br />
+            {!isRotating ? 'Tap Resume' : isDragging ? 'Network Grid' : 'the world'}
+          </p>
+          <svg viewBox="0 0 180 165" fill="none">
+            <path
+              d="M161 148C137 82 103 39 28 14m0 0 6 16m-6-16 19-2"
+              stroke="#6ee7b7"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
       </div>
 
       {/* ─── Bottom Scroll Prompt ─────────────────────────────────── */}

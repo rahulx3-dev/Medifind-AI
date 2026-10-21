@@ -32,8 +32,8 @@ const fs = require('fs');
 const { spawnSync } = require('child_process');
 const { executePythonOCRWorker, getPythonExecutable } = require('./src/utils/pythonOcrBridge');
 const { runOCR } = require('./src/utils/ocrEngine');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
+const prisma = createSafeTestPrismaClient();
 
 const DOLO_FIXTURE = path.join(__dirname, 'test_fixtures/test_prescription_dolo.jpg');
 const MULTI_FIXTURE = path.join(__dirname, 'uploads/prescriptions/synthetic_rx_1.png');

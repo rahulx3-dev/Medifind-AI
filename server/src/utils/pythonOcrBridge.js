@@ -15,6 +15,7 @@ const DEFAULT_TIMEOUT_MS = 120000;
 const MAX_STDOUT_BYTES = 5 * 1024 * 1024; // 5 MB ceiling
 const WORKER_SCRIPT_PATH = path.join(__dirname, '../../ocr/ocr_worker.py');
 const CATALOG_PATH = path.join(__dirname, '../../ocr/catalog_50.json');
+const LEXICON_PATH = path.join(__dirname, '../../ocr/datasets/lexicon/indian_medicine_lexicon_v2.json');
 
 /**
  * Returns the configured Python executable path.
@@ -56,6 +57,7 @@ function executePythonOCRWorker(imagePath, options = {}) {
     const timeoutMs = options.timeoutMs || parseInt(process.env.OCR_TIMEOUT_MS, 10) || DEFAULT_TIMEOUT_MS;
     const workerScript = options.workerScriptPath || WORKER_SCRIPT_PATH;
     const catalogPath = options.catalogPath || CATALOG_PATH;
+    const lexiconPath = options.lexiconPath || LEXICON_PATH;
 
     if (!fs.existsSync(workerScript)) {
       return reject(new Error('OCR worker script (ocr_worker.py) not found.'));
@@ -66,6 +68,10 @@ function executePythonOCRWorker(imagePath, options = {}) {
 
     if (fs.existsSync(catalogPath)) {
       args.push('--catalog', catalogPath);
+    }
+
+    if (fs.existsSync(lexiconPath)) {
+      args.push('--lexicon', lexiconPath);
     }
 
     if (process.env.OCR_ENABLE_QWEN_FALLBACK === 'true' || options.enableOllama) {
@@ -80,6 +86,13 @@ function executePythonOCRWorker(imagePath, options = {}) {
 
     if (process.env.OCR_ENABLE_MEDSPACY === 'true' || options.enableMedspacy) {
       args.push('--enable-medspacy');
+    }
+
+    if (process.env.OCR_ENABLE_TROCR === 'true' || options.enableTrocr) {
+      args.push('--enable-trocr');
+      if (process.env.TROCR_MODEL_NAME || options.trocrModel) {
+        args.push('--trocr-model', process.env.TROCR_MODEL_NAME || options.trocrModel);
+      }
     }
 
     let stdoutData = '';

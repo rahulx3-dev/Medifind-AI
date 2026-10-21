@@ -60,15 +60,15 @@ export default function PromptInput({
       className={`relative w-full transition-all duration-300 ${className}`}
     >
       <div
-        className={`relative w-full rounded-3xl bg-surface-container-low border transition-all duration-300 ${
+        className={`relative w-full rounded-xl sm:rounded-2xl transition-all duration-300 border ${
           isExpanded || hasValue
-            ? 'border-[#2e685d] shadow-[0_6px_20px_-2px_rgba(30,69,62,0.15)] bg-white'
-            : 'border-[#dbece5] shadow-[0_2px_12px_-2px_rgba(30,69,62,0.06)] hover:border-[#a6cfc5]'
+            ? 'bg-white border-[#1b7058] shadow-[0_4px_16px_rgba(27,112,88,0.12)] ring-2 ring-[#1b7058]/10'
+            : 'bg-[#f1f4f6] hover:bg-[#e8ecf0] border-[#e2e8f0] shadow-2xs hover:border-[#cbd5e1]'
         }`}
       >
         {/* Top Input Bar Row */}
-        <div className="flex items-center gap-2.5 px-4 py-3">
-          <span className="material-symbols-outlined text-[#2e685d] text-[22px] shrink-0">
+        <div className="flex items-center gap-2.5 px-4 py-2 sm:py-2.5">
+          <span className="material-symbols-outlined text-[#475569] text-[22px] shrink-0">
             search
           </span>
 
@@ -83,8 +83,8 @@ export default function PromptInput({
             }}
             onFocus={() => setIsExpanded(true)}
             onKeyDown={handleKeyDown}
-            placeholder="Search medicines, symptoms, or say brand name..."
-            className="w-full bg-transparent font-medium text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none"
+            placeholder="Search"
+            className="w-full bg-transparent font-bold text-xs sm:text-sm text-[#032f28] placeholder:text-[#64748b] focus:outline-none"
           />
 
           {/* Active Voice Listening Indicator */}
@@ -95,19 +95,19 @@ export default function PromptInput({
             </div>
           )}
 
-          {/* Voice Search / Mic Button */}
+          {/* Distinct Voice Search / Mic Button */}
           <button
             type="button"
             onClick={onOpenVoice}
-            className={`p-2 rounded-full transition-all shrink-0 relative cursor-pointer ${
+            className={`w-9 h-9 rounded-full transition-all shrink-0 flex items-center justify-center cursor-pointer ${
               isRecording
-                ? 'bg-[#ba1a1a] text-white shadow-xs'
-                : 'text-[#2e685d] hover:bg-[#e0f2eb]'
+                ? 'bg-[#ba1a1a] text-white shadow-sm ring-2 ring-[#ba1a1a]/30'
+                : 'bg-white text-[#475569] hover:bg-[#e2e8f0] border border-[#cbd5e1] shadow-2xs'
             }`}
             title="Search by voice"
             id="voice-search-btn"
           >
-            <span className="material-symbols-outlined text-[20px] block transition-transform group-hover:scale-110">
+            <span className="material-symbols-outlined text-[19px] block">
               {isRecording ? 'graphic_eq' : 'mic'}
             </span>
           </button>
@@ -120,28 +120,28 @@ export default function PromptInput({
                 onSearchChange('');
                 inputRef.current?.focus();
               }}
-              className="p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all shrink-0 cursor-pointer"
+              className="w-7 h-7 rounded-full text-[#64748b] hover:text-[#1e293b] hover:bg-white/80 transition-all shrink-0 flex items-center justify-center cursor-pointer"
               title="Clear search"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <span className="material-symbols-outlined text-[16px]">close</span>
             </button>
           )}
 
-          {/* Filter trigger button */}
+          {/* Distinct Filter Trigger Button */}
           <button
             type="button"
             onClick={onOpenFilters}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs ${
               activeFilterCount > 0
-                ? 'bg-primary text-white shadow-xs'
-                : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                ? 'bg-[#0a3d34] text-white ring-2 ring-[#0a3d34]/20'
+                : 'bg-white text-[#1e293b] border border-[#cbd5e1] hover:bg-[#e2e8f0]'
             }`}
             title="Open Clinical Filters"
           >
-            <span className="material-symbols-outlined text-[16px] text-secondary">tune</span>
+            <span className="material-symbols-outlined text-[16px] text-[#475569]">tune</span>
             <span className="hidden sm:inline">Filters</span>
             {activeFilterCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-secondary text-white text-[10px] flex items-center justify-center font-bold">
+              <span className="w-4 h-4 rounded-full bg-[#1b7058] text-white text-[10px] flex items-center justify-center font-extrabold">
                 {activeFilterCount}
               </span>
             )}

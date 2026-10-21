@@ -1,6 +1,7 @@
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 generator client {
@@ -24,18 +25,102 @@ model User {
   assistantProfile AssistantProfile?
   addresses      PatientAddress[]
   restockRequests RestockRequest[]
+  patientAppointments      HealthcareAppointment[] @relation("PatientAppointments")
+  professionalAppointments HealthcareAppointment[] @relation("ProfessionalAppointments")
+  patientClarifications    PrescriptionClarification[] @relation("PatientClarifications")
+  pharmacistClarifications PrescriptionClarification[] @relation("PharmacistClarifications")
+  prescriptionAuditLogs    PrescriptionAuditLog[]
+  patientClinicalRequests  ClinicalAssistanceRequest[] @relation("PatientClinicalRequests")
+  reviewedClinicalRequests ClinicalAssistanceRequest[] @relation("ReviewerClinicalRequests")
+
+  @@index([role])
 }
 
 model AssistantProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio          String?
-  isActive     Boolean  @default(true)
-  isAvailable  Boolean  @default(true)
-  capabilities String   @default("")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio                  String?
+  isActive             Boolean   @default(true)
+  isAvailable          Boolean   @default(true)
+  capabilities         String    @default("")
+
+  // Phase 1 Assistant Role & Onboarding Foundation
+  assistantType        String?   // DELIVERY_ASSISTANT | HEALTHCARE_PROFESSIONAL
+  onboardingCompleted  Boolean   @default(false)
+  onboardingStep       String    @default("ROLE_SELECTION") // ROLE_SELECTION | PROFILE_SETUP | COMPLETED
+
+  // Delivery Assistant Operational Profile
+  operatingCity        String?   @default("Chengannur")
+  operatingRadiusKm    Float?    @default(10.0)
+  vehicleType          String?   // BICYCLE, MOTORCYCLE, SCOOTER, CAR, ON_FOOT
+  maxActiveTasks       Int       @default(2)
+
+  // Phase 1 & Phase 2 Healthcare Professional Foundation & Verification Lifecycle
+  professionTitle      String?   // e.g. "Registered Nurse", "Clinical Health Worker"
+  registrationNumber   String?   // Professional Registration / License Number
+  qualifications       String?   // Education / Degrees / Certifications
+  serviceAreasApplied  String?   // JSON string or comma-separated list of clinical categories applied for
+  issuingAuthority     String?   // Professional registration council / licensing board
+  yearsOfExperience    Int?      // Years of clinical/healthcare experience
+  declarationAccepted  Boolean   @default(false) // Applicant declaration of truthfulness
+  declarationAcceptedAt DateTime? // Timestamp of applicant declaration
+  verificationStatus   String    @default("NOT_SUBMITTED") // DRAFT | PENDING | UNDER_REVIEW | NEEDS_CORRECTION | APPROVED | REJECTED | SUSPENDED
+  verificationNotes    String?   // Internal or shared notes
+  rejectionReason      String?   // Required explanation visible to applicant upon rejection
+  correctionReason     String?   // Required explanation visible to applicant when correction requested
+  suspensionReason     String?   // Required explanation if suspended
+  approvedServices     String?   // JSON array of service categories individually approved by admin
+  reviewedById         String?   // Admin user ID who reviewed/approved
+  submittedAt          DateTime?
+  reviewedAt           DateTime?
+
+  documents            VerificationDocument[]
+  reviewLogs           VerificationReviewLog[]
+
+  // Healthcare Professional Scheduling & Availability (Phase 3)
+  workingDays          String?   @default("[\"MONDAY\",\"TUESDAY\",\"WEDNESDAY\",\"THURSDAY\",\"FRIDAY\"]") // JSON array
+  workingHoursStart    String?   @default("09:00")
+  workingHoursEnd      String?   @default("17:00")
+  slotDurationMinutes  Int       @default(60)
+  serviceFee           Float?    // Custom base fee; if null, defaults to catalogue baseFee
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model VerificationDocument {
+  id                 String           @id @default(uuid())
+  assistantProfileId String
+  assistantProfile   AssistantProfile @relation(fields: [assistantProfileId], references: [id], onDelete: Cascade)
+  documentType       String           // REGISTRATION_CERTIFICATE, DEGREE_CERTIFICATE, ID_PROOF, EXPERIENCE_CERTIFICATE
+  originalFileName   String
+  fileName           String           // server-controlled stored filename
+  filePath           String           // secure disk path relative to uploads root
+  fileSize           Int              // in bytes
+  mimeType           String           // application/pdf, image/jpeg, image/png
+  fileHash           String?          // SHA-256 hash for integrity
+  status             String           @default("PENDING") // PENDING, VERIFIED, REJECTED
+  uploadedAt         DateTime         @default(now())
+
+  @@index([assistantProfileId])
+}
+
+model VerificationReviewLog {
+  id                 String           @id @default(uuid())
+  assistantProfileId String
+  assistantProfile   AssistantProfile @relation(fields: [assistantProfileId], references: [id], onDelete: Cascade)
+  adminId            String
+  adminName          String
+  adminEmail         String
+  previousStatus     String
+  newStatus          String
+  action             String           // START_REVIEW, REQUEST_CORRECTION, APPROVE, REJECT, SUSPEND, RESUBMIT
+  reason             String?          // Required for correction, rejection, suspension
+  approvedServices   String?          // JSON array if services were approved
+  createdAt          DateTime         @default(now())
+
+  @@index([assistantProfileId])
 }
 
 model Pharmacy {
@@ -61,8 +146,14 @@ model Pharmacy {
   inventory             Inventory[]
   orders                Order[]
   restockRequests       RestockRequest[]
+  prescriptionClarifications PrescriptionClarification[]
+  clinicalAssistanceAssignments ClinicalAssistanceAssignment[]
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
+
+  @@index([isVerified, verificationStatus])
+  @@index([is24x7])
+  @@index([emergencyAvailability])
 }
 
 model Medicine {
@@ -82,8 +173,14 @@ model Medicine {
   inventoryItems       Inventory[]
   orderItems           OrderItem[]
   restockRequests      RestockRequest[]
+  prescriptionItems    PrescriptionItem[]
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+
+  @@index([brandName])
+  @@index([genericName])
+  @@index([category])
+  @@index([isEmergency])
 }
 
 model Inventory {
@@ -101,6 +198,8 @@ model Inventory {
   lastUpdated DateTime  @default(now())
 
   @@unique([pharmacyId, medicineId])
+  @@index([medicineId])
+  @@index([status])
 }
 
 model Prescription {
@@ -114,9 +213,24 @@ model Prescription {
   fileHash           String?
   screeningStatus    String?            // NO_OBVIOUS_ISSUES, NEEDS_MANUAL_REVIEW, POTENTIALLY_SUSPICIOUS, UNABLE_TO_ASSESS
   screeningResult    String?            // JSON string containing detailed checks and explanations
+  activeImageId      String?            @unique
+  activeImage        PrescriptionImage? @relation("PrescriptionActiveImage", fields: [activeImageId], references: [id], onDelete: SetNull)
+  sourceType         String             @default("IMAGE_UPLOAD")
+  sampleId           String?
+  verificationSource String             @default("LEGACY_DETECTED")
   detectedMedicines  DetectedMedicine[]
+  images             PrescriptionImage[] @relation("PrescriptionAllImages")
+  ocrRuns            PrescriptionOcrRun[]
+  items              PrescriptionItem[]
+  clarifications     PrescriptionClarification[]
+  auditLogs          PrescriptionAuditLog[]
+  appointments       HealthcareAppointment[]
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model DetectedMedicine {
@@ -136,6 +250,8 @@ model DetectedMedicine {
   evidenceSummary     String?
   extractedQuantity   Int?
   createdAt           DateTime     @default(now())
+
+  @@index([prescriptionId])
 }
 
 model Order {
@@ -164,8 +280,30 @@ model Order {
   assistantTask    AssistantTask?
   statusHistory    OrderStatusHistory[]
   payment          Payment?
+  clarifications   PrescriptionClarification[]
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
+
+  // Gate 4.1: Split-Order & Parent/Child Hierarchy (Additive)
+  parentOrderId    String?
+  parentOrder      Order?              @relation("OrderHierarchy", fields: [parentOrderId], references: [id], onDelete: Restrict)
+  childOrders      Order[]             @relation("OrderHierarchy")
+  isParentOrder    Boolean             @default(false)
+
+  // Gate 4.2.1.4: Idempotency lifecycle tracking
+  idempotencyRecords IdempotencyRecord[]
+
+  // Gate 4.2.2.2: Parent-Level Fee Ledger (Additive)
+  feeStatus              String?             @default("UNALLOCATED") // UNALLOCATED, RESERVED, PAID, RELEASED, REFUNDED
+  feePayingChildOrderId  String?
+  feePaidAt              DateTime?
+
+  @@index([userId])
+  @@index([pharmacyId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([parentOrderId])
+  @@index([feePayingChildOrderId])
 }
 
 model PatientAddress {
@@ -185,6 +323,7 @@ model PatientAddress {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   orders        Order[]
+  appointments  HealthcareAppointment[]
 }
 
 // Payment model — separate concern from Order.status
@@ -210,14 +349,27 @@ model Payment {
 }
 
 model OrderItem {
-  id         String   @id @default(uuid())
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  medicineId String
-  medicine   Medicine @relation(fields: [medicineId], references: [id])
-  quantity   Int      @default(1)
-  unitPrice  Float?
-  subtotal   Float?
+  id                String   @id @default(uuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  medicineId        String
+  medicine          Medicine @relation(fields: [medicineId], references: [id])
+  quantity          Int      @default(1)
+  unitPrice         Float?
+  subtotal          Float?
+
+  // Gate 4.1: Item-Level Partial Fulfilment (Additive)
+  status            String   @default("PENDING") // PENDING, FULFILLED, PARTIALLY_FULFILLED, UNAVAILABLE, REJECTED
+  fulfilledQuantity Int      @default(0)
+  unfulfilledReason String?
+
+  // Gate 4.2.1.2: Persistent Prescription-Item Provenance (Additive)
+  prescriptionItemId String?
+  prescriptionItem   PrescriptionItem? @relation(fields: [prescriptionItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([prescriptionItemId])
 }
 
 model OrderStatusHistory {
@@ -246,6 +398,9 @@ model AssistantTask {
   handoverPin     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([assistantId])
+  @@index([status])
 }
 
 model Notification {
@@ -258,6 +413,9 @@ model Notification {
   isRead    Boolean  @default(false)
   linkUrl   String?
   createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
 }
 
 model RestockRequest {
@@ -276,3 +434,287 @@ model RestockRequest {
   @@index([userId])
   @@index([pharmacyId, medicineId, status])
 }
+
+// Healthcare Professional Appointments & Booking Lifecycle (Phase 3)
+// Status: REQUESTED -> ACCEPTED -> IN_PROGRESS -> COMPLETED
+// Alternative: REQUESTED -> REJECTED | REQUESTED -> CANCELLED | ACCEPTED -> CANCELLED
+model HealthcareAppointment {
+  id                 String                   @id @default(uuid())
+  appointmentNumber  String                   @unique
+  patientId          String
+  patient            User                     @relation("PatientAppointments", fields: [patientId], references: [id])
+  professionalId     String
+  professional       User                     @relation("ProfessionalAppointments", fields: [professionalId], references: [id])
+  serviceType        String                   // NURSING_VISIT, VITAL_SIGN_MEASUREMENT, POST_HOSPITAL_CARE, WOUND_CARE_ASSISTANCE, HOME_NURSING_SUPPORT
+  status             String                   @default("REQUESTED") // REQUESTED, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED, REJECTED
+  scheduledDate      String                   // "YYYY-MM-DD"
+  timeSlot           String                   // "09:00 - 10:00"
+  startAt            DateTime
+  endAt              DateTime
+  serviceAddress     String                   // Full service address for visit
+  addressId          String?
+  address            PatientAddress?          @relation(fields: [addressId], references: [id])
+  feeAmount          Float                    @default(0.0) // Authoritative fee snapshot in INR
+  currency           String                   @default("INR")
+  paymentStatus      String                   @default("PENDING") // PENDING, PAID
+  consentAccepted    Boolean                  @default(false)
+  consentAcceptedAt  DateTime?
+  consentVersion     String?                  @default("v1.0")
+  prescriptionId     String?
+  prescription       Prescription?            @relation(fields: [prescriptionId], references: [id])
+  patientNotes       String?
+  rejectionReason    String?
+  cancellationReason String?
+  statusHistory      AppointmentStatusHistory[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([patientId])
+  @@index([professionalId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+model AppointmentStatusHistory {
+  id            String                @id @default(uuid())
+  appointmentId String
+  appointment   HealthcareAppointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  status        String
+  comment       String?
+  changedById   String?
+  createdAt     DateTime              @default(now())
+
+  @@index([appointmentId])
+}
+
+model PrescriptionImage {
+  id               String              @id @default(uuid())
+  prescriptionId   String
+  prescription     Prescription        @relation("PrescriptionAllImages", fields: [prescriptionId], references: [id], onDelete: Cascade)
+  versionNumber    Int
+  originalFileName String
+  storedFileName   String
+  storagePath      String
+  mimeType         String
+  fileSizeBytes    Int
+  fileSha256       String
+  imageWidth       Int?
+  imageHeight      Int?
+  parentImageId    String?
+  parentImage      PrescriptionImage?  @relation("ImageLineage", fields: [parentImageId], references: [id], onDelete: SetNull)
+  childImages      PrescriptionImage[] @relation("ImageLineage")
+  cropCoordinates  String?
+  uploadedById     String?
+  createdAt        DateTime            @default(now())
+
+  activeForPrescription Prescription?  @relation("PrescriptionActiveImage")
+  ocrRuns               PrescriptionOcrRun[]
+
+  @@unique([prescriptionId, versionNumber])
+  @@index([prescriptionId])
+  @@index([fileSha256])
+}
+
+model PrescriptionOcrRun {
+  id              String                     @id @default(uuid())
+  prescriptionId  String
+  prescription    Prescription               @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  imageId         String?
+  image           PrescriptionImage?         @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  engineName      String                     @default("TESSERACT_OCR")
+  engineVersion   String?
+  executionTimeMs Int?
+  rawOcrText      String?
+  status          String                     @default("QUEUED")
+  errorMessage    String?
+  leaseToken      String?
+  leaseExpiresAt  DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime                   @default(now())
+
+  candidates      PrescriptionOcrCandidate[]
+
+  @@index([prescriptionId])
+  @@index([imageId])
+  @@index([status])
+}
+
+model PrescriptionOcrCandidate {
+  id                   String             @id @default(uuid())
+  ocrRunId             String
+  ocrRun               PrescriptionOcrRun @relation(fields: [ocrRunId], references: [id], onDelete: Cascade)
+  rawText              String
+  normalizedName       String?
+  matchedMedicineId    String?
+  matchedMedicineName  String?
+  confidenceScore      Float              @default(0.0)
+  boundingBox          String?
+  dosage               String?
+  frequency            String?
+  duration             String?
+  extractedQuantity    Int?
+  suggestedInstruction String?
+  isSelected           Boolean            @default(false)
+  isRejected           Boolean            @default(false)
+  rejectionReason      String?
+  createdAt            DateTime           @default(now())
+
+  prescriptionItems    PrescriptionItem[]
+
+  @@index([ocrRunId])
+  @@index([matchedMedicineId])
+  @@index([isRejected])
+}
+
+model PrescriptionItem {
+  id                   String                    @id @default(uuid())
+  prescriptionId       String
+  prescription         Prescription              @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicineId           String
+  medicine             Medicine                  @relation(fields: [medicineId], references: [id], onDelete: Restrict)
+  sourceCandidateId    String?
+  sourceCandidate      PrescriptionOcrCandidate? @relation(fields: [sourceCandidateId], references: [id], onDelete: SetNull)
+  sourceType           String                    @default("UNSPECIFIED") // OCR_DERIVED, MANUALLY_ADDED, LEGACY_CONFIRMED, UNSPECIFIED
+  prescribedName       String
+  dosage               String?
+  frequency            String?
+  duration             String?
+  quantity             Int                       @default(1)
+  instructions         String?
+  patientNotes         String?
+  isVerified           Boolean                   @default(false)
+  verifiedAt           DateTime?
+  verifiedById         String?
+  orderItems           OrderItem[]
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([prescriptionId])
+  @@index([medicineId])
+  @@index([sourceCandidateId])
+  @@index([sourceType])
+}
+
+model PrescriptionClarification {
+  id             String       @id @default(uuid())
+  orderId        String
+  order          Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  pharmacyId     String
+  pharmacy       Pharmacy     @relation(fields: [pharmacyId], references: [id], onDelete: Restrict)
+  patientId      String
+  patient        User         @relation("PatientClarifications", fields: [patientId], references: [id], onDelete: Restrict)
+  pharmacistId   String
+  pharmacist     User         @relation("PharmacistClarifications", fields: [pharmacistId], references: [id], onDelete: Restrict)
+  question       String
+  response       String?
+  status         String       @default("PENDING")
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([prescriptionId])
+  @@index([pharmacyId])
+  @@index([patientId])
+  @@index([pharmacistId])
+  @@index([status])
+}
+
+model PrescriptionAuditLog {
+  id                     String        @id @default(uuid())
+  prescriptionId         String?
+  prescription           Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  prescriptionIdSnapshot String
+  actorId                String?
+  actor                  User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole              String
+  action                 String
+  details                String?
+  ipAddress              String?
+  createdAt              DateTime      @default(now())
+
+  @@index([prescriptionId])
+  @@index([prescriptionIdSnapshot])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Gate 4.2.1.2 / Gate 4.2.1.4: Dedicated Database-Backed Idempotency Record (Additive)
+model IdempotencyRecord {
+  id             String    @id @default(uuid())
+  userId         String
+  key            String
+  action         String    @default("SPLIT_ORDER_CREATION")
+  requestHash    String
+  responseStatus Int       @default(201)
+  responseBody   String
+  parentOrderId  String?
+  parentOrder    Order?    @relation(fields: [parentOrderId], references: [id], onDelete: SetNull)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, action, key])
+  @@index([parentOrderId])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+// Gate 7: Human Clinical Assistance Request Model (Additive)
+// Dedicated professional human clinical workflow for patient health concerns.
+// Strictly separated from digital assistant / chatbot and prescription ordering.
+model ClinicalAssistanceRequest {
+  id                 String    @id @default(uuid())
+  requestNumber      String    @unique
+  patientId          String
+  patient            User      @relation("PatientClinicalRequests", fields: [patientId], references: [id], onDelete: Cascade)
+  language           String    // "en", "ml" (Malayalam), "hi" (Hindi)
+  originalText       String    // Preserved patient raw text exactly as submitted/confirmed
+  translatedText     String?   // Separate translated text (if verified translation exists; never overwriting original)
+  inputMethod        String    @default("TEXT") // "TEXT" or "VOICE"
+  status             String    @default("SUBMITTED") // "SUBMITTED", "UNDER_REVIEW", "RESPONDED", "CLOSED"
+  isEmergency        Boolean   @default(false)
+  emergencyGuidance  String?   // Guidance issued immediately if acute/critical indicators detected
+  clinicianResponse  String?   // Qualified human professional clinical response
+  respondedById      String?
+  respondedBy        User?     @relation("ReviewerClinicalRequests", fields: [respondedById], references: [id], onDelete: SetNull)
+  respondedAt        DateTime?
+  internalNotes      String?   // Confidential clinical notes for reviewers only
+  assignments        ClinicalAssistanceAssignment[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([respondedById])
+}
+
+// Gate 8: Human Clinical Assistance Pharmacy Routing & Assignment Model (Additive)
+// Tracks routing of a ClinicalAssistanceRequest to participating eligible pharmacies.
+// Supports initial 2-pharmacy routing, timeout expansion, and response audit.
+model ClinicalAssistanceAssignment {
+  id           String                    @id @default(uuid())
+  requestId    String
+  request      ClinicalAssistanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  pharmacyId   String
+  pharmacy     Pharmacy                  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  status       String                    @default("ASSIGNED") // "ASSIGNED", "OPENED", "RESPONDED", "EXPIRED"
+  round        Int                       @default(1)          // 1 = Initial dispatch, 2+ = Timeout escalation
+  assignedAt   DateTime                  @default(now())
+  openedAt     DateTime?
+  respondedAt  DateTime?
+
+  @@unique([requestId, pharmacyId])
+  @@index([requestId])
+  @@index([pharmacyId])
+  @@index([status])
+  @@index([assignedAt])
+}
+
+
+

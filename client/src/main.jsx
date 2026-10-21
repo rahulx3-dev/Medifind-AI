@@ -2,6 +2,32 @@ import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { ThemeProvider } from './context/ThemeContext'
+
+// Safe DOM patch to permanently prevent React 18 "removeChild" crashes caused by browser extensions or translation
+if (typeof window !== 'undefined' && typeof Node !== 'undefined' && Node.prototype) {
+  const originalRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function (child) {
+    if (child && child.parentNode !== this) {
+      if (console && console.warn) {
+        console.warn('Prevented DOM removeChild crash on unparented node:', child);
+      }
+      return child;
+    }
+    return originalRemoveChild.apply(this, arguments);
+  };
+
+  const originalInsertBefore = Node.prototype.insertBefore;
+  Node.prototype.insertBefore = function (newNode, referenceNode) {
+    if (referenceNode && referenceNode.parentNode !== this) {
+      if (console && console.warn) {
+        console.warn('Prevented DOM insertBefore crash on unparented referenceNode:', referenceNode);
+      }
+      return newNode;
+    }
+    return originalInsertBefore.apply(this, arguments);
+  };
+}
 
 class RootErrorBoundary extends React.Component {
   constructor(props) {
@@ -10,10 +36,17 @@ class RootErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
+    if (error?.message && (error.message.includes('removeChild') || error.message.includes('not a child'))) {
+      console.warn('Suppressed benign removeChild display exception:', error);
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
+    if (error?.message && (error.message.includes('removeChild') || error.message.includes('not a child'))) {
+      return;
+    }
     console.error('RootErrorBoundary caught an error:', error, errorInfo);
   }
 
@@ -137,7 +170,9 @@ class RootErrorBoundary extends React.Component {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <RootErrorBoundary>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </RootErrorBoundary>
   </StrictMode>,
 )

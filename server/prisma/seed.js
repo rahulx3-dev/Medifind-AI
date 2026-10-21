@@ -1,8 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
+const { createSafeTestPrismaClient } = require('../src/utils/testDatabaseGuard');
 const bcrypt = require('bcryptjs');
 
 // Medicine catalogue — NOT modified by Phase 3
 const { medicinesData } = require('./seedData');
+const { getReferencePricing } = require('../src/utils/referencePricing');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHARMACY DATA SOURCE CONFIGURATION
@@ -15,7 +16,16 @@ const { medicinesData } = require('./seedData');
 // ─────────────────────────────────────────────────────────────────────────────
 const { keralaTestPharmacies: pharmaciesData } = require('./keralaTestPharmacies');
 
-const prisma = new PrismaClient();
+// Explicit test-only authorization gate for database reset/seeding
+if (process.env.ALLOW_DATABASE_SEED !== 'true') {
+  const errMsg = '[CRITICAL REFUSAL] prisma/seed.js is a destructive database reset operation. Execution is strictly prohibited unless explicitly authorized via ALLOW_DATABASE_SEED=true and validated against a disposable test database.';
+  console.error(errMsg);
+  const err = new Error(errMsg);
+  err.code = 'UNAUTHORIZED_DATABASE_SEED';
+  throw err;
+}
+
+const prisma = createSafeTestPrismaClient();
 
 async function main() {
   console.log('🌱 MediFind AI — Initializing Seed Database...');
@@ -133,16 +143,9 @@ async function main() {
     for (let mIdx = 0; mIdx < createdMedicines.length; mIdx++) {
       const med = createdMedicines[mIdx];
       let stock = 0;
-      let price = 0;
-
-      // Synthetic pricing based on category (for testing only)
-      if (med.isEmergency) {
-        price = Math.round(150 + (mIdx * 15));
-      } else if (med.category.includes('Antibiotic')) {
-        price = Math.round(90 + (mIdx * 8));
-      } else {
-        price = Math.round(30 + (mIdx * 4));
-      }
+      // Authoritative reference pricing (per tablet / capsule / bottle / inhaler / vial)
+      const ref = getReferencePricing(med.brandName, med.genericName);
+      const unitPriceVal = (ref && ref.unitPrice != null) ? Number(ref.unitPrice.toFixed(2)) : 15.0;
 
       // Test stock allocation — NOT real inventory data
       if (pIdx === 0) {
@@ -162,7 +165,7 @@ async function main() {
             pharmacyId: pharmacy.id,
             medicineId: med.id,
             stock,
-            price: Number(price.toFixed(2)),
+            price: unitPriceVal,
             batchNumber: `TEST-BATCH-${1000 + mIdx}`,
             expiryDate: new Date('2027-12-31')
           }
@@ -277,7 +280,7 @@ Signature: Dr. A. Verma`,
 
   // 9. Sample Assisted Delivery Order — references third test pharmacy (Alappuzha area)
   const asthalinMed = createdMedicines.find(m => m.brandName === 'Asthalin Inhaler');
-  const alappuzhaTestPharmacy = createdPharmacies[2];
+  const alappuzhaTestPharmacy = createdPharmacies[2] || createdPharmacies[createdPharmacies.length - 1];
 
   await prisma.order.create({
     data: {

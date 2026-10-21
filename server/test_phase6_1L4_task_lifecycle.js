@@ -190,6 +190,25 @@ async function run() {
       });
     }
 
+    // Ensure test assistant possesses full capabilities for testing all 8 canonical services
+    await prisma.assistantProfile.upsert({
+      where: { userId: assistantUser.id },
+      update: {
+        capabilities: CANONICAL_8_SERVICES.join(','),
+        isActive: true,
+        isAvailable: true,
+        assistantType: 'DELIVERY_ASSISTANT'
+      },
+      create: {
+        userId: assistantUser.id,
+        capabilities: CANONICAL_8_SERVICES.join(','),
+        isActive: true,
+        isAvailable: true,
+        assistantType: 'DELIVERY_ASSISTANT',
+        onboardingCompleted: true
+      }
+    });
+
     // Helper to simulate request/response
     function createMockRes() {
       return {

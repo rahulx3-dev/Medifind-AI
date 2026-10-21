@@ -20,50 +20,80 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
+const { createSafeTestPrismaClient } = require('../src/utils/testDatabaseGuard');
+const { verifyStagingTarget } = require('../scripts/verify_staging_target');
 
-const prisma = new PrismaClient();
+function initializeImportPrismaClient() {
+  // 1. Explicit caller authorization gate
+  if (process.env.ALLOW_REAL_PHARMACY_IMPORT !== 'true') {
+    const errMsg = '[CRITICAL REFUSAL] import_real_pharmacies modifies pharmacy and inventory records. Execution is strictly prohibited unless explicitly authorized via ALLOW_REAL_PHARMACY_IMPORT=true.';
+    console.error(errMsg);
+    const err = new Error(errMsg);
+    err.code = 'UNAUTHORIZED_PHARMACY_IMPORT';
+    throw err;
+  }
 
-const STANDARD_PRICES = {
-  'augmentin 625 duo': 90.0,
-  'augmentin 625': 90.0,
-  'dolo 650': 30.0,
-  'crocin 650': 32.0,
-  'paracetamol': 20.0,
-  'azee 500': 115.0,
-  'azithromycin': 110.0,
-  'pan 40': 85.0,
-  'pantoprazole': 80.0,
-  'telma 40': 75.0,
-  'telmisartan': 70.0,
-  'atorva 10': 95.0,
-  'atorvastatin': 90.0,
-  'glycomet 500': 45.0,
-  'metformin': 40.0,
-  'montair lc': 120.0,
-  'cetirizine': 25.0,
-  'amoxicillin': 65.0,
-  'ciprofloxacin': 55.0,
-  'omaprazole': 50.0
-};
+  const targetEnv = (process.env.TARGET_ENV || 'test').toLowerCase().trim();
+
+  if (targetEnv === 'staging') {
+    console.log('🔒 Validating staging target for import_real_pharmacies...');
+    const stagingRes = verifyStagingTarget({ silent: false });
+    if (!stagingRes || !stagingRes.success) {
+      const errMsg = `[FAIL CLOSED] Staging target validation failed: ${stagingRes ? stagingRes.error : 'Unknown'}`;
+      console.error(errMsg);
+      const err = new Error(errMsg);
+      err.code = 'STAGING_VALIDATION_FAILED';
+      throw err;
+    }
+    const dotenv = require('dotenv');
+    const stagingPath = path.resolve(__dirname, '..', '.env.staging');
+    const parsed = dotenv.parse(fs.readFileSync(stagingPath, 'utf8'));
+    return new PrismaClient({
+      datasources: {
+        db: { url: parsed.STAGING_DATABASE_URL_UNPOOLED || parsed.STAGING_DATABASE_URL }
+      }
+    });
+  }
+
+  if (targetEnv === 'production') {
+    if (process.env.CONFIRM_PRODUCTION_IMPORT !== 'true') {
+      const errMsg = '[CRITICAL REFUSAL] TARGET_ENV=production requires explicit secondary confirmation CONFIRM_PRODUCTION_IMPORT=true.';
+      console.error(errMsg);
+      const err = new Error(errMsg);
+      err.code = 'UNCONFIRMED_PRODUCTION_IMPORT';
+      throw err;
+    }
+    if (!process.env.DATABASE_URL) {
+      const errMsg = '[FAIL CLOSED] DATABASE_URL is not set for production import.';
+      console.error(errMsg);
+      const err = new Error(errMsg);
+      err.code = 'MISSING_PRODUCTION_URL';
+      throw err;
+    }
+    return new PrismaClient({
+      datasources: {
+        db: { url: process.env.DATABASE_URL }
+      }
+    });
+  }
+
+  // Default: targetEnv === 'test'
+  // Strictly delegates to testDatabaseGuard (rejecting production/staging and enforcing disposable target)
+  return createSafeTestPrismaClient();
+}
+
+const prisma = initializeImportPrismaClient();
+
+const { getReferencePricing } = require('../src/utils/referencePricing');
 
 function getMedicinePrice(med) {
-  if (!med) return 50.0;
-  const brand = (med.brandName || '').toLowerCase().trim();
-  const generic = (med.genericName || '').toLowerCase().trim();
-
-  for (const [key, val] of Object.entries(STANDARD_PRICES)) {
-    if (brand.includes(key) || generic.includes(key)) {
-      return val;
-    }
+  if (!med) return null;
+  const ref = getReferencePricing(med.brandName, med.genericName);
+  if (!ref || ref.unitPrice == null) {
+    // Unverified or unavailable prices (e.g. Epinephrine Auto-Injector) remain strictly null
+    return null;
   }
-
-  const name = med.brandName || med.genericName || 'med';
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash << 5) - hash + name.charCodeAt(i);
-    hash |= 0;
-  }
-  return 35.0 + Math.abs(hash % 90);
+  return ref.unitPrice;
 }
 
 function parseCSV(content) {

@@ -24,8 +24,8 @@
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
+const prisma = createSafeTestPrismaClient();
 
 const BASE_URL = 'http://localhost:5000/api';
 const JWT_SECRET = process.env.JWT_SECRET || 'medifind-ai-dev-secret-key-change-in-env';

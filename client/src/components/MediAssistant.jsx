@@ -186,16 +186,16 @@ function ChatBubble({ message, onActionClick }) {
     <div className={isUser ? 'flex gap-2 items-end flex-row-reverse' : 'flex gap-2 items-end flex-row'}
       style={{ animation: 'mediBubbleIn 0.25s ease-out' }}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-0.5"
-          style={{ background: 'linear-gradient(135deg,#1a6651,#0a3d2e)' }}>
-          <span className="text-white text-xs font-black" style={{ fontFamily: 'monospace' }}>M</span>
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-0.5 shadow-xs"
+          style={{ background: 'linear-gradient(135deg, #9CB080, #738a59)', border: '1.5px solid #9CB080' }}>
+          <span className="text-[#032f28] text-xs font-black" style={{ fontFamily: 'monospace' }}>M</span>
         </div>
       )}
       <div className="flex flex-col gap-1.5 max-w-[82%]">
         <div className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
           style={isUser
-            ? { background:'linear-gradient(135deg,#1a5c4a,#0d3d29)', color:'#e0fff5', borderBottomRightRadius:4 }
-            : { background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.88)', border:'1px solid rgba(255,255,255,0.09)', borderBottomLeftRadius:4 }
+            ? { background: 'linear-gradient(135deg, #9CB080, #7a945d)', color: '#ffffff', border: '1px solid #738a59', borderBottomRightRadius: 4, boxShadow: '0 2px 8px rgba(156,176,128,0.3)' }
+            : { background: '#ffffff', color: '#032f28', border: '1.5px solid #9CB080', borderBottomLeftRadius: 4, boxShadow: '0 2px 8px rgba(3,47,40,0.06)' }
           }>
           {message.text}
         </div>
@@ -203,13 +203,13 @@ function ChatBubble({ message, onActionClick }) {
           <div className="flex flex-wrap gap-1.5 mt-0.5">
             {message.actions.map((action, i) => (
               <button key={i} onClick={() => onActionClick?.(action)}
-                className="px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                className="px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-xs"
                 style={{
-                  background: action.primary ? 'linear-gradient(135deg,#16a36a,#0c6e47)' : 'rgba(255,255,255,0.08)',
-                  color: action.primary ? '#fff' : 'rgba(154,237,209,0.9)',
-                  border: action.primary ? 'none' : '1px solid rgba(154,237,209,0.2)',
+                  background: action.primary ? 'linear-gradient(135deg, #9CB080, #7b965e)' : '#ffffff',
+                  color: action.primary ? '#ffffff' : '#032f28',
+                  border: action.primary ? 'none' : '1.5px solid #9CB080',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.opacity = '0.82'; }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}>
                 {action.icon && <span className="material-symbols-outlined text-[12px] align-middle mr-1">{action.icon}</span>}
                 {action.label}
@@ -225,32 +225,118 @@ function ChatBubble({ message, onActionClick }) {
 function QuickPill({ label, icon, onClick }) {
   return (
     <button onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0"
-      style={{ background:'rgba(22,163,106,0.12)', border:'1px solid rgba(22,163,106,0.25)', color:'#9aedd1' }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(22,163,106,0.24)'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(22,163,106,0.12)'; }}>
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer shadow-2xs"
+      style={{ background: '#ffffff', border: '1.5px solid #9CB080', color: '#032f28' }}
+      onMouseEnter={e => { e.currentTarget.style.background = '#9CB080'; e.currentTarget.style.color = '#ffffff'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#032f28'; }}>
       <span className="material-symbols-outlined text-[14px]">{icon}</span>
       {label}
     </button>
   );
 }
 
-function RobotIcon({ size = 30 }) {
+function RobotFaceBot({ isListening = false, isHovered = false, size = 64 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <line x1="15" y1="2" x2="15" y2="6" stroke="#9aedd1" strokeWidth="1.5" strokeLinecap="round"/>
-      <circle cx="15" cy="1.5" r="1.5" fill="#16a36a"/>
-      <rect x="5" y="6" width="20" height="16" rx="4" fill="#9aedd1" fillOpacity="0.12" stroke="#9aedd1" strokeWidth="1.5"/>
-      <circle cx="10.5" cy="13" r="2.5" fill="#9aedd1"/>
-      <circle cx="19.5" cy="13" r="2.5" fill="#9aedd1"/>
-      <circle cx="11" cy="12.5" r="1" fill="#050f0b"/>
-      <circle cx="20" cy="12.5" r="1" fill="#050f0b"/>
-      <path d="M10 18 Q15 21 20 18" stroke="#9aedd1" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-      <rect x="10" y="23" width="10" height="4" rx="2" fill="#9aedd1" fillOpacity="0.25" stroke="#9aedd1" strokeWidth="1"/>
-      <circle cx="13" cy="25" r="0.8" fill="#16a36a"/>
-      <circle cx="15" cy="25" r="0.8" fill="#16a36a"/>
-      <circle cx="17" cy="25" r="0.8" fill="#16a36a"/>
-    </svg>
+    <div
+      className="relative select-none filter drop-shadow-md transition-transform duration-300"
+      style={{
+        width: size,
+        height: size * 1.05,
+        animation: 'botFloat 3s ease-in-out infinite'
+      }}
+    >
+      <svg
+        viewBox="0 0 100 105"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full overflow-visible"
+      >
+        {/* Sparkle rays (visible on hover / listening, exactly from uploaded right illustration) */}
+        <g
+          className="transition-opacity duration-300"
+          style={{ opacity: (isHovered || isListening) ? 1 : 0 }}
+        >
+          <line x1="86" y1="28" x2="90" y2="28" stroke="#184e68" strokeWidth="2.8" strokeLinecap="round" />
+          <line x1="83" y1="21" x2="87" y2="17" stroke="#184e68" strokeWidth="2.8" strokeLinecap="round" />
+          <line x1="82" y1="35" x2="86" y2="39" stroke="#184e68" strokeWidth="2.8" strokeLinecap="round" />
+        </g>
+
+        {/* Lower torso / collar */}
+        <path
+          d="M 23 54 C 23 79, 77 79, 77 54 C 77 76, 68 86, 50 86 C 32 86, 23 76, 23 54 Z"
+          fill="#d5e3ea"
+          stroke="#184e68"
+          strokeWidth="3.6"
+          strokeLinejoin="round"
+        />
+        {/* White tummy patch */}
+        <path
+          d="M 33 65 C 33 80, 67 80, 67 65 C 67 79, 60 85, 50 85 C 40 85, 33 79, 33 65 Z"
+          fill="#ffffff"
+          stroke="#184e68"
+          strokeWidth="3.2"
+        />
+
+        {/* Side Ear bumps (left & right) */}
+        <rect
+          x="10" y="38" width="12" height="22" rx="6"
+          fill="#ffffff" stroke="#184e68" strokeWidth="3.6"
+        />
+        <rect
+          x="78" y="38" width="12" height="22" rx="6"
+          fill="#ffffff" stroke="#184e68" strokeWidth="3.6"
+        />
+
+        {/* Antenna Stem & Circle */}
+        <line x1="50" y1="20" x2="50" y2="9" stroke="#184e68" strokeWidth="3.6" strokeLinecap="round" />
+        <circle
+          cx="50" cy="8" r="5.5"
+          fill={isListening ? '#34d399' : '#ffffff'}
+          stroke="#184e68"
+          strokeWidth="3.6"
+          className="transition-colors duration-300"
+        />
+
+        {/* Main Head Helmet (Rounded Stadium Outer Shell) */}
+        <rect
+          x="16" y="19" width="68" height="52" rx="26"
+          fill="#ffffff" stroke="#184e68" strokeWidth="3.8"
+        />
+
+        {/* Inner Visor Screen (Light Cyan/Mint) */}
+        <rect
+          x="23" y="26" width="54" height="38" rx="17"
+          fill="#dff5ed" stroke="#184e68" strokeWidth="3.6"
+        />
+
+        {/* Eyes (Blinking Animation) */}
+        <g style={{ transformOrigin: '50% 42%', animation: 'botBlink 4s infinite' }}>
+          <circle cx="37" cy="42" r="4.3" fill="#184e68" />
+          <circle cx="63" cy="42" r="4.3" fill="#184e68" />
+        </g>
+
+        {/* Mouth (Idle Smile vs Active/Hovered Cheerful Mouth with Tongue) */}
+        {(isHovered || isListening) ? (
+          /* Cheerful Open Mouth with Pink Tongue (from right robot image) */
+          <g>
+            <path
+              d="M 43 49 C 43 57, 57 57, 57 49 Z"
+              fill="#184e68"
+            />
+            <path
+              d="M 46 53 C 48 56, 52 56, 54 53 Z"
+              fill="#f26d85"
+            />
+          </g>
+        ) : (
+          /* Gentle Resting Smile (from left robot image) */
+          <path
+            d="M 44 49 Q 50 54 56 49"
+            stroke="#184e68" strokeWidth="3.4" strokeLinecap="round" fill="none"
+          />
+        )}
+      </svg>
+    </div>
   );
 }
 
@@ -258,7 +344,7 @@ function CartBadge({ count }) {
   if (!count) return null;
   return (
     <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
-      style={{ background:'#16a36a', color:'#fff' }}>
+      style={{ background:'#9CB080', color:'#032f28' }}>
       {count > 9 ? '9+' : count}
     </span>
   );
@@ -284,6 +370,7 @@ export default function MediAssistant({
   const [showPulse, setShowPulse]               = useState(true);
   const [nearbyPharmacies, setNearbyPharmacies] = useState([]);
   const [loadingPharmacies, setLoadingPharmacies] = useState(false);
+  const [isBotHovered, setIsBotHovered]         = useState(false);
 
   const chatEndRef = useRef(null);
   const openedOnce = useRef(false);
@@ -582,28 +669,48 @@ export default function MediAssistant({
 
   return (
     <>
-      {/* Floating Button */}
-      <div className="fixed z-[190]" style={{ bottom:28, right:24 }}>
+      {/* Floating Robot Buddy Button (Exact Robot Face Shape & Animation from uploaded image) */}
+      <div
+        className="fixed z-[190] transition-all duration-300"
+        style={{
+          bottom: selectedMedicines.length > 0 ? 84 : 20,
+          right: 20
+        }}
+      >
         {!isOpen && showPulse && (
           <div className="absolute bottom-full right-0 mb-3 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap pointer-events-none"
-            style={{ background:'linear-gradient(135deg,#050f0b,#0d3d29)', color:'#9aedd1', boxShadow:'0 4px 16px rgba(0,0,0,0.7)', animation:'mediTooltipIn 0.3s ease-out' }}>
-            Hi! I am Medi
-            <div className="absolute bottom-[-5px] right-5 w-2.5 h-2.5 rotate-45" style={{ background:'#0d3d29' }}/>
+            style={{
+              background: '#E8F5E9',
+              color: '#032f28',
+              border: '2px solid #9CB080',
+              boxShadow: '0 4px 16px rgba(156, 176, 128, 0.35)',
+              animation: 'mediTooltipIn 0.3s ease-out'
+            }}>
+            Hi! I am Medi AI
+            <div className="absolute bottom-[-6px] right-6 w-2.5 h-2.5 rotate-45" style={{ background: '#E8F5E9', borderRight: '2px solid #9CB080', borderBottom: '2px solid #9CB080' }}/>
           </div>
         )}
-        {!isOpen && showPulse && (
-          <div className="absolute inset-0 rounded-full pointer-events-none" style={{ animation:'mediButtonPulse 2.2s ease-in-out infinite' }}/>
-        )}
         <div className="relative">
-          <button id="medi-assistant-btn" onClick={() => setIsOpen(true)}
-            className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl"
-            style={{ background:'linear-gradient(145deg,#16a36a,#030a07)', boxShadow:'0 8px 32px rgba(22,163,106,0.45),0 2px 8px rgba(0,0,0,0.5)', transition:'transform 0.18s ease' }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-            title="Talk to Medi — Your AI Health Assistant" aria-label="Open Medi AI Assistant">
-            <RobotIcon size={30}/>
+          <button
+            id="medi-assistant-btn"
+            onClick={() => setIsOpen(true)}
+            onMouseEnter={() => setIsBotHovered(true)}
+            onMouseLeave={() => setIsBotHovered(false)}
+            className="p-0 bg-transparent border-none cursor-pointer focus:outline-none transition-transform active:scale-95 group"
+            title="Chat with Medi AI — Clinical Health Assistant"
+            aria-label="Open Medi AI Assistant"
+          >
+            <RobotFaceBot isListening={isListening} isHovered={isBotHovered} size={64} />
           </button>
-          {cartCount > 0 && !isOpen && <CartBadge count={cartCount} />}
+
+          {cartCount > 0 && !isOpen && (
+            <span
+              className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold shadow-md pointer-events-none"
+              style={{ background: '#9CB080', color: '#032f28', border: '1.5px solid #E8F5E9' }}
+            >
+              {cartCount}
+            </span>
+          )}
         </div>
       </div>
 
@@ -612,115 +719,114 @@ export default function MediAssistant({
         <div className="fixed inset-0 z-[195] flex items-end sm:items-end sm:justify-end sm:pr-6 sm:pb-24"
           style={{ pointerEvents:'none' }}>
           <div className="absolute inset-0"
-            style={{ background:'rgba(0,0,0,0.78)', backdropFilter:'blur(8px)', pointerEvents:'auto' }}
+            style={{ background:'rgba(3, 47, 40, 0.45)', backdropFilter:'blur(8px)', pointerEvents:'auto' }}
             onClick={handleClose}/>
 
-          {/* Panel — pure black */}
-          <div className="relative w-full sm:w-[390px] flex flex-col overflow-hidden"
+          {/* Panel */}
+          <div className="relative w-full sm:w-[390px] flex flex-col overflow-hidden shadow-2xl"
             style={{
               maxHeight:'92vh', height:660, borderRadius:'24px 24px 0 0',
-              background:'#000000',
-              border:'1px solid rgba(22,163,106,0.18)',
-              boxShadow:'0 -20px 80px rgba(0,0,0,0.95),0 0 0 1px rgba(22,163,106,0.07)',
+              background:'#E8F5E9',
+              border:'1.5px solid #9CB080',
+              boxShadow:'0 -20px 80px rgba(3,47,40,0.18), 0 0 0 1px #9CB080',
               pointerEvents:'auto', animation:'mediPanelIn 0.35s cubic-bezier(0.34,1.56,0.64,1)',
             }}>
 
             {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 shrink-0"
-              style={{ borderBottom:'1px solid rgba(255,255,255,0.06)', background:'#000' }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                style={{ background:'linear-gradient(135deg,#16a36a,#050f0b)', border:'2px solid rgba(154,237,209,0.2)' }}>
-                <RobotIcon size={20}/>
+            <div className="flex items-center gap-3 px-5 py-3.5 shrink-0"
+              style={{ borderBottom:'1px solid rgba(156, 176, 128, 0.4)', background:'#E8F5E9' }}>
+              <div className="shrink-0">
+                <RobotFaceBot isListening={isListening} isHovered={false} size={38} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-black" style={{ color:'#9aedd1', letterSpacing:'0.02em' }}>Medi</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background:'rgba(22,163,106,0.18)', color:'#16a36a', border:'1px solid rgba(22,163,106,0.3)' }}>
-                    AI Assistant
+                  <span className="text-sm font-bold tracking-wide" style={{ color: '#032f28' }}>Medi Assistant</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                    style={{ background:'rgba(156, 176, 128, 0.25)', color:'#2b441c', border:'1px solid #9CB080' }}>
+                    AI Clinical
                   </span>
                 </div>
-                <p className="text-[11px] truncate" style={{ color:'rgba(154,237,209,0.38)' }}>
-                  {isListening ? 'Listening...' : loadingPharmacies ? 'Finding pharmacies...' : 'Your MediFind health guide'}
+                <p className="text-[11px] truncate font-medium" style={{ color: '#3e5831' }}>
+                  {isListening ? 'Listening...' : loadingPharmacies ? 'Finding pharmacies...' : 'Your clinical prescription assistant'}
                 </p>
               </div>
               {cartCount > 0 && (
                 <button onClick={() => handleActionClick({ type:'show_cart' })}
-                  className="relative w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background:'rgba(22,163,106,0.15)', border:'1px solid rgba(22,163,106,0.3)' }}
+                  className="relative w-8 h-8 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all"
+                  style={{ background:'rgba(156, 176, 128, 0.25)', border:'1.5px solid #9CB080' }}
                   title="View cart">
-                  <span className="material-symbols-outlined text-[16px]" style={{ color:'#9aedd1' }}>shopping_cart</span>
+                  <span className="material-symbols-outlined text-[16px]" style={{ color:'#032f28' }}>shopping_cart</span>
                   <CartBadge count={cartCount} />
                 </button>
               )}
               <button onClick={handleClose}
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0"
-                style={{ background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}>
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                style={{ background:'rgba(156, 176, 128, 0.2)', color:'#032f28' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#9CB080'; e.currentTarget.style.color = '#ffffff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(156, 176, 128, 0.2)'; e.currentTarget.style.color = '#032f28'; }}>
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
 
             {/* Voice Orb */}
             <div className="flex flex-col items-center py-3 px-5 gap-2 shrink-0"
-              style={{ borderBottom:'1px solid rgba(255,255,255,0.05)', background:'#000' }}>
-              <div className="relative w-28 h-28 rounded-full" style={{ background:'#050a08' }}>
+              style={{ borderBottom:'1px solid rgba(156, 176, 128, 0.3)', background:'#E8F5E9' }}>
+              <div className="relative w-28 h-28 rounded-full" style={{ background:'#dbeee0' }}>
                 {isListening && (
                   <>
                     <div className="absolute inset-[-10px] rounded-full pointer-events-none"
-                      style={{ border:'2px solid rgba(22,163,106,0.35)', animation:'mediOrbRing1 1.8s ease-in-out infinite' }}/>
+                      style={{ border:'2px solid rgba(156, 176, 128, 0.65)', animation:'mediOrbRing1 1.8s ease-in-out infinite' }}/>
                     <div className="absolute inset-[-20px] rounded-full pointer-events-none"
-                      style={{ border:'1px solid rgba(22,163,106,0.18)', animation:'mediOrbRing2 1.8s ease-in-out infinite 0.35s' }}/>
+                      style={{ border:'1px solid rgba(156, 176, 128, 0.45)', animation:'mediOrbRing2 1.8s ease-in-out infinite 0.35s' }}/>
                   </>
                 )}
                 <VoicePoweredOrb hue={0} enableVoiceControl={orbActive} voiceSensitivity={2.0}
                   maxRotationSpeed={1.5} maxHoverIntensity={1.0} onVoiceDetected={setVoiceDetected}
                   className="w-full h-full rounded-full overflow-hidden"/>
                 <button onClick={handleMicToggle} disabled={permissionDenied}
-                  className="absolute inset-0 rounded-full flex items-center justify-center"
+                  className="absolute inset-0 rounded-full flex items-center justify-center cursor-pointer"
                   style={{ background:isListening?'rgba(186,26,26,0.12)':'transparent', opacity:permissionDenied?0.4:1, transition:'background 0.2s' }}
                   title={isListening?'Stop listening':'Tap to speak'}>
                   <span className="material-symbols-outlined text-4xl"
-                    style={{ color:isListening?'#ff6b6b':'rgba(255,255,255,0.5)', textShadow:'0 2px 12px rgba(0,0,0,0.8)' }}>
+                    style={{ color:isListening?'#d32f2f':'#032f28', textShadow:'0 2px 8px rgba(255,255,255,0.7)' }}>
                     {isListening ? 'stop_circle' : 'mic'}
                   </span>
                 </button>
               </div>
               <div className="h-6 flex items-center justify-center w-full">
                 {isListening && interimText ? (
-                  <p className="text-sm text-center italic" style={{ color:'rgba(154,237,209,0.7)' }}>{interimText}...</p>
+                  <p className="text-sm text-center italic font-semibold" style={{ color:'#032f28' }}>{interimText}...</p>
                 ) : isListening ? (
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full"
-                      style={{ background:voiceDetected?'#16a36a':'#5a8a78', boxShadow:voiceDetected?'0 0 8px #16a36a':'none', animation:'voiceDot 0.8s ease-in-out infinite' }}/>
-                    <span className="text-xs font-semibold" style={{ color:voiceDetected?'#16a36a':'rgba(154,237,209,0.5)' }}>
+                      style={{ background:voiceDetected?'#9CB080':'#5c7546', boxShadow:voiceDetected?'0 0 8px #9CB080':'none', animation:'voiceDot 0.8s ease-in-out infinite' }}/>
+                    <span className="text-xs font-semibold" style={{ color:voiceDetected?'#032f28':'#49663b' }}>
                       {voiceDetected ? 'Voice detected...' : 'Listening...'}
                     </span>
                   </div>
                 ) : (
-                  <p className="text-xs" style={{ color:'rgba(154,237,209,0.27)' }}>Tap orb to speak or type below</p>
+                  <p className="text-xs font-medium" style={{ color:'#49663b' }}>Tap orb to speak or type below</p>
                 )}
               </div>
             </div>
 
             {/* Chat */}
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3"
-              style={{ scrollbarWidth:'none', background:'#000' }}>
+              style={{ scrollbarWidth:'none', background:'#E8F5E9' }}>
               {messages.map(msg => (
                 <ChatBubble key={msg.id} message={msg} onActionClick={handleActionClick}/>
               ))}
               {isTyping && (
                 <div className="flex gap-2 items-end">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background:'linear-gradient(135deg,#1a6651,#0a3d2e)' }}>
-                    <span className="text-white text-xs font-black" style={{ fontFamily:'monospace' }}>M</span>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-xs"
+                    style={{ background:'linear-gradient(135deg, #9CB080, #738a59)', border: '1.5px solid #9CB080' }}>
+                    <span className="text-[#032f28] text-xs font-black" style={{ fontFamily:'monospace' }}>M</span>
                   </div>
-                  <div className="px-3.5 py-3 rounded-2xl flex gap-1 items-center"
-                    style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)', borderBottomLeftRadius:4 }}>
+                  <div className="px-3.5 py-3 rounded-2xl flex gap-1 items-center shadow-xs"
+                    style={{ background:'#ffffff', border:'1.5px solid #9CB080', borderBottomLeftRadius:4 }}>
                     {[0,1,2].map(i => (
                       <span key={i} className="w-1.5 h-1.5 rounded-full"
-                        style={{ background:'rgba(154,237,209,0.5)', animation:'mediTyping 1.2s ease-in-out infinite '+(i*0.2)+'s' }}/>
+                        style={{ background:'#9CB080', animation:'mediTyping 1.2s ease-in-out infinite '+(i*0.2)+'s' }}/>
                     ))}
                   </div>
                 </div>
@@ -730,7 +836,7 @@ export default function MediAssistant({
 
             {/* Quick pills */}
             <div className="px-4 py-2 flex gap-2 overflow-x-auto shrink-0"
-              style={{ scrollbarWidth:'none', borderTop:'1px solid rgba(255,255,255,0.05)', background:'#000' }}>
+              style={{ scrollbarWidth:'none', borderTop:'1px solid rgba(156, 176, 128, 0.35)', background:'#E8F5E9' }}>
               {QUICK_SUGGESTIONS.map(s => (
                 <QuickPill key={s.label} label={s.label} icon={s.icon} onClick={() => processUserInput(s.text)}/>
               ))}
@@ -738,15 +844,15 @@ export default function MediAssistant({
 
             {/* Text input */}
             <form onSubmit={handleTextSubmit} className="flex items-center gap-2 px-4 pb-6 pt-2 shrink-0"
-              style={{ background:'#000' }}>
+              style={{ background:'#E8F5E9' }}>
               <input type="text" value={inputText} onChange={e => setInputText(e.target.value)}
                 placeholder="Type medicine name or question..."
-                className="flex-1 h-10 px-4 rounded-full text-sm focus:outline-none"
-                style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(22,163,106,0.2)', color:'rgba(255,255,255,0.85)' }}/>
+                className="flex-1 h-10 px-4 rounded-full text-sm focus:outline-none shadow-xs"
+                style={{ background:'#ffffff', border:'1.5px solid #9CB080', color:'#032f28' }}/>
               <button type="submit" disabled={!inputText.trim()}
-                className="w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0"
-                style={{ background:inputText.trim()?'linear-gradient(135deg,#16a36a,#0c6e47)':'rgba(255,255,255,0.06)',
-                  color:inputText.trim()?'#fff':'rgba(255,255,255,0.2)' }}>
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-xs"
+                style={{ background:inputText.trim()?'linear-gradient(135deg, #9CB080, #7d9660)':'rgba(156, 176, 128, 0.35)',
+                  color:inputText.trim()?'#ffffff':'rgba(3, 47, 40, 0.35)' }}>
                 <span className="material-symbols-outlined text-[18px]">send</span>
               </button>
             </form>
@@ -757,9 +863,9 @@ export default function MediAssistant({
       {/* Animations */}
       <style>{`
         @keyframes mediButtonPulse {
-          0%   { box-shadow: 0 0 0 0 rgba(22,163,106,0.65); }
-          70%  { box-shadow: 0 0 0 20px rgba(22,163,106,0); }
-          100% { box-shadow: 0 0 0 0 rgba(22,163,106,0); }
+          0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.45); }
+          70%  { box-shadow: 0 0 0 14px rgba(52,211,153,0); }
+          100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
         }
         @keyframes mediPanelIn {
           from { transform: translateY(60px) scale(0.96); opacity: 0; }
@@ -788,6 +894,14 @@ export default function MediAssistant({
         @keyframes voiceDot {
           0%,100% { opacity: 1;   }
           50%     { opacity: 0.3; }
+        }
+        @keyframes botFloat {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(-5px); }
+        }
+        @keyframes botBlink {
+          0%, 90%, 100% { transform: scaleY(1); }
+          95%           { transform: scaleY(0.1); }
         }
       `}</style>
     </>

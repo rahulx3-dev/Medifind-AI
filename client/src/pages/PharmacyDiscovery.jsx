@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PharmacyMap from '../components/PharmacyMap';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import ReservationConfirmation from '../components/ReservationConfirmation';
 import ReservationSuccess from '../components/ReservationSuccess';
+import { broadcastUpdate } from '../utils/realtimeUpdates';
+import { referencePricingData } from '../data/medicineReferencePricing';
+import RollingNumber from '../components/ui/RollingNumber';
 
 const AREA_LANDMARKS = [
-  { name: 'Chengannur area', lat: 9.3200, lon: 76.6160 },
+  { name: 'Chengannur area', lat: 9.3170, lon: 76.6145 },
   { name: 'Haripad area', lat: 9.2350, lon: 76.4700 },
-  { name: 'Alappuzha area', lat: 9.4981, lon: 76.3388 },
+  { name: 'Kallissery area', lat: 9.3250, lon: 76.6200 },
   { name: 'Mavelikkara area', lat: 9.2650, lon: 76.5510 },
   { name: 'Thiruvalla area', lat: 9.3830, lon: 76.5740 }
 ];
@@ -29,13 +32,17 @@ const AREA_LANDMARKS = [
 export default function PharmacyDiscovery({
   onOrderCreated,
   selectedMedicines = [],
-  onClearSelectedMedicines
+  onClearSelectedMedicines,
+  prescriptionId = null
 }) {
   const [inMemoryCoords, setInMemoryCoords] = useState(null);
   const [selectedTown, setSelectedTown] = useState('Chengannur area');
   const [radiusKm, setRadiusKm] = useState(30);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('best-match');
+  const [gpsStatus, setGpsStatus] = useState('Detecting GPS...');
+  const [isLocating, setIsLocating] = useState(false);
+  const [activeMedicineTab, setActiveMedicineTab] = useState('all');
 
   // Filter Pills (matching Stitch)
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'full' | 'open' | 'emergency' | 'delivery'
@@ -65,6 +72,87 @@ export default function PharmacyDiscovery({
   const [selectedCatalogMed, setSelectedCatalogMed] = useState(null);
   const [selectedQty, setSelectedQty] = useState(1);
   const [selectorError, setSelectorError] = useState('');
+  const [selectedPharmacyForDetails, setSelectedPharmacyForDetails] = useState(null);
+
+  const hasActiveMedicines = Array.isArray(selectedMedicines) && selectedMedicines.length > 0;
+
+  // Auto-detect patient GPS location on mount
+  const handleDetectCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus('GPS Unavailable');
+      setInMemoryCoords({ lat: 9.3170, lon: 76.6145 });
+      setSelectedTown('Chengannur area');
+      return;
+    }
+    setIsLocating(true);
+    setGpsStatus('Detecting GPS...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setInMemoryCoords({ lat: latitude, lon: longitude });
+        setSelectedTown('Live GPS Location');
+        setGpsStatus('Live GPS Active');
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn('Geolocation fallback to Chengannur center:', err.message);
+        setInMemoryCoords({ lat: 9.3170, lon: 76.6145 });
+        setSelectedTown('Chengannur area');
+        setGpsStatus('Chengannur (Default)');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  };
+
+  useEffect(() => {
+    handleDetectCurrentLocation();
+  }, []);
+
+  // Dynamic Medicine Tabs for switching and showing distance to selected medicine
+  const availableMedicineTabs = useMemo(() => {
+    const list = [{ id: 'all', name: 'All Medicines' }];
+    const seen = new Set(['all', 'all medicines']);
+
+    if (selectedMedicines && selectedMedicines.length > 0) {
+      selectedMedicines.forEach(m => {
+        const name = m.brandName || m.name;
+        if (name && !seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          list.push({ id: m.id || m.medicineId || name, name });
+        }
+      });
+    }
+
+    pharmacies.forEach(p => {
+      (p.availability || []).forEach(a => {
+        if (a.brandName && !seen.has(a.brandName.toLowerCase())) {
+          seen.add(a.brandName.toLowerCase());
+          list.push({ id: a.medicineId || a.brandName, name: a.brandName });
+        }
+      });
+      (p.inventory || []).forEach(inv => {
+        const bName = inv.brandName || inv.medicine?.brandName;
+        if (bName && !seen.has(bName.toLowerCase())) {
+          seen.add(bName.toLowerCase());
+          list.push({ id: inv.medicineId || inv.id || bName, name: bName });
+        }
+      });
+    });
+
+    if (list.length === 1) {
+      // Default common clinical catalog medicines for quick distance checks
+      ['Pan 40', 'Brufen 400', 'Dolo 650', 'Amoxicillin 500'].forEach(name => {
+        if (!seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          list.push({ id: name.toLowerCase().replace(/\s+/g, '-'), name });
+        }
+      });
+    }
+
+    return list.slice(0, 6);
+  }, [selectedMedicines, pharmacies]);
+
 
   // Fetch / Evaluate pharmacies & stock availability
   useEffect(() => {
@@ -111,22 +199,52 @@ export default function PharmacyDiscovery({
         }));
 
         const isEmergency = filterMode === 'emergency';
-        const matchRes = await fetch('/api/pharmacies/match-availability', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: payloadItems,
-            lat,
-            lon,
-            isEmergency
-          })
-        });
+        const token = localStorage.getItem('medifind_token');
+        let matchEndpoint = '/api/pharmacies/match-availability';
+        let matchBody = {
+          items: payloadItems,
+          lat,
+          lon,
+          isEmergency
+        };
 
-        if (!matchRes.ok) {
-          throw new Error(`Unable to evaluate dispensary stock (Status ${matchRes.status}). Please try again.`);
+        if (prescriptionId && !String(prescriptionId).startsWith('mock-') && token) {
+          matchEndpoint = `/api/prescriptions/${prescriptionId}/match-availability`;
+          matchBody = { lat, lon, isEmergency };
         }
 
-        const matchData = await matchRes.json();
+        let matchRes = await fetch(matchEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(matchBody)
+        });
+
+        // If prescription-specific matching failed and we have staged payload items, fallback to item matching
+        if (!matchRes.ok && matchEndpoint.includes('/api/prescriptions/') && payloadItems.length > 0) {
+          console.warn('Prescription-specific availability matching returned', matchRes.status, '— falling back to direct item matching');
+          matchRes = await fetch('/api/pharmacies/match-availability', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              items: payloadItems,
+              lat,
+              lon,
+              isEmergency
+            })
+          });
+        }
+
+        const matchData = await matchRes.json().catch(() => ({}));
+        if (!matchRes.ok) {
+          const errMsg = matchData.error || matchData.message || `Status ${matchRes.status}`;
+          throw new Error(`Unable to evaluate dispensary stock: ${errMsg}`);
+        }
         if (matchData.success && matchData.results) {
           setAvailabilityResults(matchData.results);
           // Extract pharmacy objects
@@ -135,25 +253,42 @@ export default function PharmacyDiscovery({
             const availability = rawAvail.map(item => ({
               medicineId: item.medicineId,
               brandName: item.medicineName || item.brandName || 'Prescription Medicine',
+              genericName: item.genericName,
+              strength: item.strength,
+              dosageForm: item.dosageForm,
               requestedQuantity: item.requestedQty || item.requestedQuantity || 1,
               stock: item.availableStock != null ? item.availableStock : (item.stock != null ? item.stock : 0),
               isAvailable: item.inStock ?? (item.availableStock > 0 || item.stock > 0),
               isLowStock: (item.availableStock > 0 && item.availableStock <= 10) || (item.stock > 0 && item.stock <= 10),
               unitPrice: item.unitPrice != null ? item.unitPrice : (item.price != null ? item.price : null),
+              itemSubtotal: item.itemSubtotal != null ? item.itemSubtotal : null,
+              hasVerifiedPrice: item.hasVerifiedPrice ?? (item.unitPrice != null),
+              status: item.status || (item.inStock ? 'AVAILABLE' : 'OUT_OF_STOCK'),
+              matchClassification: item.matchClassification || null,
+              mismatchReason: item.mismatchReason || null,
               stockLastUpdated: item.stockLastUpdated
             }));
+
+            const matchedCount = r.matchedItemsCount ?? r.matchedCount ?? availability.filter(a => a.isAvailable).length;
+            const totalRequested = r.totalRequested || availability.length || 1;
+            const isFullMatch = r.availabilityStatus === 'FULL_MATCH' || r.isFullMatch === true || (matchedCount === totalRequested && totalRequested > 0);
 
             return {
               ...r.pharmacy,
               distanceKm: r.distanceKm,
               totalScore: r.totalScore || r.score,
-              isFullMatch: r.isFullMatch,
-              matchedCount: r.matchedCount,
-              totalRequested: r.totalRequested,
+              isFullMatch,
+              matchedCount,
+              totalRequested,
               availability,
-              availabilitySummary: r.isFullMatch
-                ? `All ${r.totalRequested} of ${r.totalRequested} In Stock`
-                : `${r.matchedCount} of ${r.totalRequested} Available`
+              isTotalCostComplete: r.isTotalCostComplete,
+              pricingStatus: r.pricingStatus,
+              pricingNote: r.pricingNote,
+              totalEstimatedCost: r.totalEstimatedCost,
+              availabilityStatus: r.availabilityStatus || (isFullMatch ? 'FULL_MATCH' : (matchedCount > 0 ? 'PARTIAL_MATCH' : 'OUT_OF_STOCK')),
+              availabilitySummary: isFullMatch
+                ? `All ${totalRequested} of ${totalRequested} Available`
+                : `${matchedCount} of ${totalRequested} Available`
             };
           });
           setPharmacies(pharms);
@@ -224,29 +359,58 @@ export default function PharmacyDiscovery({
       } catch (_) {}
     }
 
-    // Fallback: If still empty, grab first stocked item from pharmacy or catalogue
-    if (items.length === 0 && pharmacy.inventory && pharmacy.inventory.length > 0) {
-      items = pharmacy.inventory.slice(0, 1).map(inv => ({
-        medicineId: inv.medicineId || inv.id,
-        brandName: inv.brandName || inv.medicine?.brandName || 'Prescription Medicine',
-        quantity: 1,
-        price: inv.price != null ? inv.price : null
-      }));
+    // STRICT GUARD: If patient has not selected any medicines, DO NOT create a 0-item reservation hold!
+    if (items.length === 0) {
+      setSelectedPharmacyForDetails(pharmacy);
+      return;
     }
 
     const normalizedItems = items.map(i => {
       const medId = i.medicineId || i.id;
-      const matchAvail = (pharmacy.availability || []).find(a => (a.medicineId || a.id) === medId);
-      const matchInv = (pharmacy.inventory || []).find(inv => (inv.medicineId || inv.id) === medId);
-      const resolvedPrice = i.price != null ? i.price : (i.unitPrice != null ? i.unitPrice : (matchAvail?.unitPrice != null ? matchAvail.unitPrice : (matchInv?.price != null ? matchInv.price : null)));
+      const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
+      const matchAvail = (pharmacy.availability || []).find(a => 
+        (a.medicineId && (a.medicineId === medId)) || 
+        (nameLower && (a.brandName || '').toLowerCase().includes(nameLower))
+      );
+      const matchInv = (pharmacy.inventory || []).find(inv => 
+        (inv.medicineId && (inv.medicineId === medId)) || 
+        (nameLower && ((inv.medicine?.brandName || inv.brandName || '').toLowerCase().includes(nameLower)))
+      );
+
+      // Check authoritative 50-medicine catalog
+      const ref = referencePricingData.find(r => 
+        r.brandName.toLowerCase() === nameLower ||
+        nameLower.includes(r.brandName.toLowerCase()) ||
+        (r.genericName && nameLower.includes(r.genericName.toLowerCase()))
+      );
+
+      let resolvedPrice = null;
+      if (ref && ref.unitPrice != null) {
+        resolvedPrice = ref.unitPrice;
+      } else if (matchAvail?.unitPrice != null) {
+        resolvedPrice = matchAvail.unitPrice;
+      } else if (i.unitPrice != null) {
+        resolvedPrice = i.unitPrice;
+      } else if (matchInv?.price != null) {
+        resolvedPrice = matchInv.price;
+      } else if (i.price != null) {
+        resolvedPrice = i.price;
+      }
+
+      // If price happens to be the full strip MRP while pack has multiple units, convert to per-tablet unit price
+      if (ref && ref.unitsPerPack > 1 && resolvedPrice && Math.abs(resolvedPrice - ref.publishedMrp) < 0.1) {
+        resolvedPrice = ref.unitPrice;
+      }
+
       return {
         medicineId: medId,
         brandName: i.brandName || i.medicineName || matchAvail?.brandName || matchInv?.medicine?.brandName || matchInv?.brandName || i.name || 'Prescription Medicine',
-        genericName: i.genericName || matchAvail?.genericName || matchInv?.medicine?.genericName || '',
-        strength: i.strength || matchAvail?.strength || matchInv?.medicine?.strength || '',
+        genericName: i.genericName || matchAvail?.genericName || matchInv?.medicine?.genericName || ref?.genericName || '',
+        strength: i.strength || matchAvail?.strength || matchInv?.medicine?.strength || ref?.strength || '',
         quantity: i.quantity || i.requestedQuantity || i.requestedQty || 1,
         price: resolvedPrice,
-        unitPrice: resolvedPrice
+        unitPrice: resolvedPrice,
+        pricingUnit: ref?.pricingUnit || matchAvail?.pricingUnit || 'per tablet'
       };
     });
 
@@ -262,6 +426,10 @@ export default function PharmacyDiscovery({
     setReservationSubmitting(true);
     setReservationError(null);
     const token = localStorage.getItem('medifind_token');
+    const finalData = {
+      ...reservationData,
+      ...(prescriptionId && !String(prescriptionId).startsWith('mock-') ? { prescriptionId } : {})
+    };
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -269,10 +437,16 @@ export default function PharmacyDiscovery({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(reservationData)
+        body: JSON.stringify(finalData)
       });
       const data = await res.json();
       if (data.success && data.order) {
+        broadcastUpdate('ORDER_CREATED', { order: data.order });
+        if (onClearSelectedMedicines) {
+          onClearSelectedMedicines();
+        }
+        try { localStorage.removeItem('medifind_prescription_session'); } catch (_) {}
+        try { sessionStorage.removeItem('medifind_rx_image'); } catch (_) {}
         // Transition to Reservation Success screen
         setReservationFlow(prev => ({
           stage: 'success',
@@ -304,9 +478,70 @@ export default function PharmacyDiscovery({
     return 0; // Default order (from backend algorithm)
   });
 
+  // Closest pharmacy stocking the active medicine tab
+  const nearestPharmacyForSelectedMed = useMemo(() => {
+    if (activeMedicineTab === 'all') return displayedPharmacies[0] || null;
+
+    const matched = displayedPharmacies.find(p => {
+      const inAvail = (p.availability || []).some(a => 
+        a.brandName?.toLowerCase().includes(activeMedicineTab.toLowerCase()) && a.isAvailable
+      );
+      const inInv = (p.inventory || []).some(inv => 
+        (inv.brandName || inv.medicine?.brandName)?.toLowerCase().includes(activeMedicineTab.toLowerCase())
+      );
+      return inAvail || inInv;
+    });
+
+    return matched || displayedPharmacies[0] || null;
+  }, [activeMedicineTab, displayedPharmacies]);
+
+  // When active medicine tab changes, highlight that pharmacy on map
+  useEffect(() => {
+    if (activeMedicineTab !== 'all' && nearestPharmacyForSelectedMed) {
+      setSelectedPharmacyForMap(nearestPharmacyForSelectedMed);
+    }
+  }, [activeMedicineTab, nearestPharmacyForSelectedMed]);
+
   const activeCenter = inMemoryCoords
     ? [inMemoryCoords.lat, inMemoryCoords.lon]
     : [AREA_LANDMARKS[0].lat, AREA_LANDMARKS[0].lon];
+
+  // Selected store and travel time estimates
+  const activeSelectedStore = selectedPharmacyForMap || displayedPharmacies[0] || null;
+
+  const storeDistanceKm = useMemo(() => {
+    if (!activeSelectedStore) return '0.3';
+    if (activeSelectedStore.distanceKm != null) return String(activeSelectedStore.distanceKm);
+    const userLat = activeCenter[0];
+    const userLon = activeCenter[1];
+    const sLat = (typeof activeSelectedStore.latitude === 'number' && !isNaN(activeSelectedStore.latitude))
+      ? activeSelectedStore.latitude
+      : (activeSelectedStore.name?.toLowerCase().includes('max care') ? 9.3186 : 9.3150);
+    const sLon = (typeof activeSelectedStore.longitude === 'number' && !isNaN(activeSelectedStore.longitude))
+      ? activeSelectedStore.longitude
+      : (activeSelectedStore.name?.toLowerCase().includes('max care') ? 76.6135 : 76.6110);
+    if (userLat && userLon && sLat && sLon) {
+      const R = 6371;
+      const dLat = (sLat - userLat) * Math.PI / 180;
+      const dLon = (sLon - userLon) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLat * Math.PI / 180) * Math.cos(sLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return (R * c).toFixed(1);
+    }
+    return '0.3';
+  }, [activeSelectedStore, activeCenter]);
+
+  const travelEstimates = useMemo(() => {
+    const d = parseFloat(storeDistanceKm) || 0.3;
+    const walkMin = Math.max(1, Math.round((d / 4.5) * 60));
+    const bikeMin = Math.max(1, Math.round((d / 28) * 60));
+    const carMin = Math.max(1, Math.round((d / 22) * 60));
+    return {
+      walk: walkMin >= 60 ? `${Math.floor(walkMin / 60)}h ${walkMin % 60}m` : `${walkMin} min`,
+      bike: bikeMin >= 60 ? `${Math.floor(bikeMin / 60)}h ${bikeMin % 60}m` : `${bikeMin} min`,
+      car: carMin >= 60 ? `${Math.floor(carMin / 60)}h ${carMin % 60}m` : `${carMin} min`
+    };
+  }, [storeDistanceKm]);
 
   // ── RENDER RESERVATION STAGES (Part 9) ──────────────────────────────────
   if (reservationFlow?.stage === 'confirm') {
@@ -342,7 +577,7 @@ export default function PharmacyDiscovery({
   if (viewMode === 'map-exploration') {
     const currentPharm = displayedPharmacies[selectedMapIndex] || displayedPharmacies[0];
     return (
-      <div className="relative w-full h-[calc(100vh-140px)] min-h-[600px] overflow-hidden flex flex-col font-body-md text-on-surface">
+      <div className="relative w-full h-[380px] sm:h-[480px] lg:h-[calc(100vh-140px)] lg:min-h-[600px] overflow-hidden flex flex-col font-body-md text-on-surface">
         {/* Full-bleed Leaflet Map */}
         <div className="absolute inset-0 w-full h-full z-0">
           <PharmacyMap
@@ -351,12 +586,14 @@ export default function PharmacyDiscovery({
             radiusKm={radiusKm}
             height="100%"
             selectedPharmacyId={currentPharm?.id}
+            selectedPharmacy={currentPharm}
             onSelectPharmacy={(p) => {
               const idx = displayedPharmacies.findIndex(x => x.id === p.id);
               if (idx >= 0) setSelectedMapIndex(idx);
               setSelectedPharmacyForMap(p);
             }}
             activeRequestItems={selectedMedicines}
+            selectedMedicineName={activeMedicineTab !== 'all' ? activeMedicineTab : null}
           />
         </div>
 
@@ -387,13 +624,13 @@ export default function PharmacyDiscovery({
                 )}
               </div>
 
-              {/* Search Origin Selector */}
+              {/* Medicine Distance & GPS Indicator */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low text-xs">
-                  <span className="material-symbols-outlined text-secondary text-base">near_me</span>
+                  <span className="material-symbols-outlined text-secondary text-base">medication</span>
                   <div className="flex flex-col text-left leading-tight">
-                    <span className="text-[10px] text-on-surface-variant font-medium">Search Origin</span>
-                    <span className="font-bold text-primary">{selectedTown} ({radiusKm} km)</span>
+                    <span className="text-[10px] text-on-surface-variant font-medium">Selected Medicine</span>
+                    <span className="font-bold text-primary">{activeMedicineTab === 'all' ? 'All Dispensaries' : activeMedicineTab}</span>
                   </div>
                 </div>
               </div>
@@ -407,7 +644,7 @@ export default function PharmacyDiscovery({
                   filterMode === 'all' ? 'bg-primary text-white' : 'bg-white/90 backdrop-blur-md text-on-surface hover:bg-surface-container'
                 }`}
               >
-                Show All ({pharmacies.length})
+                Show All (<RollingNumber value={pharmacies.length} />)
               </button>
               <button
                 onClick={() => setFilterMode('full')}
@@ -543,97 +780,225 @@ export default function PharmacyDiscovery({
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 font-body-md text-on-surface">
       {/* 6A — Top Context: Active Request / Verified Items Bar (Stitch Screen 2b95309f81c045f1abea8aab143873f7) */}
       <section className="bg-surface-container-lowest rounded-3xl p-5 sm:p-6 border border-outline-variant/30 shadow-sm flex flex-col gap-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-          {/* Active Request Card (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" />
-                <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">
-                  Active Prescription Request
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[11px] font-bold">
-                  {selectedMedicines.length} Item{selectedMedicines.length === 1 ? '' : 's'} Linked
-                </span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+          {/* Active Prescription Dossier Card / Directory Header Card (7 cols) - Balanced & Symmetrical with Route Box */}
+          <div className="lg:col-span-7 bg-surface-container-low rounded-2xl p-3.5 sm:p-4 border border-outline-variant/30 flex flex-col justify-between gap-3 shadow-xs">
+            {/* Header: Title, Icon, Item Count & Clear Action */}
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-surface-container">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-full ${hasActiveMedicines ? 'bg-secondary-container text-on-secondary-container' : 'bg-primary/10 text-primary'} flex items-center justify-center shrink-0 shadow-xs`}>
+                  <span className="material-symbols-outlined text-base">
+                    {hasActiveMedicines ? 'prescriptions' : 'storefront'}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-secondary uppercase tracking-wider block leading-none">
+                    {hasActiveMedicines ? 'Verified Prescription Request' : 'Participating Dispensaries'}
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs font-bold text-primary">
+                      {hasActiveMedicines
+                        ? `${selectedMedicines.length} Formulation${selectedMedicines.length === 1 ? '' : 's'} Linked`
+                        : `${displayedPharmacies.length} Accredited Kerala Pharmacies`}
+                    </span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-medium text-on-surface-variant">
+                      {hasActiveMedicines ? 'Live Dispensary Query' : 'Live Network Directory'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              {onClearSelectedMedicines && selectedMedicines.length > 0 && (
-                <button
-                  type="button"
-                  onClick={onClearSelectedMedicines}
-                  className="text-xs font-semibold text-tertiary hover:underline"
-                >
-                  Clear Request
-                </button>
-              )}
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {hasActiveMedicines ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[11px] font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">verified</span>
+                    <span>Rx Verified</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">explore</span>
+                    <span>Directory Mode</span>
+                  </span>
+                )}
+                {onClearSelectedMedicines && selectedMedicines.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={onClearSelectedMedicines}
+                    className="flex items-center gap-0.5 text-[11px] font-semibold text-tertiary hover:text-error hover:bg-surface-container px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                    title="Clear selected prescription batch"
+                  >
+                    <span className="material-symbols-outlined text-xs">close</span>
+                    <span>Clear</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {selectedMedicines.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 mt-1">
+            {/* Content: Selected Medicines or Directory Exploration Prompt */}
+            {hasActiveMedicines ? (
+              <div className="flex flex-wrap gap-2 py-0.5">
                 {selectedMedicines.map(m => (
                   <div
                     key={m.medicineId || m.id}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant/20 text-xs shadow-2xs hover:border-secondary transition-colors"
                   >
                     <span className="material-symbols-outlined text-sm text-secondary">medication</span>
                     <span className="font-bold text-primary">{m.brandName}</span>
-                    <span className="text-[11px] font-mono text-on-surface-variant font-medium bg-surface-container-lowest px-1.5 py-0.2 rounded">
-                      x{m.quantity || 1}
+                    <span className="text-[11px] font-mono text-on-surface-variant font-medium bg-surface-container px-1.5 py-0.5 rounded-md">
+                      x{m.quantity || 1} units
                     </span>
-                    <span className="text-[10px] text-secondary font-bold">✓ Verified</span>
+                    <span className="text-[10px] text-secondary font-bold flex items-center gap-0.5">
+                      <span className="material-symbols-outlined text-[12px]">check</span>
+                      Ready
+                    </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-low border border-outline-variant/20 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-base">info</span>
-                  <span className="text-on-surface-variant">
-                    No verified prescription items linked yet. Search a formulation to test dispensary availability:
-                  </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 text-xs gap-3 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-secondary shrink-0">
+                    <span className="material-symbols-outlined text-base">explore</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-primary block">Dispensary Directory Mode Active</span>
+                    <span className="text-on-surface-variant text-[11px]">
+                      No active medicines in request queue. Add medicines from our catalogue or upload an Rx to check shelf availability:
+                    </span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMedSelectorOpen(true)}
-                  className="px-3 py-1 rounded-full bg-primary text-white text-xs font-bold shadow-xs"
-                >
-                  + Add Medicine
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMedSelectorOpen(true)}
+                    className="px-3.5 py-1.5 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-sm">search</span>
+                    <span>Add Medicine</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.history.pushState(null, '', '/prescription');
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-secondary-container hover:bg-secondary-fixed text-on-secondary-container text-xs font-bold shadow-xs cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-sm">upload_file</span>
+                    <span>Upload Rx</span>
+                  </button>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Search Origin Tile (5 cols) */}
-          <div className="lg:col-span-5 bg-surface-container-low rounded-2xl p-4 border border-outline-variant/30 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-base">near_me</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Search Origin &amp; Radius</span>
-                  <span className="text-xs font-bold text-primary">{selectedTown} ({radiusKm} km zone)</span>
-                </div>
-              </div>
-              <span className="text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full font-medium">
-                No GPS Stored
+            {/* Footer Status Row (Matches the right card's footer) */}
+            <div className="pt-2 border-t border-surface-container/70 flex items-center justify-between text-[11px] text-on-surface-variant flex-wrap gap-2">
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-xs text-secondary">
+                  {hasActiveMedicines ? 'lock' : 'check_circle'}
+                </span>
+                <span>
+                  {hasActiveMedicines ? (
+                    <>Dispensation Bay Hold: <strong>24-Hour Locker Reservation Ready</strong></>
+                  ) : (
+                    <>Dispensary Network: <strong>Verified Kerala Partner Pharmacies</strong></>
+                  )}
+                </span>
+              </span>
+              <span className="text-secondary font-semibold">
+                {hasActiveMedicines ? 'Online Copay: ₹0.00 (Pay at Pickup)' : 'Dispensing: In-Store Counter & Doorstep Delivery'}
               </span>
             </div>
+          </div>
 
-            {/* Quick Town Selectors */}
-            <div className="flex flex-wrap gap-1 pt-1 border-t border-surface-container">
-              {AREA_LANDMARKS.map(t => (
-                <button
-                  key={t.name}
-                  onClick={() => handleSelectTown(t)}
-                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all ${
-                    selectedTown === t.name
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'
-                  }`}
-                >
-                  {t.name.replace(' area', '')}
-                </button>
-              ))}
+          {/* Store Directions & Estimated Travel Box (GPS On + Store Name Chips + Walk/Bike/Car Travel Times) */}
+          <div className="lg:col-span-5 bg-surface-container-low rounded-2xl p-3.5 sm:p-4 border border-outline-variant/30 flex flex-col gap-2.5 shadow-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <span className="material-symbols-outlined text-base">directions</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Store Route &amp; Travel Time</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-primary truncate max-w-[190px]">
+                      {activeSelectedStore?.name || 'Selected Pharmacy'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* GPS ON Status Indicator with click to re-detect */}
+              <button
+                type="button"
+                onClick={handleDetectCurrentLocation}
+                disabled={isLocating}
+                title="GPS is active. Click to refresh live coordinates."
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shadow-xs shrink-0 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 cursor-pointer"
+              >
+                <span className={`w-2 h-2 rounded-full bg-emerald-600 ${isLocating ? 'animate-ping' : 'animate-pulse'}`} />
+                <span>{isLocating ? 'Locating...' : 'GPS ON'}</span>
+              </button>
+            </div>
+
+            {/* Store Name Chips */}
+            <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-surface-container">
+              {displayedPharmacies.map((p, idx) => {
+                const isSelected = (activeSelectedStore?.id === p.id) || (!activeSelectedStore && idx === 0);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPharmacyForMap(p);
+                      setSelectedMapIndex(idx);
+                    }}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isSelected
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container hover:text-primary border border-outline-variant/30'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[13px] opacity-80">local_pharmacy</span>
+                    <span>{p.name}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isSelected ? 'bg-white/20 text-white' : 'bg-surface-container text-secondary'
+                    }`}>
+                      #{idx + 1}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Distance & Travel Time Mode Badges (Walk, Bike, Car) */}
+            <div className="pt-2 border-t border-surface-container/70 flex items-center justify-between gap-2 flex-wrap text-[11px]">
+              <div className="flex items-center gap-1.5 bg-surface-container-lowest px-2.5 py-1 rounded-full border border-outline-variant/20 shadow-2xs">
+                <span className="material-symbols-outlined text-xs text-[#0066cc]">near_me</span>
+                <span className="text-on-surface-variant font-medium">Distance:</span>
+                <strong className="text-primary font-black">{storeDistanceKm} km</strong>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {/* Walk */}
+                <div className="flex items-center gap-1 bg-surface-container-lowest px-2 py-0.5 rounded-full border border-outline-variant/20 shadow-2xs" title="Estimated walking travel time">
+                  <span className="material-symbols-outlined text-xs text-emerald-700">directions_walk</span>
+                  <span className="font-extrabold text-[10px] text-primary">{travelEstimates.walk}</span>
+                </div>
+
+                {/* Bike */}
+                <div className="flex items-center gap-1 bg-surface-container-lowest px-2 py-0.5 rounded-full border border-outline-variant/20 shadow-2xs" title="Estimated two-wheeler / bike travel time">
+                  <span className="material-symbols-outlined text-xs text-blue-700">two_wheeler</span>
+                  <span className="font-extrabold text-[10px] text-primary">{travelEstimates.bike}</span>
+                </div>
+
+                {/* Car */}
+                <div className="flex items-center gap-1 bg-surface-container-lowest px-2 py-0.5 rounded-full border border-outline-variant/20 shadow-2xs" title="Estimated driving / car travel time">
+                  <span className="material-symbols-outlined text-xs text-secondary">directions_car</span>
+                  <span className="font-extrabold text-[10px] text-primary">{travelEstimates.car}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -649,7 +1014,7 @@ export default function PharmacyDiscovery({
                   : 'bg-surface-container-low text-on-surface hover:bg-surface-container'
               }`}
             >
-              All Matching ({pharmacies.length})
+              All Matching (<RollingNumber value={pharmacies.length} />)
             </button>
 
             <button
@@ -724,7 +1089,7 @@ export default function PharmacyDiscovery({
           }`}
         >
           <span className="material-symbols-outlined text-sm">view_list</span>
-          <span>List ({displayedPharmacies.length})</span>
+          <span>List (<RollingNumber value={displayedPharmacies.length} />)</span>
         </button>
         <button
           type="button"
@@ -745,7 +1110,28 @@ export default function PharmacyDiscovery({
         {/* Left Column: Pharmacy Result Cards (7 cols = ~58%) */}
         <div className={`lg:col-span-7 flex flex-col gap-4 ${mobileTab === 'map' ? 'hidden lg:flex' : 'flex'}`}>
           {loading ? (
-            <LoadingSkeleton type="table" count={4} />
+            <div className="flex flex-col gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 flex flex-col gap-4 shadow-sm animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="w-36 h-4 rounded-full bg-surface-container" />
+                    <div className="w-24 h-4 rounded-full bg-surface-container" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-surface-container shrink-0" />
+                    <div className="flex-1 flex flex-col gap-2">
+                      <div className="w-3/5 h-4 rounded-full bg-surface-container" />
+                      <div className="w-2/5 h-3 rounded-full bg-surface-container" />
+                    </div>
+                  </div>
+                  <div className="w-full h-12 rounded-2xl bg-surface-container-low" />
+                  <div className="flex items-center gap-2 pt-2 border-t border-surface-container">
+                    <div className="flex-1 h-10 rounded-full bg-surface-container" />
+                    <div className="w-28 h-10 rounded-full bg-surface-container" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : error ? (
             <ErrorState
               title="Dispensary Discovery Offline / Error"
@@ -763,17 +1149,42 @@ export default function PharmacyDiscovery({
           ) : (
             displayedPharmacies.map((p, idx) => {
               const isCurrentlyOpen = p.computedOpenStatus?.isCurrentlyOpen;
+              const isClosed = isCurrentlyOpen === false;
               const openNote = p.computedOpenStatus?.note || (isCurrentlyOpen ? 'Open Now' : 'Closed');
               const isSelected = selectedPharmacyForMap?.id === p.id;
               const availabilityList = p.availability || [];
+              const availableCount = p.matchedCount != null
+                ? p.matchedCount
+                : (availabilityList.length > 0 ? availabilityList.filter(a => a.isAvailable).length : (p.inventory?.length || 0));
+              const totalRequested = p.totalRequested || availabilityList.length || 0;
+              const hasNoMedicinesAvailable = (totalRequested > 0 && availableCount === 0) || (availabilityList.length > 0 && availabilityList.every(a => !a.isAvailable));
 
               return (
                 <article
                   key={p.id}
-                  className={`bg-surface-container-lowest rounded-3xl p-6 border shadow-sm transition-all flex flex-col gap-4 relative overflow-hidden ${
+                  onClick={() => setSelectedPharmacyForMap(p)}
+                  className={`rounded-3xl p-6 pl-7 border shadow-sm transition-all duration-200 flex flex-col gap-4 relative overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-md ${
+                    isClosed
+                      ? 'opacity-65 grayscale-[15%] bg-surface-container-low/70 border-dashed border-rose-300'
+                      : hasNoMedicinesAvailable && !isSelected
+                      ? 'opacity-80 bg-surface-container-lowest'
+                      : 'bg-surface-container-lowest'
+                  } ${
                     isSelected ? 'border-primary ring-2 ring-primary/10 shadow-md' : 'border-outline-variant/30 hover:border-secondary'
                   }`}
                 >
+                  {/* Left Accent Bar matching patient orders card */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      bottom: 0,
+                      width: 6,
+                      background: isClosed ? '#ef4444' : isSelected ? '#032f28' : '#2e685d',
+                      zIndex: 10
+                    }}
+                  />
                   {/* Compliance Flag & Verification Badge */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     {(p.isVerified || p.verificationStatus === 'VERIFIED') && !p.isTestRecord ? (
@@ -827,18 +1238,35 @@ export default function PharmacyDiscovery({
 
                   {/* Ranking Badges */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold">
-                      <span className="material-symbols-outlined text-sm">check_circle</span>
-                      <span>{p.availabilitySummary || 'Available Stock'}</span>
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                      hasNoMedicinesAvailable
+                        ? 'bg-[#ffdad6] text-error'
+                        : 'bg-secondary-container text-on-secondary-container'
+                    }`}>
+                      <span className="material-symbols-outlined text-sm">{hasNoMedicinesAvailable ? 'cancel' : 'check_circle'}</span>
+                      <span>
+                        {p.availabilitySummary && !p.availabilitySummary.includes('undefined')
+                          ? p.availabilitySummary
+                          : (p.matchedCount != null && p.totalRequested != null
+                              ? `${p.matchedCount} of ${p.totalRequested} Available`
+                              : (p.availability?.length ? `${p.availability.filter(a => a.isAvailable).length} of ${p.availability.length} Available` : 'Available Stock'))}
+                      </span>
                     </span>
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-primary text-xs font-medium">
                       <span className="material-symbols-outlined text-xs">navigation</span>
                       <span>{p.distanceKm != null ? `${p.distanceKm} km` : 'Chengannur'}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-medium">
-                      <span className="material-symbols-outlined text-xs text-secondary">schedule</span>
-                      <span>{openNote}</span>
-                    </span>
+                    {isClosed ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold shadow-2xs">
+                        <span className="material-symbols-outlined text-xs text-rose-600 animate-pulse">lock_clock</span>
+                        <span>{p.computedOpenStatus?.badgeText || `Closed • Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}`}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-medium">
+                        <span className="material-symbols-outlined text-xs text-emerald-700">schedule</span>
+                        <span>{p.computedOpenStatus?.badgeText || openNote}</span>
+                      </span>
+                    )}
                   </div>
 
                   {/* Operational Breakdown */}
@@ -857,6 +1285,18 @@ export default function PharmacyDiscovery({
                       </span>
                       <span className="text-secondary font-medium">
                         {p.lastUpdated ? `Availability last updated: ${new Date(p.lastUpdated).toLocaleDateString()}` : 'Pharmacy-Provided Data'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-on-surface-variant">
+                        <span className="material-symbols-outlined text-sm text-secondary">payments</span>
+                        Estimated Cost
+                      </span>
+                      <span className="font-bold text-primary flex items-center gap-1">
+                        {p.totalEstimatedCost != null ? `₹${p.totalEstimatedCost}` : 'Price unlisted'}
+                        {p.isTotalCostComplete === false && p.totalEstimatedCost != null && (
+                          <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full font-semibold">Partial</span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -882,18 +1322,29 @@ export default function PharmacyDiscovery({
                                 <div className="flex flex-col">
                                   <span className="font-bold text-primary">{av.brandName}</span>
                                   <span className="text-[11px] text-on-surface-variant">
-                                    {av.requestedQuantity || 1} unit(s) requested
+                                    {av.strength ? `${av.strength} • ` : ''}{av.dosageForm ? `${av.dosageForm} • ` : ''}{av.requestedQuantity || 1} unit(s) requested
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-right">
+                              <div className="text-right flex flex-col items-end gap-0.5">
                                 <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
                                   isAvail
                                     ? 'bg-secondary-container text-on-secondary-container'
                                     : 'bg-[#ffdad6] text-error'
                                 }`}>
-                                  {isAvail ? 'Available' : 'Not available at this pharmacy'}
+                                  {av.status === 'CLINICAL_MISMATCH'
+                                    ? 'Non-Equivalent'
+                                    : (isAvail
+                                        ? (av.status === 'INSUFFICIENT_STOCK' ? `Low Stock (${av.stock})` : 'Available')
+                                        : (av.status === 'UNKNOWN' ? 'Stock Unknown' : 'Not available at this pharmacy'))}
                                 </span>
+                                {av.unitPrice != null ? (
+                                  <span className="text-[10px] text-on-surface-variant font-mono">
+                                    ₹{Number(av.unitPrice).toFixed(2)}/{av.pricingUnit ? av.pricingUnit.replace('per ', '') : 'tab'} {av.itemSubtotal ? `(subtotal ₹${Number(av.itemSubtotal).toFixed(2)})` : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-outline italic">Price unlisted</span>
+                                )}
                               </div>
                             </div>
                           );
@@ -902,16 +1353,85 @@ export default function PharmacyDiscovery({
                     </div>
                   )}
 
+                  {/* Closed Pharmacy Alert Banner */}
+                  {isClosed && (
+                    <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-rose-600 text-base shrink-0">timer</span>
+                        <div>
+                          <strong>Dispensary Closed:</strong> Patients cannot reserve while closed. Reopens at <strong>{p.computedOpenStatus?.opensAt || 'scheduled hours'}</strong>.
+                        </div>
+                      </div>
+                      {p.computedOpenStatus?.timeRemainingFormatted && (
+                        <span className="px-2.5 py-1 rounded-full bg-rose-200 text-rose-900 font-black text-[11px] shrink-0 font-mono">
+                          in {p.computedOpenStatus.timeRemainingFormatted}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Action Buttons: Inspect & Select Pharmacy -> Reservation Confirmation */}
                   <div className="pt-2 flex flex-col sm:flex-row items-center gap-2 border-t border-surface-container">
-                    <button
-                      type="button"
-                      onClick={() => handleInitiateReservation(p, selectedMedicines.length > 0 ? selectedMedicines : availabilityList)}
-                      className="w-full sm:flex-1 py-3 px-4 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
-                    >
-                      <span>Inspect &amp; Select Pharmacy</span>
-                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                    </button>
+                    {!hasActiveMedicines ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPharmacyForMap(p);
+                            setMedSelectorOpen(true);
+                          }}
+                          className="w-full sm:flex-1 py-3 px-4 rounded-full font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 bg-primary hover:bg-primary-container text-white cursor-pointer"
+                          title="Select medicines from catalogue to reserve at this dispensary"
+                        >
+                          <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
+                          <span>Select Medicines to Reserve</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPharmacyForDetails(p)}
+                          className="w-full sm:w-auto py-3 px-4 rounded-full font-semibold text-xs border border-outline-variant/40 hover:bg-surface-container text-primary transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          title="View pharmacy hours, services, and location details"
+                        >
+                          <span className="material-symbols-outlined text-sm">info</span>
+                          <span>Hours &amp; Info</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={hasNoMedicinesAvailable || isClosed}
+                        onClick={() => {
+                          if (!hasNoMedicinesAvailable && !isClosed) {
+                            handleInitiateReservation(p, selectedMedicines.length > 0 ? selectedMedicines : availabilityList);
+                          }
+                        }}
+                        className={`w-full sm:flex-1 py-3 px-4 rounded-full font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 ${
+                          isClosed
+                            ? 'opacity-60 bg-rose-100 text-rose-800 border border-rose-300 cursor-not-allowed shadow-none'
+                            : hasNoMedicinesAvailable
+                            ? 'opacity-40 bg-surface-container text-on-surface-variant/50 border border-outline-variant/30 cursor-not-allowed shadow-none'
+                            : 'bg-primary hover:bg-primary-container text-white cursor-pointer'
+                        }`}
+                        title={
+                          isClosed
+                            ? `Dispensary is closed. Reservations cannot be placed. Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}.`
+                            : hasNoMedicinesAvailable
+                            ? 'No requested medications are available at this pharmacy'
+                            : 'Inspect & Select Pharmacy'
+                        }
+                      >
+                        <span>
+                          {isClosed
+                            ? `Closed • Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}`
+                            : hasNoMedicinesAvailable
+                            ? 'No Stock Available'
+                            : 'Inspect & Select Pharmacy'}
+                        </span>
+                        <span className="material-symbols-outlined text-sm">
+                          {isClosed ? 'lock' : hasNoMedicinesAvailable ? 'block' : 'arrow_forward'}
+                        </span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -920,7 +1440,7 @@ export default function PharmacyDiscovery({
                         if (idx >= 0) setSelectedMapIndex(idx);
                         setViewMode('map-exploration');
                       }}
-                      className="w-full sm:w-auto py-3 px-5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full sm:w-auto py-3 px-5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-sm">place</span>
                       <span>View on Map</span>
@@ -933,18 +1453,20 @@ export default function PharmacyDiscovery({
         </div>
 
         {/* Right Column: Leaflet Map (5 cols = ~42%) */}
-        <div id="side-pharmacy-map" className={`lg:col-span-5 sticky top-24 ${mobileTab === 'list' ? 'hidden lg:block' : 'block'}`}>
+        <div id="side-pharmacy-map" className={`lg:col-span-5 lg:sticky lg:top-24 h-[340px] sm:h-[420px] lg:h-[520px] ${mobileTab === 'list' ? 'hidden lg:block' : 'block'}`}>
           <PharmacyMap
             pharmacies={displayedPharmacies}
             center={activeCenter}
             radiusKm={radiusKm}
-            height="520px"
+            height="100%"
             selectedPharmacyId={selectedPharmacyForMap?.id}
+            selectedPharmacy={selectedPharmacyForMap}
             onSelectPharmacy={(p) => {
               setSelectedPharmacyForMap(p);
               handleInitiateReservation(p, selectedMedicines.length > 0 ? selectedMedicines : availabilityList);
             }}
             activeRequestItems={selectedMedicines}
+            selectedMedicineName={activeMedicineTab !== 'all' ? activeMedicineTab : null}
           />
         </div>
       </div>
@@ -975,11 +1497,11 @@ export default function PharmacyDiscovery({
               </span>
               <input
                 type="text"
-                placeholder="Type brand name (e.g. Paracetamol, Dolo, Augmentin)..."
+                placeholder="Search"
                 value={miniSearchQuery}
                 onChange={e => setMiniSearchQuery(e.target.value)}
                 autoFocus
-                className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface outline-none focus:border-secondary"
+                className="w-full h-11 pl-9 pr-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface outline-none focus:border-secondary font-bold"
               />
             </div>
 
@@ -1063,6 +1585,115 @@ export default function PharmacyDiscovery({
               >
                 Evaluate &amp; Select
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pharmacy Information & Operating Profile Modal */}
+      {selectedPharmacyForDetails && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest rounded-3xl max-w-lg w-full p-6 border border-outline-variant/30 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-2xl">local_pharmacy</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider bg-surface-container px-2 py-0.5 rounded-full">
+                      Participating Dispensary
+                    </span>
+                    {selectedPharmacyForDetails.isVerified && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <span className="material-symbols-outlined text-xs">verified</span>
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold text-primary mt-0.5">
+                    {selectedPharmacyForDetails.name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPharmacyForDetails(null)}
+                className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl bg-surface-container-low text-xs border border-outline-variant/20">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-sm text-secondary shrink-0 mt-0.5">location_on</span>
+                <span className="text-on-surface-variant leading-relaxed">
+                  {selectedPharmacyForDetails.address}
+                  {selectedPharmacyForDetails.distanceKm != null && (
+                    <strong className="text-primary font-bold block mt-0.5">
+                      {selectedPharmacyForDetails.distanceKm} km away from your location
+                    </strong>
+                  )}
+                </span>
+              </div>
+              {selectedPharmacyForDetails.phone && (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm text-secondary shrink-0">call</span>
+                  <span className="text-primary font-semibold font-mono">{selectedPharmacyForDetails.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm text-secondary shrink-0">schedule</span>
+                <span className="text-on-surface-variant">
+                  Operating Status: <strong className="text-primary">{selectedPharmacyForDetails.computedOpenStatus?.badgeText || (selectedPharmacyForDetails.computedOpenStatus?.isCurrentlyOpen ? 'Open Now' : 'Open for Orders')}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Prompt to add medicine before reserving */}
+            <div className="p-3.5 rounded-2xl bg-secondary-container/30 border border-secondary/20 flex flex-col gap-2 text-xs">
+              <div className="flex items-center gap-2 text-secondary font-bold">
+                <span className="material-symbols-outlined text-base">info</span>
+                <span>To Reserve or Request Delivery:</span>
+              </div>
+              <p className="text-on-surface-variant leading-relaxed">
+                Add the medicine you need from our verified catalog or upload a prescription. We will query this pharmacy&apos;s live inventory in real time.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-surface-container flex-wrap">
+              {selectedPharmacyForDetails.googleMapsUrl && (
+                <a
+                  href={selectedPharmacyForDetails.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container hover:bg-surface-container-high text-secondary text-xs font-bold transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">map</span>
+                  <span>Open in Google Maps</span>
+                </a>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPharmacyForDetails(null)}
+                  className="px-4 py-2 rounded-full bg-surface-container text-primary text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPharmacyForDetails(null);
+                    setMedSelectorOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-sm">search</span>
+                  <span>+ Add Medicines to Request</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

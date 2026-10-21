@@ -43,13 +43,18 @@ export function AuthProvider({ children }) {
     loadUser();
   }, [token]);
 
-  // Real user login
-  async function login(email, password) {
+  // Real user login (supports email, phone, pharmacy ID, assistant ID, admin ID)
+  async function login(identifier, password, roleHint = null) {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          identifier: identifier?.trim(),
+          email: identifier?.trim(),
+          role: roleHint,
+          password
+        })
       });
       const data = await res.json();
       if (data.success && data.token) {
@@ -66,13 +71,13 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Real user registration (Patient account creation)
-  async function register({ name, email, phone, password, confirmPassword }) {
+  // Real user registration (Patient or Assistant account creation)
+  async function register({ name, email, phone, password, confirmPassword, role = 'PATIENT' }) {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password, confirmPassword })
+        body: JSON.stringify({ name, email, phone, password, confirmPassword, role })
       });
       const data = await res.json();
       if (data.success && data.token) {
@@ -112,15 +117,116 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Phone Number + OTP Direct Sign In
+  async function loginWithPhone(phone, code) {
+    try {
+      const res = await fetch('/api/auth/phone-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code })
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        localStorage.setItem('medifind_token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, user: data.user };
+      } else {
+        return { success: false, error: data.error || 'Failed to authenticate phone OTP.' };
+      }
+    } catch (err) {
+      console.error('Phone login error:', err);
+      return { success: false, error: 'Unable to connect to authentication server.' };
+    }
+  }
+
+  // Send OTP
+  async function sendOtp(phone) {
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Send OTP error:', err);
+      return { success: false, error: 'Could not send verification code.' };
+    }
+  }
+
+  // Verify OTP
+  async function verifyOtp(phone, code) {
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Verify OTP error:', err);
+      return { success: false, error: 'Could not verify code.' };
+    }
+  }
+
+  // Initiate Neon Auth Google OAuth
+  async function initiateNeonGoogleAuth() {
+    const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL || 'https://ep-weathered-mouse-a751mmhd.neonauth.ap-southeast-2.aws.neon.tech/neondb/auth';
+    try {
+      const res = await fetch(`${neonAuthUrl}/sign-in/social`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({
+          provider: 'google',
+          callbackURL: window.location.origin + '/auth',
+          newUserCallbackURL: window.location.origin + '/auth'
+        })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return { redirected: true };
+      }
+      return { redirected: false, error: data.message || 'OAuth initialization failed' };
+    } catch (err) {
+      console.warn('Neon Auth Google initiation error, falling back:', err);
+      return { redirected: false, error: err.message };
+    }
+  }
+
   // Logout action
   function logout() {
-    localStorage.removeItem('medifind_token');
-    setToken(null);
-    setUser(null);
+    try {
+      localStorage.removeItem('medifind_token');
+      localStorage.removeItem('medifind_prescription_session');
+      sessionStorage.removeItem('medifind_rx_image');
+    } catch (err) {
+      console.warn('Prescription session logout cleanup warning:', err);
+    } finally {
+      setToken(null);
+      setUser(null);
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, oauthLogin, logout, setUser }}>
+    <AuthContext.Provider value={{
+      user,
+      token,
+      loading,
+      login,
+      register,
+      oauthLogin,
+      loginWithPhone,
+      sendOtp,
+      verifyOtp,
+      initiateNeonGoogleAuth,
+      logout,
+      setUser
+    }}>
       {children}
     </AuthContext.Provider>
   );

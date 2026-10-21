@@ -1,6 +1,6 @@
 const http = require('http');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
+const prisma = createSafeTestPrismaClient();
 
 const BASE_URL = 'http://localhost:5000';
 

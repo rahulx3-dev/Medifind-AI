@@ -1,32 +1,50 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from 'lenis';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
+import Sidebar, { AnimatedHamburgerIcon } from './components/Sidebar';
 import OfflineBanner from './components/OfflineBanner';
 import NotificationModal from './components/NotificationModal';
+import ConfirmationDialog from './components/ConfirmationDialog';
+import ToastAlert from './components/ToastAlert';
 import MediFindLogo from './components/MediFindLogo';
+import CubeLoader from './components/ui/cube-loader';
+import { useBarbaInit, BarbaCurtainOverlay, BarbaContainer } from './components/ui/BarbaPageTransition';
+import { usePortalGreeting } from './utils/greetingUtils';
 import MediAssistant from './components/MediAssistant';
 const MediFind3DHero = React.lazy(() => import('./components/MediFind3DHero'));
 import ParallaxTransition from './components/ParallaxTransition';
+import MediFindAiLanding from './components/MediFindAiLanding';
 import Footer from './components/Footer';
 import AuthPage from './pages/AuthPage';
+import { HeroGeometricBackground } from './components/HeroGeometric';
 import MedicineSearch from './pages/MedicineSearch';
-import PrescriptionUpload from './pages/PrescriptionUpload';
-import EmergencyLocator from './pages/EmergencyLocator';
-import OrderTracking from './pages/OrderTracking';
-import PharmacyDiscovery from './pages/PharmacyDiscovery';
-import PharmacistPortal from './pages/PharmacistPortal';
-import AssistantPortal from './pages/AssistantPortal';
-import AdminDashboard from './pages/AdminDashboard';
-import UserProfile from './pages/UserProfile';
+const PrescriptionUpload = React.lazy(() => import('./pages/PrescriptionUpload'));
+const EmergencyLocator = React.lazy(() => import('./pages/EmergencyLocator'));
+const OrderTracking = React.lazy(() => import('./pages/OrderTracking'));
+const PharmacyDiscovery = React.lazy(() => import('./pages/PharmacyDiscovery'));
+const PharmacistPortal = React.lazy(() => import('./pages/PharmacistPortal'));
+const AssistantPortal = React.lazy(() => import('./pages/AssistantPortal'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const UserProfile = React.lazy(() => import('./pages/UserProfile'));
+const HealthcareMarketplace = React.lazy(() => import('./pages/HealthcareMarketplace'));
 import { enqueueSafeAction, processOfflineQueue } from './utils/offlineActionQueue';
+import { broadcastUpdate, subscribeToUpdates } from './utils/realtimeUpdates';
+import { calculateMedicinePricing, roundCurrency } from './utils/referencePricing';
+
+function PageLoaderFallback() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center justify-center min-h-[350px]">
+      <div className="w-9 h-9 border-3 border-emerald-500/20 border-t-emerald-600 rounded-full animate-spin mb-3" />
+      <span className="text-xs font-semibold text-[#032f28]/70 tracking-wide uppercase animate-pulse">
+        Loading clinical view...
+      </span>
+    </div>
+  );
+}
 
 const ROLE_ALLOWED_TABS = {
-  PATIENT: ['medicines', 'prescription', 'pharmacies', 'emergency', 'orders', 'profile'],
+  PATIENT: ['medicines', 'prescription', 'pharmacies', 'emergency', 'orders', 'healthcare', 'profile'],
   PHARMACIST: ['pharmacist', 'profile'],
   ASSISTANT: ['assistant', 'profile'],
   ADMIN: ['admin', 'profile']
@@ -39,20 +57,104 @@ const ROLE_DEFAULT_TAB = {
   ADMIN: 'admin'
 };
 
+function parseRouteFromLocation() {
+  if (typeof window === 'undefined') return { tab: 'medicines', subTab: 'services', checkoutId: null };
+  const pathname = window.location.pathname.toLowerCase();
+
+  if (pathname.startsWith('/checkout/')) {
+    const parts = window.location.pathname.split('/checkout/');
+    return { tab: 'orders', subTab: null, checkoutId: parts[1]?.trim() || null };
+  }
+  if (pathname === '/clinical-assistance' || pathname === '/tele-assistance' || pathname === '/assistance') {
+    return { tab: 'healthcare', subTab: 'clinical-assistance', checkoutId: null };
+  }
+  if (pathname === '/appointments' || pathname === '/my-appointments') {
+    return { tab: 'healthcare', subTab: 'my-appointments', checkoutId: null };
+  }
+  if (pathname === '/professionals' || pathname === '/clinicians' || pathname === '/nurses') {
+    return { tab: 'healthcare', subTab: 'professionals', checkoutId: null };
+  }
+  if (pathname === '/healthcare' || pathname === '/services' || pathname === '/homecare') {
+    return { tab: 'healthcare', subTab: 'services', checkoutId: null };
+  }
+  if (pathname === '/prescription' || pathname === '/upload-prescription' || pathname === '/ocr') {
+    return { tab: 'prescription', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/pharmacies' || pathname === '/discovery' || pathname === '/stores') {
+    return { tab: 'pharmacies', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/emergency' || pathname === '/emergency-locator' || pathname === '/duty') {
+    return { tab: 'emergency', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/orders' || pathname === '/tracking' || pathname === '/my-orders') {
+    return { tab: 'orders', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/profile' || pathname === '/account') {
+    return { tab: 'profile', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/pharmacist') {
+    return { tab: 'pharmacist', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/assistant') {
+    return { tab: 'assistant', subTab: null, checkoutId: null };
+  }
+  if (pathname === '/admin') {
+    return { tab: 'admin', subTab: null, checkoutId: null };
+  }
+  return { tab: 'medicines', subTab: 'services', checkoutId: null };
+}
+
 function MainApp() {
-  const { user, loading } = useAuth();
-  const [initialCheckoutOrderId, setInitialCheckoutOrderId] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/checkout/')) {
-      const parts = window.location.pathname.split('/checkout/');
-      return parts[1]?.trim() || null;
-    }
-    return null;
-  });
-  const [activeTab, setActiveTab] = useState(() => initialCheckoutOrderId ? 'orders' : 'medicines');
+  useBarbaInit();
+  const { user, loading, logout } = useAuth();
+  const { fullName: userDisplayName, firstName: userFirstName, timeGreet: userTimeGreet, icon: userGreetIcon } = usePortalGreeting(user, user?.role || 'PHARMACIST');
+  const [showNonPatientLogoutConfirm, setShowNonPatientLogoutConfirm] = useState(false);
+  const initialRouteRef = useRef(null);
+  if (!initialRouteRef.current) {
+    initialRouteRef.current = parseRouteFromLocation();
+  }
+
+  const [initialCheckoutOrderId, setInitialCheckoutOrderId] = useState(() => initialRouteRef.current.checkoutId);
+  const [activeTab, setActiveTab] = useState(() => initialRouteRef.current.tab);
+  const [healthcareSubTab, setHealthcareSubTab] = useState(() => initialRouteRef.current.subTab || 'services');
+  const [selectedOrderIdForTracking, setSelectedOrderIdForTracking] = useState(initialRouteRef.current.checkoutId);
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
-  const [selectedOrderIdForTracking, setSelectedOrderIdForTracking] = useState(initialCheckoutOrderId);
+
+  const navigateToTab = useCallback((tab, subTab = null, options = {}) => {
+    setActiveTab(tab);
+    if (tab === 'healthcare' && subTab) {
+      setHealthcareSubTab(subTab);
+    }
+    if (typeof window !== 'undefined' && !options.skipHistory) {
+      let path = '/' + tab;
+      if (tab === 'medicines') path = '/';
+      else if (tab === 'healthcare') {
+        if (subTab === 'clinical-assistance') path = '/clinical-assistance';
+        else if (subTab === 'my-appointments') path = '/appointments';
+        else if (subTab === 'professionals') path = '/professionals';
+        else path = '/healthcare';
+      }
+      if (window.location.pathname !== path) {
+        window.history.pushState({ tab, subTab }, '', path);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const parsed = parseRouteFromLocation();
+      setActiveTab(parsed.tab);
+      if (parsed.subTab) setHealthcareSubTab(parsed.subTab);
+      if (parsed.checkoutId) {
+        setInitialCheckoutOrderId(parsed.checkoutId);
+        setSelectedOrderIdForTracking(parsed.checkoutId);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Non-patient role sidebar tab state & mobile sidebar toggle
   const [nonPatientSubTab, setNonPatientSubTab] = useState(() => {
@@ -82,6 +184,7 @@ function MainApp() {
     }
     return [];
   });
+  const [activePrescriptionId, setActivePrescriptionId] = useState(null);
 
   // Sync medicine request to localStorage
   useEffect(() => {
@@ -92,17 +195,52 @@ function MainApp() {
     }
   }, [selectedMedicines]);
 
-  // Medicine request helpers
-  const addToMedicineRequest = (medicine, quantity = 1) => {
-    if (!medicine || !medicine.id) return;
+  // Medicine request helpers with authoritative sale units and pack pricing
+  const addToMedicineRequest = (medicine, quantity = 1, isExact = false, saleUnit = null) => {
+    if (!medicine || (!medicine.id && !medicine.brandName && !medicine.name)) return;
+    const medId = medicine.id || `med-item-${(medicine.brandName || medicine.name || 'custom').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const effectiveMed = { ...medicine, id: medId };
     const qty = parseInt(quantity, 10) || 1;
     setSelectedMedicines(prev => {
-      const idx = prev.findIndex(item => item.medicineId === medicine.id);
+      const unitsPerPack = effectiveMed.unitsPerPack || 1;
+      const targetSaleUnit = saleUnit || effectiveMed.saleUnit || (
+        unitsPerPack > 1 && ((effectiveMed.dosageForm || '').toLowerCase().includes('tablet') || (effectiveMed.dosageForm || '').toLowerCase().includes('capsule'))
+          ? (qty < unitsPerPack ? 'TABLET' : 'STRIP')
+          : 'UNIT'
+      );
+      const publishedMrp = effectiveMed.publishedMrp != null ? roundCurrency(effectiveMed.publishedMrp) : (effectiveMed.price != null ? roundCurrency(effectiveMed.price) : null);
+      const unitPrice = effectiveMed.unitPrice != null ? roundCurrency(effectiveMed.unitPrice) : (publishedMrp ? roundCurrency(publishedMrp / unitsPerPack) : null);
+
+      const pricing = calculateMedicinePricing({
+        publishedMrp,
+        unitPrice,
+        unitsPerPack,
+        dosageForm: effectiveMed.dosageForm || 'Tablet',
+        saleUnit: targetSaleUnit,
+        quantity: qty
+      });
+
+      const idx = prev.findIndex(item => item.medicineId === medId && (item.saleUnit === targetSaleUnit || !item.saleUnit));
       if (idx >= 0) {
         const updated = [...prev];
+        const newQty = isExact ? qty : Math.min(500, (updated[idx].quantity || 1) + qty);
+        const updatedPricing = calculateMedicinePricing({
+          publishedMrp,
+          unitPrice,
+          unitsPerPack,
+          dosageForm: medicine.dosageForm || 'Tablet',
+          saleUnit: targetSaleUnit,
+          quantity: newQty
+        });
         updated[idx] = {
           ...updated[idx],
-          quantity: Math.min(500, (updated[idx].quantity || 1) + qty)
+          quantity: newQty,
+          saleUnit: targetSaleUnit,
+          effectiveUnitPrice: updatedPricing.effectiveUnitPrice,
+          price: updatedPricing.effectiveUnitPrice,
+          unitPrice: updatedPricing.unitPrice,
+          publishedMrp: updatedPricing.publishedMrp,
+          subtotal: updatedPricing.lineTotal
         };
         return updated;
       }
@@ -116,8 +254,14 @@ function MainApp() {
           dosageForm: medicine.dosageForm || '',
           strength: medicine.strength || '',
           quantity: qty,
-          price: medicine.price != null ? medicine.price : (medicine.unitPrice != null ? medicine.unitPrice : null),
-          unitPrice: medicine.unitPrice != null ? medicine.unitPrice : (medicine.price != null ? medicine.price : null)
+          saleUnit: targetSaleUnit,
+          unitsPerPack,
+          packSize: medicine.packSize || (unitsPerPack > 1 ? `Strip of ${unitsPerPack}` : `1 ${medicine.dosageForm || 'Unit'}`),
+          publishedMrp: pricing.publishedMrp,
+          unitPrice: pricing.unitPrice,
+          effectiveUnitPrice: pricing.effectiveUnitPrice,
+          price: pricing.effectiveUnitPrice,
+          subtotal: pricing.lineTotal
         }
       ];
     });
@@ -130,9 +274,24 @@ function MainApp() {
       return;
     }
     setSelectedMedicines(prev =>
-      prev.map(item =>
-        item.medicineId === medicineId ? { ...item, quantity: Math.min(500, qty) } : item
-      )
+      prev.map(item => {
+        if (item.medicineId !== medicineId) return item;
+        const newQty = Math.min(500, qty);
+        const pricing = calculateMedicinePricing({
+          publishedMrp: item.publishedMrp,
+          unitPrice: item.unitPrice,
+          unitsPerPack: item.unitsPerPack || 1,
+          dosageForm: item.dosageForm || 'Tablet',
+          saleUnit: item.saleUnit || 'TABLET',
+          quantity: newQty
+        });
+        return {
+          ...item,
+          quantity: newQty,
+          subtotal: pricing.lineTotal,
+          price: pricing.effectiveUnitPrice
+        };
+      })
     );
   };
 
@@ -158,7 +317,8 @@ function MainApp() {
     }
   }, [user, initialCheckoutOrderId]);
 
-  // Poll notifications only if authenticated (10s interval with 401 termination guard)
+  // Poll notifications only if authenticated (realtime responsive interval with 401 termination guard)
+  const prevUnreadRef = useRef(0);
   useEffect(() => {
     if (!user) return;
     let intervalId = null;
@@ -166,6 +326,7 @@ function MainApp() {
 
     async function fetchNotifications() {
       if (isTerminated) return;
+      if (document.hidden) return; // Save resources when tab is in background
       const token = localStorage.getItem('medifind_token');
       if (!token) {
         clearInterval(intervalId);
@@ -187,8 +348,16 @@ function MainApp() {
 
         const data = await res.json();
         if (data.success) {
-          setNotifications(data.notifications || []);
-          setUnreadNotifsCount(data.unreadCount || 0);
+          const newNotifs = data.notifications || [];
+          const newCount = data.unreadCount || 0;
+          setNotifications(newNotifs);
+          setUnreadNotifsCount(newCount);
+
+          // If new notifications arrived, trigger instant data refresh across active views
+          if (newCount > prevUnreadRef.current) {
+            broadcastUpdate('NEW_NOTIFICATION', { unreadCount: newCount });
+          }
+          prevUnreadRef.current = newCount;
         }
       } catch (err) {
         // Silent on temporary network glitch
@@ -202,15 +371,34 @@ function MainApp() {
       fetchNotifications();
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+
     window.addEventListener('online', handleReconnection);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Subscribe to immediate internal update events to refetch notifications without delay
+    const unsubscribeUpdates = subscribeToUpdates((event) => {
+      if (event.type !== 'NOTIFICATION_RECEIVED' && event.type !== 'NEW_NOTIFICATION') {
+        fetchNotifications();
+      }
+    });
 
     fetchNotifications();
-    // Default interval changed from 5s -> 10s as per approved plan
-    intervalId = setInterval(fetchNotifications, 10000);
+    intervalId = setInterval(() => {
+      if (!document.hidden && navigator.onLine) {
+        fetchNotifications();
+      }
+    }, 20000);
 
     return () => {
       clearInterval(intervalId);
       window.removeEventListener('online', handleReconnection);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      unsubscribeUpdates();
     };
   }, [user]);
 
@@ -323,167 +511,59 @@ function MainApp() {
     }
   };
 
+  const handleRemoveNotification = async (notificationId) => {
+    if (!notificationId) return;
+    const removedNotif = notifications.find(n => n.id === notificationId);
+
+    // Optimistically remove from state immediately
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    if (removedNotif && !removedNotif.isRead) {
+      setUnreadNotifsCount(prev => Math.max(0, prev - 1));
+    }
+
+    if (!navigator.onLine) {
+      try {
+        enqueueSafeAction({
+          type: 'DELETE_NOTIFICATION',
+          endpoint: `/api/notifications/${notificationId}`,
+          method: 'DELETE'
+        });
+      } catch (e) {
+        console.error('Failed to queue offline safe action:', e);
+      }
+      return;
+    }
+
+    const token = localStorage.getItem('medifind_token');
+    try {
+      await fetch(`/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (e) {
+      console.error('Error removing notification:', e);
+    }
+  };
+
   const handleOrderCreated = (newOrder) => {
     if (newOrder && newOrder.id) {
       setSelectedOrderIdForTracking(newOrder.id);
     }
-    // Also clear the temporary medicine request now that an order has been created
+    // Also clear the temporary medicine request and prescription session now that an order has been created
     clearMedicineRequest();
+    try { localStorage.removeItem('medifind_prescription_session'); } catch (_) {}
+    try { sessionStorage.removeItem('medifind_rx_image'); } catch (_) {}
     setActiveTab('orders');
   };
 
-  // Auth lock state — once revealed, auth section stays fixed full-screen
+  // Landing view state & full-screen static Auth overlay
   const [authRevealed, setAuthRevealed] = useState(false);
-  const authSentinelRef = useRef(null);
-  const lenisRef = useRef(null);
-
-  // Initialize unified Lenis smooth scrolling for unauthenticated landing view
-  useEffect(() => {
-    if (user || authRevealed) return;
-
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
-
-    gsap.registerPlugin(ScrollTrigger);
-
-    let lenis;
-    try {
-      lenis = new Lenis({
-        duration: 1.25,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        smoothWheel: true,
-        wheelMultiplier: 1.0
-      });
-      lenisRef.current = lenis;
-
-      lenis.on('scroll', ScrollTrigger.update);
-      const updateTicker = (time) => {
-        lenis.raf(time * 1000);
-      };
-      gsap.ticker.add(updateTicker);
-      gsap.ticker.lagSmoothing(0);
-
-      return () => {
-        gsap.ticker.remove(updateTicker);
-        lenis.destroy();
-        lenisRef.current = null;
-      };
-    } catch (e) {
-      console.warn('Lenis landing init:', e);
-    }
-  }, [user, authRevealed]);
-
-  const scrollToHero1 = useCallback(() => {
-    if (lenisRef.current) {
-      lenisRef.current.scrollTo(0, { duration: 1.2 });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, []);
-
-  const scrollToHero2 = useCallback(() => {
-    const el = document.getElementById('hero-2-section');
-    if (lenisRef.current && el) {
-      lenisRef.current.scrollTo(el, { duration: 1.2 });
-    } else if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, []);
+  const [pendingTargetTab, setPendingTargetTab] = useState(null);
 
   const scrollToAuth = useCallback(() => {
     setAuthRevealed(true);
     document.body.style.overflow = 'hidden';
   }, []);
-
-  // Assisted scroll snapping: small scroll input smoothly sweeps to next section
-  useEffect(() => {
-    if (user || authRevealed) return;
-
-    let isSnapping = false;
-    let touchStartY = 0;
-
-    const performSnap = (direction) => {
-      if (isSnapping) return;
-      const scrollY = window.scrollY;
-      const hero1 = document.getElementById('hero-section');
-      const hero2 = document.getElementById('hero-2-section');
-      const hero1Height = hero1?.offsetHeight || window.innerHeight;
-
-      if (direction === 'down') {
-        // If at Hero 1, small scroll moves to Hero 2
-        if (scrollY < hero1Height * 0.4) {
-          isSnapping = true;
-          scrollToHero2();
-          setTimeout(() => { isSnapping = false; }, 900);
-        }
-        // If on Hero 2, scrolling down reveals Auth
-        else if (scrollY >= hero1Height * 0.45) {
-          const hero2Bottom = hero2 ? hero2.offsetTop + hero2.offsetHeight : 0;
-          if (scrollY + window.innerHeight >= hero2Bottom - 180) {
-            isSnapping = true;
-            scrollToAuth();
-            setTimeout(() => { isSnapping = false; }, 900);
-          }
-        }
-      } else if (direction === 'up') {
-        // If on Hero 2 and scrolling up, return to Hero 1
-        if (scrollY > 60 && scrollY <= hero1Height * 1.1) {
-          isSnapping = true;
-          scrollToHero1();
-          setTimeout(() => { isSnapping = false; }, 900);
-        }
-      }
-    };
-
-    const handleWheel = (e) => {
-      if (Math.abs(e.deltaY) > 18) {
-        performSnap(e.deltaY > 0 ? 'down' : 'up');
-      }
-    };
-
-    const handleTouchStart = (e) => {
-      if (e.touches && e.touches[0]) {
-        touchStartY = e.touches[0].clientY;
-      }
-    };
-
-    const handleTouchEnd = (e) => {
-      if (e.changedTouches && e.changedTouches[0]) {
-        const deltaY = touchStartY - e.changedTouches[0].clientY;
-        if (Math.abs(deltaY) > 30) {
-          performSnap(deltaY > 0 ? 'down' : 'up');
-        }
-      }
-    };
-
-    window.addEventListener('wheel', handleWheel, { passive: true });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-    return () => {
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [user, authRevealed, scrollToHero1, scrollToHero2, scrollToAuth]);
-
-  // Watch sentinel at bottom of parallax to auto-reveal auth on scroll
-  useEffect(() => {
-    if (user) return;
-    const sentinel = authSentinelRef.current;
-    if (!sentinel) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setAuthRevealed(true);
-          document.body.style.overflow = 'hidden';
-        }
-      },
-      { threshold: 0.2 }
-    );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [user]);
 
   // Reset body overflow on cleanup / login
   useEffect(() => {
@@ -503,66 +583,39 @@ function MainApp() {
     }
   }, [user, scrollToAuth]);
 
-  // 1. Initial Session Loading State
+  // 1. Initial Session Loading State (Minimal 3D Cube Loader - No card, pure 3D cube)
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-on-surface">
-        <div className="text-center flex flex-col items-center gap-4">
-          <MediFindLogo size="lg" />
-          <div className="w-10 h-10 rounded-full border-3 border-secondary/20 border-t-primary animate-spin" />
-          <p className="text-sm font-bold text-primary">Synchronizing Clinical Session...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-surface via-background to-surface-container/30 text-on-surface p-4 relative overflow-hidden">
+        {/* Subtle Ambient Light Green Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#9CB080]/15 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex items-center justify-center">
+          <CubeLoader />
         </div>
       </div>
     );
   }
 
-  // 2. Unauthenticated Gate: Hero → Parallax → Fixed Auth overlay
+  // 2. Unauthenticated Gate: AI SaaS Landing Page with 3D Hero Sculpture + All Sections + Unscrollable Auth Modal
   if (!user) {
-    // Add dark background to body to prevent white flash
-    document.body.classList.add('landing-dark');
     return (
-      <div style={{ position: 'relative', background: '#011a15' }}>
-        {/* Top Floating Glass Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 bg-[#011a15]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.3)' }}>
-          <MediFindLogo size="md" showSubtitle={true} inverted={true} />
-          <button
-            type="button"
-            onClick={scrollToAuth}
-            className="px-5 py-2.5 rounded-full bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Sign In / Enter Portal</span>
-            <span className="material-symbols-outlined text-base">arrow_forward</span>
-          </button>
-        </header>
+      <div style={{ position: 'relative', minHeight: '100vh', background: 'var(--nf-page, #0b0b0b)' }}>
+        <MediFindAiLanding
+          onSignIn={scrollToAuth}
+          onNavigate={(target) => {
+            if (['medicines', 'prescriptions', 'pharmacies', 'healthcare', 'emergency'].includes(target)) {
+              setActiveTab(target);
+            } else if (['pharmacist', 'assistant', 'admin'].includes(target)) {
+              setNonPatientSubTab(target);
+            }
+            setPendingTargetTab(target);
+            scrollToAuth();
+          }}
+          user={user}
+        />
 
-        {/* Scrollable content behind the fixed header */}
-        <div style={{ paddingTop: 64 }}>
-          {/* 1. 3D Hero */}
-          <section id="hero-section" style={{ width: '100%' }}>
-            <React.Suspense fallback={
-              <div className="w-full min-h-[520px] bg-gradient-to-br from-[#011a15] to-[#032f28] flex flex-col items-center justify-center p-6 text-white/70">
-                <div className="w-10 h-10 rounded-full border-3 border-emerald-400/30 border-t-emerald-400 animate-spin mb-3" />
-                <span className="text-xs font-semibold tracking-wider text-emerald-300">Loading 3D Access Network…</span>
-              </div>
-            }>
-              <MediFind3DHero
-                onProceed={scrollToHero2}
-                onDirectLogin={scrollToAuth}
-                onNavigateEmergency={scrollToAuth}
-              />
-            </React.Suspense>
-          </section>
-
-          {/* 2. Parallax Transition (Hero 2) */}
-          <section id="hero-2-section" style={{ width: '100%' }}>
-            <ParallaxTransition onProceed={scrollToAuth} />
-          </section>
-
-          {/* Sentinel: when this enters viewport, reveal auth overlay */}
-          <div ref={authSentinelRef} style={{ height: 1 }} aria-hidden="true" />
-        </div>
-
-        {/* 3. Fixed Full-Screen Auth Overlay with smooth entrance animation */}
+        {/* 3. Static Full-Screen Auth Overlay with Animated Shader BG (STRICTLY UN-SCROLLABLE) */}
         <AnimatePresence>
           {authRevealed && (
             <motion.div
@@ -575,76 +628,77 @@ function MainApp() {
                 position: 'fixed',
                 inset: 0,
                 zIndex: 100,
-                background: 'linear-gradient(160deg, #ecfdf7 0%, #f0fdf8 50%, #e6f8f1 100%)',
-                overflowY: 'auto',
+                backgroundColor: '#f0fdf8',
+                overflow: 'hidden',
+                height: '100vh',
+                width: '100vw',
                 display: 'flex',
                 flexDirection: 'column'
               }}
             >
-              {/* Auth header bar */}
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 20,
-                  background: 'rgba(236,253,247,0.95)',
-                  backdropFilter: 'blur(12px)',
-                  borderBottom: '1px solid #d5e6e0',
-                  padding: '12px 24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthRevealed(false);
-                      document.body.style.overflow = '';
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '6px 14px',
-                      borderRadius: 9999,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#032f28',
-                      backgroundColor: '#e0f2eb',
-                      border: '1px solid #c1ebe1',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
-                    <span>Back to 3D World</span>
-                  </button>
-                  <MediFindLogo size="sm" showSubtitle={false} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} className="animate-pulse" />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#032f28', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Clinical Access Portal</span>
-                </div>
-              </motion.div>
+              {/* 3D Geometric Shader Background with MediFind Theme Colors (#A5D6A7 animation & #e8f8f2 pale clinical mint) */}
+              <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+                <HeroGeometricBackground
+                  color1="#A5D6A7"
+                  color2="#e8f8f2"
+                  speed={0.7}
+                />
+              </div>
 
-              {/* AuthPage content */}
-              <motion.div
-                initial={{ opacity: 0, y: 28, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}
-              >
-                <AuthPage onLoginSuccess={(role) => {
+              {/* Floating Back Control - zero vertical screen impact */}
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.25, delay: 0.1 }}
+                onClick={() => {
                   setAuthRevealed(false);
                   document.body.style.overflow = '';
-                  setActiveTab(ROLE_DEFAULT_TAB[role] || 'medicines');
-                }} showBackground={false} />
-              </motion.div>
+                }}
+                className="fixed top-4 left-4 sm:top-5 sm:left-5 z-40 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-[#032f28] text-xs font-semibold shadow-xs hover:shadow-md border border-emerald-950/10 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+                aria-label="Back to Portal Home"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
+                <span>Back</span>
+              </motion.button>
+
+              {/* Centered Single-Page Auth Card Area */}
+              <div
+                style={{
+                  position: 'relative',
+                  zIndex: 10,
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '12px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <AuthPage
+                  onLoginSuccess={(role) => {
+                    try { sessionStorage.setItem('medifind_auth_entrance', '1'); } catch (_) {}
+                    setAuthRevealed(false);
+                    document.body.style.overflow = '';
+                    if (pendingTargetTab) {
+                      if (ROLE_ALLOWED_TABS[role]?.includes(pendingTargetTab)) {
+                        setActiveTab(pendingTargetTab);
+                      } else {
+                        setActiveTab(ROLE_DEFAULT_TAB[role] || 'medicines');
+                      }
+                      setPendingTargetTab(null);
+                    } else {
+                      setActiveTab(ROLE_DEFAULT_TAB[role] || 'medicines');
+                    }
+                  }}
+                  onClose={() => {
+                    setAuthRevealed(false);
+                    document.body.style.overflow = '';
+                  }}
+                  showBackground={false}
+                />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -661,7 +715,12 @@ function MainApp() {
   // NON-PATIENT ROLES (PHARMACIST, ASSISTANT, ADMIN): Render Sidebar Navigation instead of Top Navbar
   if (user && user.role !== 'PATIENT') {
     return (
-      <div className="min-h-screen flex bg-background text-on-surface">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.985 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="min-h-screen flex bg-background text-on-surface"
+      >
         {/* Left Slide-over Sidebar Drawer */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -675,109 +734,219 @@ function MainApp() {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
           {/* Top Bar */}
-          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-[#e0e8e5] px-4 sm:px-6 h-16 flex items-center justify-between shadow-[0_1px_4px_rgba(3,47,40,0.04)]">
-            <div className="flex items-center gap-3">
-              {/* Mobile-only open button — sidebar is always visible on md+ */}
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="md:hidden w-10 h-10 rounded-xl bg-[#e6f8f1] hover:bg-[#b0ecdd] text-[#032f28] flex items-center justify-center transition-colors shadow-xs focus:outline-none focus:ring-2 focus:ring-[#2e685d]"
-                title="Open sidebar menu"
-                aria-label="Open sidebar menu"
-              >
-                <span className="material-symbols-outlined text-2xl">menu</span>
-              </button>
+          {user.role === 'ADMIN' ? (
+            /* Admin Clean Greeting Header with NO background, interactive badge, larger bold text */
+            <header className="px-6 py-5 flex items-center justify-between transition-colors bg-transparent border-none shadow-none">
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Mobile hamburger toggle */}
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="md:hidden w-10 h-10 rounded-xl bg-[#e6f8f1] dark:bg-[#1a1d21] hover:bg-[#b0ecdd] text-[#032f28] flex items-center justify-center transition-colors shadow-xs"
+                  title="Open sidebar menu"
+                  aria-label="Open sidebar menu"
+                >
+                  <AnimatedHamburgerIcon isOpen={sidebarOpen} size={18} color="#032f28" />
+                </button>
 
-              <div className="h-5 w-px bg-outline-variant/40 hidden sm:block"></div>
-
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#e0f2eb] text-[#032f28] text-xs font-bold font-mono uppercase tracking-wider">
-                  {user.role === 'PHARMACIST' ? 'Pharmacist Portal' : user.role === 'ASSISTANT' ? 'Assistant Portal' : 'Operations Center'}
-                </span>
-                <span className="text-xs font-semibold text-[#2e685d]">
-                  • {
-                    nonPatientSubTab === 'profile'
-                      ? 'Specialist Profile & Credentials'
-                      : user.role === 'PHARMACIST'
-                      ? (nonPatientSubTab === 'inventory' ? 'Inventory Management' : 'Reservation Queue')
-                      : user.role === 'ASSISTANT'
-                      ? (nonPatientSubTab === 'active' ? 'Active Delivery Journey' : nonPatientSubTab === 'completed' ? 'Completed Dispatches' : 'Available Tasks')
-                      : (nonPatientSubTab === 'users' ? 'Users Directory' : nonPatientSubTab === 'pharmacies' ? 'Pharmacies Registry' : nonPatientSubTab === 'orders' ? 'Orders Tracking' : nonPatientSubTab === 'emergency' ? 'Emergency & Logistics' : nonPatientSubTab === 'activity' ? 'Audit Timeline' : 'Overview & Metrics')
-                  }
-                </span>
-              </div>
-            </div>
-
-            {/* Right utilities: Network status chip, Notifications, User info */}
-            <div className="flex items-center gap-3">
-              <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e6f8f1] text-[11px] font-semibold text-[#032f28] border border-[#d5e6e0]">
-                <span className="w-2 h-2 rounded-full bg-[#2e685d] animate-pulse"></span>
-                <span>
-                  {user.role === 'PHARMACIST' ? 'Inventory Sync' : user.role === 'ASSISTANT' ? 'Relay Active' : 'System Active'}
-                </span>
-              </div>
-
-              <button
-                onClick={() => setNotifModalOpen(true)}
-                className="relative w-9 h-9 rounded-full bg-[#e6f8f1] hover:bg-[#b0ecdd] text-[#032f28] flex items-center justify-center transition-colors shadow-xs"
-                title="View Notifications"
-              >
-                <span className="material-symbols-outlined text-xl">notifications</span>
-                {unreadNotifsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ba1a1a] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
-                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                {/* Greeting + Admin Name + Interactive Admin Badge */}
+                <div className="flex items-center gap-3.5 select-none flex-wrap">
+                  <span className="material-symbols-outlined text-[#2e685d] dark:text-emerald-400 text-3xl">
+                    {userGreetIcon || 'wb_sunny'}
                   </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setNonPatientSubTab('profile')}
-                className="hidden sm:flex items-center gap-2 bg-[#f8fafc] hover:bg-[#e0f2eb] pl-1 pr-3 py-1 rounded-full border border-[#e0f2eb] transition-colors cursor-pointer"
-                title="View & Edit Profile"
-              >
-                <div className="w-7 h-7 rounded-full bg-[#b0ecdd] text-[#032f28] flex items-center justify-center text-xs font-bold uppercase">
-                  {user.name ? user.name.charAt(0) : 'U'}
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-[#032f28] dark:text-[#f8f9fa] tracking-tight leading-snug m-0">
+                      {userTimeGreet}, {userDisplayName || userFirstName || 'MediFind System Admin'}!
+                    </h1>
+                    {/* Interactive Admin Badge */}
+                    <button
+                      type="button"
+                      onClick={() => setNonPatientSubTab('profile')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e6f8f1] dark:bg-emerald-950/80 hover:bg-[#b0ecdd] text-[#032f28] dark:text-emerald-300 border border-[#b0ecdd] dark:border-emerald-800 text-xs font-bold font-mono tracking-wide transition-all shadow-xs hover:shadow-sm hover:scale-105 active:scale-95 cursor-pointer"
+                      title="Admin Authority Clearance Level 3 • Click to view security dossier"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-[#2e685d] dark:bg-emerald-400 animate-pulse"></span>
+                      <span>SYSTEM ADMIN</span>
+                      <span className="material-symbols-outlined text-xs">shield</span>
+                    </button>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-[#032f28] truncate max-w-[120px]">
-                  {user.name}
-                </span>
-              </button>
-            </div>
-          </header>
+              </div>
 
-          <main className="flex-1">
+              {/* Minimal essential utilities */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setNotifModalOpen(true)}
+                  className="relative w-9 h-9 rounded-full hover:bg-[#e6f8f1] dark:hover:bg-[#30353a] text-[#032f28] dark:text-[#f8f9fa] flex items-center justify-center transition-colors cursor-pointer"
+                  title="View Notifications"
+                >
+                  <span className="material-symbols-outlined text-xl">notifications</span>
+                  {unreadNotifsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ba1a1a] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                      {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowNonPatientLogoutConfirm(true)}
+                  className="px-3 py-1 rounded-full text-xs font-semibold text-[#52605b] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/40 flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Sign out of MediFind"
+                >
+                  <span className="material-symbols-outlined text-base">logout</span>
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </div>
+            </header>
+          ) : (
+            <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#212529]/95 backdrop-blur-xl border-b border-[#e0e8e5] dark:border-[#3d4349] px-4 sm:px-6 h-16 flex items-center justify-between shadow-[0_1px_4px_rgba(3,47,40,0.04)] dark:shadow-[0_1px_8px_rgba(0,0,0,0.3)] transition-colors">
+              <div className="flex items-center gap-3">
+                {/* Mobile-only open button — sidebar is always visible on md+ */}
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="md:hidden w-10 h-10 rounded-xl bg-[#e6f8f1] dark:bg-[#1a1d21] hover:bg-[#b0ecdd] dark:hover:bg-[#30353a] text-[#032f28] dark:text-[#f8f9fa] flex items-center justify-center transition-colors shadow-xs focus:outline-none focus:ring-2 focus:ring-[#2e685d]"
+                  title="Open sidebar menu"
+                  aria-label="Open sidebar menu"
+                >
+                  <AnimatedHamburgerIcon isOpen={sidebarOpen} size={18} color="#032f28" />
+                </button>
+
+                <div className="h-5 w-px bg-outline-variant/40 dark:bg-[#3d4349] hidden sm:block"></div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNonPatientSubTab('tasks')}
+                    title={`${user.role === 'PHARMACIST' ? 'Pharmacist Portal' : 'Assistant Portal'} • Click to view operations dashboard`}
+                    className="group relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#e0f2eb] to-[#d0ede2] hover:from-[#c8ebe0] hover:to-[#b0ecdd] dark:from-emerald-950/80 dark:to-teal-950/80 text-[#032f28] dark:text-emerald-300 text-xs font-bold font-mono uppercase tracking-wider shrink-0 border border-[#b0ecdd] dark:border-emerald-800 shadow-xs hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer overflow-hidden"
+                  >
+                    {/* Animated Glow Sheen */}
+                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
+                    
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                    </span>
+                    
+                    <span className="relative z-10">
+                      {user.role === 'PHARMACIST' ? 'Pharmacist Portal' : 'Assistant Portal'}
+                    </span>
+
+                    <span className="material-symbols-outlined text-[13px] text-[#2e685d] dark:text-emerald-300 transition-transform group-hover:translate-x-0.5">
+                      chevron_right
+                    </span>
+                  </button>
+                  <span className="text-xs font-semibold text-[#2e685d] dark:text-emerald-400">
+                    • {
+                      nonPatientSubTab === 'profile'
+                        ? 'Specialist Profile & Credentials'
+                        : user.role === 'PHARMACIST'
+                        ? (nonPatientSubTab === 'inventory' ? 'Inventory Management' : 'Reservation Queue')
+                        : (nonPatientSubTab === 'active' ? 'Active Delivery Journey' : nonPatientSubTab === 'completed' ? 'Completed Dispatches' : 'Available Tasks')
+                    }
+                  </span>
+                </div>
+              </div>
+
+              {/* Right utilities: Network status chip, Notifications, User info */}
+              <div className="flex items-center gap-3">
+                <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e6f8f1] dark:bg-[#1a1d21] text-[11px] font-semibold text-[#032f28] dark:text-[#f8f9fa] border border-[#d5e6e0] dark:border-[#3d4349]">
+                  <span className="w-2 h-2 rounded-full bg-[#2e685d] dark:bg-emerald-400 animate-pulse"></span>
+                  <span>
+                    {user.role === 'PHARMACIST'
+                      ? 'Inventory Sync'
+                      : (() => {
+                          try {
+                            const cached = localStorage.getItem('medifind_assistant_profile_cache');
+                            if (cached) {
+                              const p = JSON.parse(cached);
+                              if (p.isAvailable === false) return 'Relay Paused';
+                              if (p.assistantType) return 'Relay Active';
+                              return 'Setup In Progress';
+                            }
+                          } catch (e) {}
+                          return 'Relay Active';
+                        })()}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setNotifModalOpen(true)}
+                  className="relative w-9 h-9 rounded-full bg-[#e6f8f1] dark:bg-[#1a1d21] hover:bg-[#b0ecdd] dark:hover:bg-[#30353a] text-[#032f28] dark:text-[#f8f9fa] flex items-center justify-center transition-colors shadow-xs"
+                  title="View Notifications"
+                >
+                  <span className="material-symbols-outlined text-xl">notifications</span>
+                  {unreadNotifsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ba1a1a] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                      {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                    </span>
+                  )}
+                </button>
+
+                <div className="hidden sm:flex items-center gap-2 bg-[#f8fafc] dark:bg-[#1a1d21] p-1 pr-1.5 rounded-full border border-[#e0f2eb] dark:border-[#3d4349] transition-colors shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setNonPatientSubTab('profile')}
+                    className="flex items-center gap-2 hover:opacity-85 transition-opacity cursor-pointer bg-transparent border-none p-0"
+                    title="View & Edit Profile"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#b0ecdd] dark:bg-emerald-900 text-[#032f28] dark:text-emerald-200 flex items-center justify-center text-xs font-bold uppercase">
+                      {userDisplayName ? userDisplayName.charAt(0) : 'U'}
+                    </div>
+                    <div className="flex flex-col text-left leading-none">
+                      <span className="text-xs font-bold text-[#032f28] dark:text-[#f8f9fa] truncate max-w-[130px]">
+                        {userDisplayName}
+                      </span>
+                      <span className="text-[10px] font-semibold text-[#2e685d] dark:text-emerald-400 uppercase tracking-wider mt-0.5">
+                        {user.role}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    id="non-patient-logout-btn"
+                    onClick={() => setShowNonPatientLogoutConfirm(true)}
+                    className="px-2.5 py-1 rounded-full hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center gap-1 transition-colors ml-1 cursor-pointer border border-transparent hover:border-error/20 bg-transparent text-xs font-semibold"
+                    title="Sign out of MediFind"
+                  >
+                    <span className="material-symbols-outlined text-base">logout</span>
+                    <span className="hidden md:inline">Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            </header>
+          )}
+
+          <main className="flex-1" data-barba="wrapper">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2">
               <OfflineBanner />
             </div>
 
             <AnimatePresence mode="wait">
-              <motion.div
-                key={nonPatientSubTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {nonPatientSubTab === 'profile' ? (
-                  <UserProfile role={user.role} onNavigate={(tab) => setNonPatientSubTab(tab)} />
-                ) : (
-                  <>
-                    {user.role === 'PHARMACIST' && (
-                      <PharmacistPortal currentTab={nonPatientSubTab} onTabChange={setNonPatientSubTab} />
-                    )}
+              <BarbaContainer key={nonPatientSubTab} pageKey={nonPatientSubTab}>
+                <Suspense fallback={<PageLoaderFallback />}>
+                  {nonPatientSubTab === 'profile' ? (
+                    <UserProfile role={user.role} onNavigate={(tab) => setNonPatientSubTab(tab)} />
+                  ) : (
+                    <>
+                      {user.role === 'PHARMACIST' && (
+                        <PharmacistPortal currentTab={nonPatientSubTab} onTabChange={setNonPatientSubTab} />
+                      )}
 
-                    {user.role === 'ASSISTANT' && (
-                      <AssistantPortal currentTab={nonPatientSubTab} onTabChange={setNonPatientSubTab} />
-                    )}
+                      {user.role === 'ASSISTANT' && (
+                        <AssistantPortal currentTab={nonPatientSubTab} onTabChange={setNonPatientSubTab} />
+                      )}
 
-                    {user.role === 'ADMIN' && (
-                      <AdminDashboard currentTab={nonPatientSubTab} onTabChange={setNonPatientSubTab} />
-                    )}
-                  </>
-                )}
-              </motion.div>
+                      {user.role === 'ADMIN' && (
+                        <AdminDashboard currentTab={nonPatientSubTab} onTabChange={setNonPatientSubTab} />
+                      )}
+                    </>
+                  )}
+                </Suspense>
+              </BarbaContainer>
             </AnimatePresence>
           </main>
+
+          {/* Barba.js Signature Dual-Curtain Transition for Specialist Operations */}
+          <BarbaCurtainOverlay activeKey={nonPatientSubTab} />
 
           {/* Real-Time Notifications Modal */}
           <NotificationModal
@@ -786,16 +955,8 @@ function MainApp() {
             notifications={notifications}
             onMarkAllRead={handleMarkAllRead}
             onClearAll={handleClearAll}
+            onRemoveNotification={handleRemoveNotification}
             onNotificationClick={handleNotificationClick}
-          />
-
-          {/* Medi AI Assistant — floating robot helper */}
-          <MediAssistant
-            onNavigate={(tab) => setNonPatientSubTab(tab)}
-            userRole={user?.role}
-            selectedMedicines={selectedMedicines}
-            onAddToRequest={addToMedicineRequest}
-            onProceedToPharmacies={() => setNonPatientSubTab('pharmacies')}
           />
 
           {/* 21st.dev Stacked Circular Footer for Specialist Operations */}
@@ -803,37 +964,51 @@ function MainApp() {
             onNavigate={(tab) => setNonPatientSubTab(tab)}
             role={user.role}
           />
+
+          {/* Non-Patient Header Logout Confirmation Dialog */}
+          <ConfirmationDialog
+            isOpen={showNonPatientLogoutConfirm}
+            title="Sign out of MediFind AI?"
+            message="You will be logged out of your active session. Any saved reservations or operations data will remain securely preserved."
+            confirmText="Yes, Sign Out"
+            cancelText="Stay Signed In"
+            isDestructive={false}
+            onConfirm={() => {
+              setShowNonPatientLogoutConfirm(false);
+              if (logout) logout();
+            }}
+            onCancel={() => setShowNonPatientLogoutConfirm(false)}
+          />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   // PATIENT ROLE: Top Navbar Layout
   return (
-    <div className="min-h-screen flex flex-col bg-background text-on-surface">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.985 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="min-h-screen flex flex-col bg-background text-on-surface"
+    >
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigateToTab}
         onOpenNotifications={() => setNotifModalOpen(true)}
         unreadNotifsCount={unreadNotifsCount}
         medicineRequestCount={selectedMedicines.length}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-16" data-barba="wrapper">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <OfflineBanner />
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          >
+          <BarbaContainer key={activeTab} pageKey={activeTab}>
             {/* Route Protection */}
             {!isTabAllowed(activeTab) ? (
               <div className="max-w-md mx-auto my-12 p-8 bg-surface-container-lowest rounded-3xl border border-error-container text-center shadow-sm">
@@ -847,14 +1022,14 @@ function MainApp() {
                   Your account with role <strong>{user.role}</strong> does not have authorization to view this clinical workflow.
                 </p>
                 <button
-                  onClick={() => setActiveTab(ROLE_DEFAULT_TAB[user.role] || 'medicines')}
+                  onClick={() => navigateToTab(ROLE_DEFAULT_TAB[user.role] || 'medicines')}
                   className="px-6 py-2.5 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-sm shadow-sm transition-all"
                 >
                   Return to Authorized Portal
                 </button>
               </div>
             ) : (
-              <>
+              <Suspense fallback={<PageLoaderFallback />}>
                 {activeTab === 'medicines' && (
                   <MedicineSearch
                     onOrderCreated={handleOrderCreated}
@@ -863,9 +1038,11 @@ function MainApp() {
                     onUpdateRequestQuantity={updateRequestQuantity}
                     onRemoveFromRequest={removeFromMedicineRequest}
                     onClearRequest={clearMedicineRequest}
-                    onProceedToPharmacies={() => setActiveTab('pharmacies')}
-                    onNavigateToPrescription={() => setActiveTab('prescription')}
-                    onNavigateToEmergency={() => setActiveTab('emergency')}
+                    onProceedToPharmacies={() => navigateToTab('pharmacies')}
+                    onNavigateToPrescription={() => navigateToTab('prescription')}
+                    onNavigateToEmergency={() => navigateToTab('emergency')}
+                    onNavigateToOrders={() => navigateToTab('orders')}
+                    onNavigateToHealthcare={(subTab) => navigateToTab('healthcare', subTab || 'services')}
                   />
                 )}
 
@@ -881,10 +1058,10 @@ function MainApp() {
                           dosageForm: i.dosageForm,
                           strength: i.strength,
                           price: i.price != null ? i.price : (i.unitPrice != null ? i.unitPrice : null)
-                        }, i.quantity);
+                        }, i.quantity, true);
                       });
                     }}
-                    onProceedToPharmacies={(items) => {
+                    onProceedToPharmacies={(items, rxId) => {
                       if (Array.isArray(items) && items.length > 0) {
                         items.forEach(i => {
                           addToMedicineRequest({
@@ -894,10 +1071,11 @@ function MainApp() {
                             dosageForm: i.dosageForm,
                             strength: i.strength,
                             price: i.price != null ? i.price : (i.unitPrice != null ? i.unitPrice : null)
-                          }, i.quantity);
+                          }, i.quantity, true);
                         });
                       }
-                      setActiveTab('pharmacies');
+                      setActivePrescriptionId(rxId || null);
+                      navigateToTab('pharmacies');
                     }}
                   />
                 )}
@@ -907,6 +1085,7 @@ function MainApp() {
                     onOrderCreated={handleOrderCreated}
                     selectedMedicines={selectedMedicines}
                     onClearSelectedMedicines={clearMedicineRequest}
+                    prescriptionId={activePrescriptionId}
                   />
                 )}
 
@@ -918,7 +1097,28 @@ function MainApp() {
                   <OrderTracking
                     initialOrderId={selectedOrderIdForTracking}
                     initialCheckoutOrderId={initialCheckoutOrderId}
-                    onNavigate={(tab) => setActiveTab(tab)}
+                    onClearInitialOrderId={() => {
+                      setSelectedOrderIdForTracking(null);
+                      setInitialCheckoutOrderId(null);
+                    }}
+                    onNavigate={(tab) => navigateToTab(tab)}
+                  />
+                )}
+
+                {activeTab === 'healthcare' && (
+                  <HealthcareMarketplace
+                    initialSubTab={healthcareSubTab}
+                    onNavigate={(tab) => navigateToTab(tab)}
+                    onSubTabChange={(subTab) => {
+                      setHealthcareSubTab(subTab);
+                      let path = '/healthcare';
+                      if (subTab === 'clinical-assistance') path = '/clinical-assistance';
+                      else if (subTab === 'my-appointments') path = '/appointments';
+                      else if (subTab === 'professionals') path = '/professionals';
+                      if (window.location.pathname !== path) {
+                        window.history.pushState({ tab: 'healthcare', subTab }, '', path);
+                      }
+                    }}
                   />
                 )}
 
@@ -935,13 +1135,16 @@ function MainApp() {
                 )}
 
                 {activeTab === 'profile' && (
-                  <UserProfile role="PATIENT" onNavigate={(tab) => setActiveTab(tab)} />
+                  <UserProfile role="PATIENT" onNavigate={(tab) => navigateToTab(tab)} />
                 )}
-              </>
+              </Suspense>
             )}
-          </motion.div>
+          </BarbaContainer>
         </AnimatePresence>
       </main>
+
+      {/* Barba.js Signature Dual-Curtain Transition for Patient Navigation */}
+      <BarbaCurtainOverlay activeKey={activeTab} />
 
       {/* Real-Time Notifications Modal */}
       <NotificationModal
@@ -950,24 +1153,30 @@ function MainApp() {
         notifications={notifications}
         onMarkAllRead={handleMarkAllRead}
         onClearAll={handleClearAll}
+        onRemoveNotification={handleRemoveNotification}
         onNotificationClick={handleNotificationClick}
       />
 
-      {/* Medi AI Assistant — floating robot helper for patients */}
-      <MediAssistant
-        onNavigate={(tab) => setActiveTab(tab)}
-        userRole={user?.role}
-        selectedMedicines={selectedMedicines}
-        onAddToRequest={addToMedicineRequest}
-        onProceedToPharmacies={() => setActiveTab('pharmacies')}
-      />
+      {/* In-App Alerts & Mobile Push / Web Corner Toast */}
+      <ToastAlert />
+
+      {/* Medi AI Assistant — floating robot helper exclusively for patients */}
+      {(!user || user.role === 'PATIENT') && (
+        <MediAssistant
+          onNavigate={(tab) => setActiveTab(tab)}
+          userRole={user?.role}
+          selectedMedicines={selectedMedicines}
+          onAddToRequest={addToMedicineRequest}
+          onProceedToPharmacies={() => setActiveTab('pharmacies')}
+        />
+      )}
 
       {/* 21st.dev Stacked Circular Footer with real MediFind content */}
       <Footer
         onNavigate={(tab) => setActiveTab(tab)}
         role={user?.role}
       />
-    </div>
+    </motion.div>
   );
 }
 

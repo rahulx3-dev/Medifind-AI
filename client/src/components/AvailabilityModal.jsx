@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
+import { broadcastUpdate } from '../utils/realtimeUpdates';
 
 export default function AvailabilityModal({
   isOpen,
@@ -16,15 +17,26 @@ export default function AvailabilityModal({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
-  const [regionName, setRegionName] = useState('Chengannur / Alappuzha, Kerala');
+  const [confirmedSplitOrder, setConfirmedSplitOrder] = useState(null);
+  const [allocationMode, setAllocationMode] = useState('SINGLE'); // 'SINGLE' or 'SPLIT'
+  const [splitAllocations, setSplitAllocations] = useState({}); // { [itemKey]: pharmacyId }
+  const [regionName, setRegionName] = useState('Chengannur, Kerala');
   const [errorMessage, setErrorMessage] = useState(null);
+
+  // Dedicated stable idempotency key per logical payload for safe retries
+  const idempotencyKeyRef = useRef(null);
+  const lastPayloadStringRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
     setLoading(true);
     setConfirmedOrder(null);
+    setConfirmedSplitOrder(null);
     setSelectedPharmacy(null);
     setErrorMessage(null);
+    setAllocationMode('SINGLE');
+    idempotencyKeyRef.current = null;
+    lastPayloadStringRef.current = null;
 
     async function evaluateAvailability() {
       let lat = 9.3200;
@@ -39,15 +51,48 @@ export default function AvailabilityModal({
         }
       } catch (e) {}
       try {
-        const res = await fetch('/api/pharmacies/match-availability', {
+        const token = localStorage.getItem('medifind_token');
+        let endpoint = '/api/pharmacies/match-availability';
+        let bodyPayload = { items, lat, lon, isEmergency };
+
+        if (prescriptionId && !String(prescriptionId).startsWith('mock-') && token) {
+          endpoint = `/api/prescriptions/${prescriptionId}/match-availability`;
+          bodyPayload = { lat, lon, isEmergency };
+        }
+
+        const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items, lat, lon, isEmergency })
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(bodyPayload)
         });
         const data = await res.json();
         if (data.success) {
-          setRankedResults(data.results || []);
+          const results = data.results || [];
+          setRankedResults(results);
           if (data.regionName) setRegionName(data.regionName);
+
+          // Seed default split allocations: map each item to the top-ranked pharmacy stocking it
+          if (results.length > 0) {
+            const initialMap = {};
+            items.forEach((it, idx) => {
+              const k = it.id || it.prescriptionItemId || it.medicineId || String(idx);
+              const stockingResult = results.find(r =>
+                (r.matchedItems || []).some(m =>
+                  (m.medicineId && it.medicineId && m.medicineId === it.medicineId) ||
+                  (m.brandName && it.brandName && m.brandName.toLowerCase() === it.brandName.toLowerCase())
+                )
+              ) || results[0];
+              if (stockingResult?.pharmacy?.id) {
+                initialMap[k] = stockingResult.pharmacy.id;
+              }
+            });
+            setSplitAllocations(initialMap);
+          }
+        } else if (data.error) {
+          setErrorMessage(data.error);
         }
       } catch (err) {
         console.error('Error fetching availability ranking:', err);
@@ -56,8 +101,9 @@ export default function AvailabilityModal({
       }
     }
     evaluateAvailability();
-  }, [isOpen, items, isEmergency]);
+  }, [isOpen, items, prescriptionId, isEmergency]);
 
+  // Standard Single Pharmacy Order
   const handlePlaceOrder = async (result) => {
     setErrorMessage(null);
     if (orderType === 'ASSISTED_DELIVERY' && (!deliveryAddress || !deliveryAddress.trim())) {
@@ -82,10 +128,10 @@ export default function AvailabilityModal({
       const data = await res.json();
       if (data.success) {
         setConfirmedOrder(data.order);
+        try { localStorage.removeItem('medifind_prescription_session'); } catch (_) {}
+        try { sessionStorage.removeItem('medifind_rx_image'); } catch (_) {}
         confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
-        // NOTE: Do not invoke onOrderCreated immediately here because App.jsx
-        // will switch activeTab to 'orders', unmounting this modal before the user
-        // has a chance to read the reservation confirmation and secure PIN.
+        broadcastUpdate('ORDER_CREATED', { order: data.order });
       } else {
         setErrorMessage(data.error || 'Failed to place reservation.');
       }
@@ -96,8 +142,84 @@ export default function AvailabilityModal({
     }
   };
 
+  // Gate 4: Multi-Pharmacy Split Order Placement
+  const handlePlaceSplitOrder = async () => {
+    if (submitting) return; // Guard against double-clicks
+    setErrorMessage(null);
+    if (!prescriptionId) {
+      setErrorMessage('A verified prescription is required for multi-pharmacy split allocation to preserve medicine provenance.');
+      return;
+    }
+    if (orderType === 'ASSISTED_DELIVERY' && (!deliveryAddress || !deliveryAddress.trim())) {
+      setErrorMessage('Please enter your doorstep delivery address for assistant dispatch.');
+      return;
+    }
+
+    const allocations = [];
+    for (let idx = 0; idx < items.length; idx++) {
+      const it = items[idx];
+      const k = it.id || it.prescriptionItemId || it.medicineId || String(idx);
+      const pharId = splitAllocations[k];
+      if (pharId) {
+        allocations.push({
+          pharmacyId: pharId,
+          prescriptionItemId: it.id || it.prescriptionItemId,
+          quantity: it.quantity || 1
+        });
+      }
+    }
+
+    if (allocations.length === 0) {
+      setErrorMessage('Please allocate at least one medicine to a participating pharmacy.');
+      return;
+    }
+
+    const requestPayload = {
+      prescriptionId,
+      allocations,
+      orderType,
+      deliveryAddress: orderType === 'ASSISTED_DELIVERY' ? deliveryAddress : undefined,
+      notes: isEmergency ? 'Urgent emergency split reservation' : 'Prescription verified multi-dispensary allocation'
+    };
+    const payloadString = JSON.stringify(requestPayload);
+
+    // Reuse key for retries of the same logical payload; rotate key if allocations or payload changed
+    if (!idempotencyKeyRef.current || lastPayloadStringRef.current !== payloadString) {
+      idempotencyKeyRef.current = `mf-split-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      lastPayloadStringRef.current = payloadString;
+    }
+
+    setSubmitting(true);
+    const token = localStorage.getItem('medifind_token');
+    try {
+      const res = await fetch('/api/orders/split', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKeyRef.current,
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: payloadString
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConfirmedSplitOrder(data);
+        try { localStorage.removeItem('medifind_prescription_session'); } catch (_) {}
+        try { sessionStorage.removeItem('medifind_rx_image'); } catch (_) {}
+        confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 } });
+        broadcastUpdate('ORDER_CREATED', { order: data.parentOrder });
+      } else {
+        setErrorMessage(data.error || 'Failed to place split order allocation.');
+      }
+    } catch (err) {
+      setErrorMessage('Error communicating with server. Please check your connection.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleProceedToOrders = () => {
-    const order = confirmedOrder;
+    const order = confirmedOrder || (confirmedSplitOrder ? confirmedSplitOrder.parentOrder : null);
     onClose();
     if (onOrderCreated && order) {
       onOrderCreated(order);
@@ -105,7 +227,7 @@ export default function AvailabilityModal({
   };
 
   const handleClose = () => {
-    const order = confirmedOrder;
+    const order = confirmedOrder || (confirmedSplitOrder ? confirmedSplitOrder.parentOrder : null);
     onClose();
     if (onOrderCreated && order) {
       onOrderCreated(order);
@@ -114,17 +236,20 @@ export default function AvailabilityModal({
 
   if (!isOpen) return null;
 
+  // Compute unique pharmacies selected in split allocations
+  const uniqueSelectedPharmaciesCount = new Set(Object.values(splitAllocations)).size;
+
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}
       onClick={handleClose}
     >
       <div
-        style={{ background: '#ffffff', borderRadius: 24, width: '100%', maxWidth: 880, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px -12px rgba(3,47,40,0.25)', border: '1px solid #e0f2eb' }}
+        style={{ background: '#ffffff', borderRadius: 20, width: '100%', maxWidth: 880, maxHeight: '85dvh', overflowY: 'auto', boxShadow: '0 24px 64px -12px rgba(3,47,40,0.25)', border: '1px solid #e0f2eb' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Step Progress Bar */}
-        <div style={{ background: '#e0f2eb', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #c0c8c5', borderRadius: '24px 24px 0 0', flexWrap: 'wrap' }}>
+        <div style={{ background: '#e0f2eb', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #c0c8c5', borderRadius: '20px 20px 0 0', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#2e685d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#fff' }}>check</span>
@@ -136,12 +261,16 @@ export default function AvailabilityModal({
             <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#1e453e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#8ab2a9' }}>compare_arrows</span>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>Pharmacy Comparison</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>
+              {allocationMode === 'SPLIT' ? 'Multi-Pharmacy Allocation' : 'Pharmacy Comparison'}
+            </span>
           </div>
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#c0c8c5' }}>chevron_right</span>
-          <span style={{ fontSize: 12, color: '#717976', opacity: 0.6 }}>Review & Hold</span>
+          <span style={{ fontSize: 12, color: '#717976', opacity: 0.6 }}>Review &amp; Hold</span>
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#c0c8c5' }}>chevron_right</span>
-          <span style={{ fontSize: 12, color: '#717976', opacity: 0.5 }}>Confirmation</span>
+          <span style={{ fontSize: 12, color: (confirmedOrder || confirmedSplitOrder) ? '#2e685d' : '#717976', opacity: (confirmedOrder || confirmedSplitOrder) ? 1 : 0.5, fontWeight: (confirmedOrder || confirmedSplitOrder) ? 700 : 400 }}>
+            Confirmation
+          </span>
         </div>
 
         {/* Header */}
@@ -157,7 +286,9 @@ export default function AvailabilityModal({
                 </span>
               )}
             </div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#032f28', margin: 0, lineHeight: 1.3 }}>Verified Medicine Availability Matrix</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#032f28', margin: 0, lineHeight: 1.3 }}>
+              {allocationMode === 'SPLIT' ? 'Split-Order Pharmacy Allocation' : 'Verified Medicine Availability Matrix'}
+            </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>my_location</span>
               <span style={{ fontSize: 13, color: '#414846' }}>{regionName} (within 5 km)</span>
@@ -176,7 +307,7 @@ export default function AvailabilityModal({
         </div>
 
         {/* Medicine Chips */}
-        {items.length > 0 && (
+        {items.length > 0 && !confirmedOrder && !confirmedSplitOrder && (
           <div style={{ padding: '1rem 1.5rem 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem' }}>
             {items.map((it, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#e6f8f1', borderRadius: 12, padding: '0.6rem 1rem' }}>
@@ -193,9 +324,46 @@ export default function AvailabilityModal({
           </div>
         )}
 
-        {/* Fulfillment Toggle */}
-        {!confirmedOrder && !loading && (
+        {/* Allocation Mode Selector & Fulfillment Toggle */}
+        {!confirmedOrder && !confirmedSplitOrder && !loading && (
           <div style={{ padding: '1rem 1.5rem 0' }}>
+            {/* Split Mode Toggle (available when prescription has multiple items or partial matches) */}
+            {prescriptionId && items.length > 1 && (
+              <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', background: '#e0f2eb', padding: '0.35rem', borderRadius: 99, border: '1px solid #b0ecdd' }}>
+                <button
+                  type="button"
+                  onClick={() => setAllocationMode('SINGLE')}
+                  style={{
+                    flex: 1, padding: '0.45rem 1rem', borderRadius: 99,
+                    border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                    background: allocationMode === 'SINGLE' ? '#032f28' : 'transparent',
+                    color: allocationMode === 'SINGLE' ? '#ffffff' : '#032f28',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>storefront</span>
+                  Single Dispensary Reservation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllocationMode('SPLIT')}
+                  style={{
+                    flex: 1, padding: '0.45rem 1rem', borderRadius: 99,
+                    border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                    background: allocationMode === 'SPLIT' ? '#032f28' : 'transparent',
+                    color: allocationMode === 'SPLIT' ? '#ffffff' : '#032f28',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>call_split</span>
+                  Multi-Pharmacy Split Allocation
+                </button>
+              </div>
+            )}
+
+            {/* Pickup vs Delivery Toggle */}
             <div style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem', background: '#e6f8f1', borderRadius: 99, border: '1px solid #c0c8c5' }}>
               {[
                 { value: 'RESERVATION', label: 'Self Pickup Reservation', icon: 'storefront' },
@@ -241,10 +409,101 @@ export default function AvailabilityModal({
           </div>
         )}
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <div style={{ padding: '1.25rem 1.5rem 1.5rem' }}>
-          {confirmedOrder ? (
-            /* Confirmation View */
+
+          {/* ── SPLIT ORDER CONFIRMATION VIEW ── */}
+          {confirmedSplitOrder ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem' }}>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#e0f2eb', border: '2px solid #b0ecdd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 36, color: '#2e685d', fontVariationSettings: "'FILL' 1" }}>call_split</span>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 99, padding: '4px 14px', fontSize: 12, fontWeight: 700, color: '#b78103' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>hourglass_empty</span>
+                RESERVATION STATUS: PENDING PHARMACY CONFIRMATION
+              </div>
+              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#032f28', marginBottom: '0.5rem' }}>
+                Multi-Dispensary Split Reservation Placed!
+              </h3>
+              <p style={{ color: '#414846', fontSize: 14, maxWidth: 540, margin: '0 auto 1.25rem', lineHeight: 1.6 }}>
+                Parent Order <strong style={{ color: '#032f28' }}>#{confirmedSplitOrder.parentOrder?.orderNumber}</strong> has allocated your requested medicines across{' '}
+                <strong style={{ color: '#2e685d' }}>{confirmedSplitOrder.childOrders?.length} participating dispensaries</strong>.
+              </p>
+
+              {/* Status explanation alert */}
+              <div style={{ background: '#f4fbf7', border: '1px solid #b0ecdd', borderRadius: 14, padding: '0.85rem 1.25rem', maxWidth: 540, margin: '0 auto 1.25rem', textAlign: 'left', fontSize: 13, color: '#1e453e', lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem', color: '#032f28' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>info</span>
+                  What happens next?
+                </div>
+                Each dispensary will verify medicine stock and prepare their assigned items independently. You can track progress and checkout each dispensary order individually from your Order Tracking page.
+              </div>
+
+              {/* Fee Ledger Notice */}
+              <div style={{ background: '#e0f2eb', border: '1px solid #a6cfc5', borderRadius: 12, padding: '0.75rem 1rem', maxWidth: 540, margin: '0 auto 1.5rem', textAlign: 'left', fontSize: 12, color: '#032f28', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>account_balance_wallet</span>
+                <span>
+                  <strong>Single Platform Fee Guarantee:</strong> The ₹2.00 platform fee applies at most once across this entire split order. Sibling dispensary orders incur ₹0.00 platform fee.
+                </span>
+              </div>
+
+              {/* Child Orders Breakdown */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', maxWidth: 680, margin: '0 auto 1.5rem', textAlign: 'left' }}>
+                {(confirmedSplitOrder.childOrders || []).map((child, idx) => (
+                  <div key={child.id || idx} style={{ background: '#ffffff', border: '1.5px solid #b0ecdd', borderRadius: 16, padding: '1.25rem', boxShadow: '0 2px 8px rgba(3,47,40,0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, background: '#e0f2eb', color: '#2e685d', padding: '2px 8px', borderRadius: 99 }}>
+                        Dispensary #{idx + 1}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#717976' }}>
+                        Ref #{child.orderNumber}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#032f28', marginBottom: '0.4rem' }}>
+                      {child.pharmacyName || child.pharmacy?.name || 'Local Dispensary'}
+                    </div>
+
+                    <div style={{ fontSize: 12, color: '#414846', marginBottom: '0.75rem' }}>
+                      <div style={{ fontWeight: 600, color: '#717976', marginBottom: '0.2rem' }}>Allocated Medicines:</div>
+                      {(child.items || []).map((it, iIdx) => (
+                        <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{it.brandName || 'Medicine'}</span>
+                          <span style={{ fontWeight: 700 }}>×{it.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {child.verificationPin && (
+                      <div style={{ background: '#f5faf8', borderRadius: 10, padding: '0.5rem', textAlign: 'center', border: '1px solid #d5e6e0' }}>
+                        <div style={{ fontSize: 10, color: '#717976', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Pickup PIN</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800, color: '#032f28', letterSpacing: '0.15em' }}>
+                          {child.verificationPin}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Partial Allocation Notice */}
+              {confirmedSplitOrder.allocationSummary?.unallocatedItemsCount > 0 && (
+                <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 12, padding: '0.75rem 1rem', maxWidth: 540, margin: '0 auto 1.5rem', textAlign: 'left', fontSize: 12, color: '#b78103' }}>
+                  <strong>Preserved Remaining Items:</strong> {confirmedSplitOrder.allocationSummary.unallocatedItemsCount} item(s) remain unallocated on your prescription. You can re-match the remaining items at any time without duplicating active orders.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleProceedToOrders}
+                  style={{ padding: '0.75rem 2rem', borderRadius: 99, background: '#032f28', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(3,47,40,0.15)' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>receipt_long</span>
+                  View My Orders &amp; Track Status →
+                </button>
+              </div>
+            </div>
+          ) : confirmedOrder ? (
+            /* ── SINGLE ORDER CONFIRMATION VIEW ── */
             <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
               <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#e0f2eb', border: '2px solid #b0ecdd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 36, color: '#2e685d', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
@@ -261,7 +520,6 @@ export default function AvailabilityModal({
                 <strong style={{ color: '#2e685d' }}>{confirmedOrder.pharmacy?.name}</strong>.
               </p>
 
-              {/* Status explanation alert */}
               <div style={{ background: '#f4fbf7', border: '1px solid #b0ecdd', borderRadius: 14, padding: '0.85rem 1.25rem', maxWidth: 480, margin: '0 auto 1.5rem', textAlign: 'left', fontSize: 13, color: '#1e453e', lineHeight: 1.5 }}>
                 <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem', color: '#032f28' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>info</span>
@@ -314,8 +572,144 @@ export default function AvailabilityModal({
                 No pharmacies within the search radius currently stock all requested medicines.
               </p>
             </div>
+          ) : allocationMode === 'SPLIT' ? (
+            /* ── SPLIT ALLOCATION REVIEW & SUBMISSION BUILDER ── */
+            <div>
+              <div style={{ marginBottom: '1rem', background: '#f8faf9', border: '1px solid #e0f2eb', borderRadius: 14, padding: '0.85rem 1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>call_split</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Multi-Pharmacy Allocation Review</span>
+                </div>
+                <p style={{ fontSize: 12, color: '#414846', margin: 0 }}>
+                  Allocate each prescription item to a participating dispensary. A single ₹2.00 platform fee applies to the entire parent order.
+                </p>
+              </div>
+
+              {/* Items Allocation Rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                {items.map((it, idx) => {
+                  const k = it.id || it.prescriptionItemId || it.medicineId || String(idx);
+                  const selectedPharId = splitAllocations[k] || '';
+                  const selectedResult = rankedResults.find(r => r.pharmacy.id === selectedPharId);
+                  const isStocked = selectedResult && (selectedResult.matchedItems || []).some(m =>
+                    (m.medicineId && it.medicineId && m.medicineId === it.medicineId) ||
+                    (m.brandName && it.brandName && m.brandName.toLowerCase() === it.brandName.toLowerCase())
+                  );
+
+                  return (
+                    <div
+                      key={k}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #e0f2eb',
+                        borderRadius: 14,
+                        padding: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#e0f2eb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#032f28' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>medication</span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>
+                            {it.brandName || `Medicine #${idx + 1}`}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#717976' }}>
+                            Requested Qty: <strong style={{ color: '#032f28' }}>{it.quantity || 1}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pharmacy Selector */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: 12, color: '#414846', fontWeight: 600 }}>Dispensary:</label>
+                        <select
+                          value={selectedPharId}
+                          onChange={e => setSplitAllocations(prev => ({ ...prev, [k]: e.target.value }))}
+                          style={{
+                            padding: '0.45rem 0.85rem',
+                            borderRadius: 10,
+                            border: '1.5px solid #c0c8c5',
+                            fontSize: 13,
+                            color: '#032f28',
+                            background: '#ffffff',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {rankedResults.map(r => {
+                            const stocksThis = (r.matchedItems || []).some(m =>
+                              (m.medicineId && it.medicineId && m.medicineId === it.medicineId) ||
+                              (m.brandName && it.brandName && m.brandName.toLowerCase() === it.brandName.toLowerCase())
+                            );
+                            return (
+                              <option key={r.pharmacy.id} value={r.pharmacy.id}>
+                                {r.pharmacy.name} ({r.distanceKm} km) {stocksThis ? '— In Stock' : '— Unverified Stock'}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: 99,
+                          background: isStocked ? '#b0ecdd' : '#fff8e1',
+                          color: isStocked ? '#336c61' : '#b78103'
+                        }}>
+                          {isStocked ? 'Stock Verified' : 'Checking Stock'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Split Summary & Submission Bar */}
+              <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 16, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#032f28', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2e685d' }}>verified</span>
+                    <span>Ready to submit {items.length} medicines across {uniqueSelectedPharmaciesCount} dispensaries</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#414846', marginTop: '0.2rem' }}>
+                    Single Platform Fee: <strong>₹2.00</strong> (siblings ₹0.00) • Individual Handover PINs generated
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePlaceSplitOrder}
+                  disabled={submitting}
+                  style={{
+                    padding: '0.65rem 1.75rem',
+                    borderRadius: 99,
+                    background: submitting ? '#e0f2eb' : '#032f28',
+                    color: submitting ? '#717976' : '#ffffff',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 12px rgba(3,47,40,0.15)'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                    {submitting ? 'hourglass_empty' : 'call_split'}
+                  </span>
+                  <span>{submitting ? 'Allocating Order...' : 'Confirm Split Reservation'}</span>
+                </button>
+              </div>
+            </div>
           ) : (
-            /* Ranked Pharmacy List */
+            /* ── SINGLE DISPENSARY RANKED PHARMACY LIST ── */
             <div>
               {/* Filter Info */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -411,7 +805,13 @@ export default function AvailabilityModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '0.65rem 0', borderTop: '1px solid #e6f8f1', borderBottom: '1px solid #e6f8f1', fontSize: 13, flexWrap: 'wrap' }}>
                           <div><span style={{ color: '#717976' }}>Distance: </span><strong style={{ color: '#0f1e1b' }}>{result.distanceKm} km</strong></div>
                           <div><span style={{ color: '#717976' }}>Stock: </span><strong style={{ color: isFullMatch ? '#2e685d' : '#ba1a1a' }}>{result.matchedItemsCount}/{result.totalRequested} Available</strong></div>
-                          <div><span style={{ color: '#717976' }}>Est. Cost: </span><strong style={{ color: '#0f1e1b' }}>₹{result.totalEstimatedCost}</strong></div>
+                          <div>
+                            <span style={{ color: '#717976' }}>Est. Cost: </span>
+                            <strong style={{ color: '#0f1e1b' }}>{result.totalEstimatedCost != null ? `₹${result.totalEstimatedCost}` : 'Unpriced'}</strong>
+                            {result.isTotalCostComplete === false && result.totalEstimatedCost != null && (
+                              <span style={{ marginLeft: 4, fontSize: 10, color: '#b78103', fontWeight: 600 }}> (Partial)</span>
+                            )}
+                          </div>
                         </div>
 
                         {/* AI Explanation */}

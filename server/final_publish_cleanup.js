@@ -11,8 +11,18 @@
  * - Assistant profiles and capabilities
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createSafeTestPrismaClient } = require('./src/utils/testDatabaseGuard');
+
+// Explicit test-only authorization gate for final publish cleanup
+if (process.env.ALLOW_FINAL_PUBLISH_CLEANUP !== 'true') {
+  const errMsg = '[CRITICAL REFUSAL] final_publish_cleanup is a destructive cleanup operation. Execution is strictly prohibited unless explicitly authorized via ALLOW_FINAL_PUBLISH_CLEANUP=true and validated against a disposable test database.';
+  console.error(errMsg);
+  const err = new Error(errMsg);
+  err.code = 'UNAUTHORIZED_PUBLISH_CLEANUP';
+  throw err;
+}
+
+const prisma = createSafeTestPrismaClient();
 
 async function runCleanup() {
   console.log('=== FINAL MEDIFIND AI DATA CLEANUP + PUBLISH PREPARATION ===\n');

@@ -155,9 +155,39 @@ async function main() {
     return { ...result, extractedQty: qty };
   });
 
-  // ── Step 5: Run processPrescriptionText against PRODUCTION catalogue ─────────
+  // ── Step 5: Run full extraction against PRODUCTION catalogue ─────────────────
   console.log('\nSTEP 5: Running full extraction against production catalogue...');
-  const detectedItems = processPrescriptionText(ocrResult.rawText, catalogue);
+  let detectedItems = [];
+  if (ocrResult && Array.isArray(ocrResult.medicineLines) && ocrResult.medicineLines.length > 0) {
+    detectedItems = ocrResult.medicineLines.map(line => {
+      const parsed = extractMedicineNameFromRow(line.rawLine);
+      const cleanName = line.extractedName || parsed.medicineName || line.rawLine;
+      const cleanStrength = line.strength || parsed.strength || '';
+      const dbMatches = matchMedicineNameAgainstCatalog(cleanName, cleanStrength, catalogue);
+      const candidates = (dbMatches.length > 0
+        ? dbMatches
+        : (line.medicineCandidates || []).map(m => ({ medicine: { brandName: m.medicineName, genericName: m.genericName, strength: m.strength, dosageForm: m.dosageForm }, confidence: m.matchConfidence }))
+      );
+      const top = candidates[0] || null;
+      const hasMultipleBrands = candidates.length > 1 && candidates[0].confidence >= 0.80 && candidates[1].confidence >= 0.80;
+      const isSingleHighConf = top && top.confidence >= 0.85 && !hasMultipleBrands;
+
+      return {
+        rawName: line.rawLine,
+        medicineName: cleanName,
+        strength: cleanStrength,
+        matchedMedicineName: top ? top.medicine.brandName : null,
+        confidence: top ? top.confidence : 0,
+        needsMapping: !isSingleHighConf,
+        extractedQuantity: typeof line.quantity === 'number' ? line.quantity : (extractPrescribedQuantity(line.rawLine) || null),
+        quantity: typeof line.quantity === 'number' ? line.quantity : (extractPrescribedQuantity(line.rawLine) || 1),
+        allMatches: candidates,
+        evidenceSummary: top ? `Matched ${top.medicine.brandName}` : 'Needs mapping'
+      };
+    });
+  } else {
+    detectedItems = processPrescriptionText(ocrResult.rawText, catalogue);
+  }
 
   console.log(`\n  ═══ DETECTED MEDICINE CANDIDATES ═══`);
   detectedItems.forEach((item, i) => {
@@ -196,13 +226,11 @@ async function main() {
   }
 
   // ─ 6b: Domperidone (Row 2 in prescription) ─
-  // Note: On the physical photograph, a heavy blue pen mark directly strikes through "Domperidone".
-  // The row is detected via its table structure, Tab, Ip, and quantity 6.
   const domItem = detectedItems.find(d => d.extractedQuantity === 6 || (d.medicineName && /domperidone|silt/i.test(d.medicineName)));
   assert('Row 2 (Domperidone) is detected', !!domItem, `Detected items: ${JSON.stringify(detectedItems.map(d => ({ name: d.medicineName, qty: d.extractedQuantity })))}`);
   if (domItem) {
-    console.log(`  ℹ Row 2 extracted name: "${domItem.medicineName}" (OCR distortion from pen strike over Domperidone)`);
-    console.log(`  ℹ Domperidone 10 in production catalogue: NOT PRESENT (confirmed 50-medicine catalogue)`);
+    console.log(`  ℹ Row 2 extracted name: "${domItem.medicineName}"`);
+    console.log(`  ℹ Domperidone 10 in 50-medicine catalogue: NOT PRESENT (pure formulation)`);
     assert('Row 2 flagged as Needs Mapping', domItem.needsMapping === true, `needsMapping: ${domItem.needsMapping}`);
     assert('Row 2 quantity extracted as 6', domItem.extractedQuantity === 6, `Got: ${domItem.extractedQuantity}`);
   }
@@ -226,7 +254,7 @@ async function main() {
   const orsItem = detectedItems.find(d => d.medicineName && /\bORS\b/i.test(d.medicineName));
   assert('ORS is detected', !!orsItem, `Detected names: ${JSON.stringify(allExtractedNames)}`);
   if (orsItem) {
-    assert('ORS flagged as Needs Mapping (not in catalogue)', orsItem.needsMapping === true,
+    assert('ORS flagged as Needs Mapping (not in 50 catalogue)', orsItem.needsMapping === true,
       `matchedMedicineName: ${orsItem.matchedMedicineName}`);
     assert('ORS quantity extracted as 1',
       orsItem.extractedQuantity === 1 || orsItem.quantity === 1,

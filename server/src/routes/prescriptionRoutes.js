@@ -10,7 +10,21 @@ const {
   getPrescriptionImage,
   getUserPrescriptions,
   getAcademicSamples,
-  screenPrescriptionIntegrity
+  screenPrescriptionIntegrity,
+  getPrescriptionImages,
+  replaceOrEnhancePrescriptionImage,
+  setActivePrescriptionImage,
+  retryPrescriptionOcr,
+  submitPatientCandidateCorrection,
+  reportCandidateUnreadable,
+  submitPatientCorrections,
+  pharmacistVerifyItem,
+  pharmacistRejectItem,
+  pharmacistVerifyPrescription,
+  pharmacistRequestItemClarification,
+  matchPrescriptionAvailability,
+  submitPrescriptionFollowUp,
+  requestPharmacistSelection
 } = require('../controllers/prescriptionController');
 const { authenticateToken } = require('../middlewares/auth');
 
@@ -79,6 +93,24 @@ function multerErrorHandler(err, req, res, next) {
   next();
 }
 
+// Flexible upload middleware supporting 'prescriptionImage' or 'image' field names
+const uploadPrescriptionImage = (req, res, next) => {
+  upload.fields([
+    { name: 'prescriptionImage', maxCount: 1 },
+    { name: 'image', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) return multerErrorHandler(err, req, res, next);
+    if (req.files) {
+      if (req.files.prescriptionImage && req.files.prescriptionImage[0]) {
+        req.file = req.files.prescriptionImage[0];
+      } else if (req.files.image && req.files.image[0]) {
+        req.file = req.files.image[0];
+      }
+    }
+    next();
+  });
+};
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // Public: academic sample prescriptions for demo/defense
@@ -88,16 +120,36 @@ router.get('/samples', getAcademicSamples);
 router.post(
   '/upload',
   authenticateToken,
-  upload.single('prescriptionImage'),
-  multerErrorHandler,
+  uploadPrescriptionImage,
   uploadPrescription
 );
 
 // PUT /:id/verify — patient verification of detected medicines
 router.put('/:id/verify', authenticateToken, verifyDetectedMedicines);
 
+// POST /:id/request-pharmacist-selection — patient requests attending pharmacist to select brand
+router.post('/:id/request-pharmacist-selection', authenticateToken, requestPharmacistSelection);
+
 // GET /:id/image — serve prescription image through authenticated endpoint (NOT public static)
+// Supports ?imageId=<id> to retrieve specific version
 router.get('/:id/image', authenticateToken, getPrescriptionImage);
+
+// GET /:id/images — list all image versions and lineage for this prescription
+router.get('/:id/images', authenticateToken, getPrescriptionImages);
+
+// POST /:id/images — upload an enhanced or replacement image version
+router.post(
+  '/:id/images',
+  authenticateToken,
+  uploadPrescriptionImage,
+  replaceOrEnhancePrescriptionImage
+);
+
+// PUT /:id/active-image — switch active image version without deleting history
+router.put('/:id/active-image', authenticateToken, setActivePrescriptionImage);
+
+// POST /:id/ocr-retry — rerun OCR against selected image version
+router.post('/:id/ocr-retry', authenticateToken, retryPrescriptionOcr);
 
 // GET / — list patient's own prescriptions
 router.get('/', authenticateToken, getUserPrescriptions);
@@ -111,4 +163,30 @@ router.post('/:id/screen-integrity', authenticateToken, screenPrescriptionIntegr
 // GET /:id/screen-integrity — retrieve document integrity screening details
 router.get('/:id/screen-integrity', authenticateToken, screenPrescriptionIntegrity);
 
+// ─── Gate 2B: Patient OCR Review & Candidate Correction ─────────────────────────
+// Patient can correct readable text or report field unreadable (raw OCR candidate stays immutable)
+router.post('/:id/candidates/:candidateId/correct', authenticateToken, submitPatientCandidateCorrection);
+router.post('/:id/candidates/:candidateId/report-unreadable', authenticateToken, reportCandidateUnreadable);
+router.post('/:id/candidates/:candidateId/unreadable', authenticateToken, reportCandidateUnreadable);
+router.put('/:id/patient-corrections', authenticateToken, submitPatientCorrections);
+
+// ─── Gate 2B: Pharmacist Clinical Review, Verification & Rejection ──────────────
+// Licensed Pharmacist (or Admin) performs clinical verification/rejection on evidence
+router.put('/:id/items/:itemId/pharmacist-verify', authenticateToken, pharmacistVerifyItem);
+router.put('/:id/candidates/:candidateId/pharmacist-verify', authenticateToken, pharmacistVerifyItem);
+router.put('/:id/items/:itemId/reject', authenticateToken, pharmacistRejectItem);
+router.put('/:id/candidates/:candidateId/reject', authenticateToken, pharmacistRejectItem);
+router.put('/:id/pharmacist-verify', authenticateToken, pharmacistVerifyPrescription);
+router.post('/:id/items/:itemId/clarification', authenticateToken, pharmacistRequestItemClarification);
+router.post('/:id/candidates/:candidateId/clarification', authenticateToken, pharmacistRequestItemClarification);
+
+// ─── Gate 3: Universal Medicine Availability Matching ─────────────────────────
+// Match pharmacist-verified prescription items against participating pharmacies' live inventory
+router.get('/:id/match-availability', authenticateToken, matchPrescriptionAvailability);
+router.post('/:id/match-availability', authenticateToken, matchPrescriptionAvailability);
+
+// ─── Gate 5: Patient Prescription Follow-Up ───────────────────────────────────
+router.post('/:id/follow-up', authenticateToken, submitPrescriptionFollowUp);
+
 module.exports = router;
+

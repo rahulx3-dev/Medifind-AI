@@ -9,7 +9,7 @@
     "alternativeGenerics": "[\"Dolo 650\",\"Calpol 650\",\"Pacimol 650\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.401Z",
+      "syncedAt": "2026-10-20T14:53:33.955Z",
       "seedDataIndex": 0
     }
   },
@@ -23,7 +23,7 @@
     "alternativeGenerics": "[\"Crocin 650\",\"Calpol 650\",\"Sumo L 650\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 1
     }
   },
@@ -37,7 +37,7 @@
     "alternativeGenerics": "[\"Ibugesic 400\",\"Combiflam\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 2
     }
   },
@@ -51,7 +51,7 @@
     "alternativeGenerics": "[\"Flexon\",\"Ibugesic Plus\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 3
     }
   },
@@ -65,7 +65,7 @@
     "alternativeGenerics": "[\"Dynapar SR\",\"Diclogesic\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 4
     }
   },
@@ -79,7 +79,7 @@
     "alternativeGenerics": "[\"Ultracet\",\"Tramatas\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 5
     }
   },
@@ -93,7 +93,7 @@
     "alternativeGenerics": "[\"Spasmo-Proxyvon\",\"Colimex\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 6
     }
   },
@@ -107,7 +107,7 @@
     "alternativeGenerics": "[\"Hifenac-P\",\"Aceclo Plus\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 7
     }
   },
@@ -121,7 +121,7 @@
     "alternativeGenerics": "[\"Tramazac Plus\",\"Calpol T\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 8
     }
   },
@@ -135,7 +135,7 @@
     "alternativeGenerics": "[\"Ketoflam\",\"Toradol\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 9
     }
   },
@@ -149,7 +149,7 @@
     "alternativeGenerics": "[\"Moxikind-CV 625\",\"Clavam 625\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 10
     }
   },
@@ -163,7 +163,7 @@
     "alternativeGenerics": "[\"Azee 500\",\"Zady 500\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 11
     }
   },
@@ -177,7 +177,7 @@
     "alternativeGenerics": "[\"Ciplox 500\",\"Ciprobid 500\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 12
     }
   },
@@ -191,7 +191,7 @@
     "alternativeGenerics": "[\"Mahacef 200\",\"Zifi 200\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 13
     }
   },
@@ -205,7 +205,7 @@
     "alternativeGenerics": "[\"Oframax 1g\",\"Powercef 1g\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 14
     }
   },
@@ -219,7 +219,7 @@
     "alternativeGenerics": "[\"Metrogyl 400\",\"Aristogyl 400\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 15
     }
   },
@@ -233,7 +233,7 @@
     "alternativeGenerics": "[\"Zenflox 200\",\"Tarivid 200\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 16
     }
   },
@@ -247,7 +247,7 @@
     "alternativeGenerics": "[\"Nor TZ\",\"Gramogyl\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 17
     }
   },
@@ -261,7 +261,7 @@
     "alternativeGenerics": "[\"Taxim-O 200\",\"Mahacef 200\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 18
     }
   },
@@ -275,7 +275,7 @@
     "alternativeGenerics": "[\"Microdox-LBX\",\"Doxt-SL\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 19
     }
   },
@@ -289,7 +289,7 @@
     "alternativeGenerics": "[\"Pantocid 40\",\"Pantodac 40\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 20
     }
   },
@@ -303,7 +303,7 @@
     "alternativeGenerics": "[\"Pan-D\",\"Pantocar-DSR\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 21
     }
   },
@@ -317,7 +317,7 @@
     "alternativeGenerics": "[\"Ocid 20\",\"Omecip 20\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 22
     }
   },
@@ -331,7 +331,7 @@
     "alternativeGenerics": "[\"Aciloc 150\",\"Zinetac 150\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 23
     }
   },
@@ -345,7 +345,7 @@
     "alternativeGenerics": "[\"Zofran 4\",\"Ondem 4\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 24
     }
   },
@@ -359,7 +359,7 @@
     "alternativeGenerics": "[\"Gelusil\",\"Mucaine Gel\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 25
     }
   },
@@ -373,7 +373,7 @@
     "alternativeGenerics": "[\"Looz\",\"Dulcolax\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 26
     }
   },
@@ -387,7 +387,7 @@
     "alternativeGenerics": "[\"Darolac\",\"Econorm\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 27
     }
   },
@@ -401,7 +401,7 @@
     "alternativeGenerics": "[\"Sucramal-O\",\"Pepsigard-O\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 28
     }
   },
@@ -415,7 +415,7 @@
     "alternativeGenerics": "[\"Rablet 20\",\"Happi 20\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 29
     }
   },
@@ -429,7 +429,7 @@
     "alternativeGenerics": "[\"Telmikind 40\",\"Telsartan 40\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 30
     }
   },
@@ -443,7 +443,7 @@
     "alternativeGenerics": "[\"Stamlo 5\",\"Amlovas 5\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 31
     }
   },
@@ -457,7 +457,7 @@
     "alternativeGenerics": "[\"Glucophage 500\",\"Cetapin 500\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 32
     }
   },
@@ -471,7 +471,7 @@
     "alternativeGenerics": "[\"Zita 100\",\"Istavel 100\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 33
     }
   },
@@ -485,7 +485,7 @@
     "alternativeGenerics": "[\"Delisprin 75\",\"Loprin 75\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 34
     }
   },
@@ -499,7 +499,7 @@
     "alternativeGenerics": "[\"Storvas 10\",\"Lipitor 10\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 35
     }
   },
@@ -513,7 +513,7 @@
     "alternativeGenerics": "[\"Inderal 10\",\"Betacap 10\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 36
     }
   },
@@ -527,7 +527,7 @@
     "alternativeGenerics": "[\"Eltroxin 50\",\"Thyrox 50\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 37
     }
   },
@@ -541,7 +541,7 @@
     "alternativeGenerics": "[\"Gibtulio 10\",\"Empaone 10\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 38
     }
   },
@@ -555,7 +555,7 @@
     "alternativeGenerics": "[\"Bisoheart 5\",\"Corbis 5\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 39
     }
   },
@@ -569,7 +569,7 @@
     "alternativeGenerics": "[\"Ventorlin Inhaler\",\"Derihaler\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 40
     }
   },
@@ -583,7 +583,7 @@
     "alternativeGenerics": "[\"Isordil 5\",\"Angispan 5\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 41
     }
   },
@@ -597,7 +597,7 @@
     "alternativeGenerics": "[\"EpiPen\",\"Adrenaclick\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 42
     }
   },
@@ -611,7 +611,7 @@
     "alternativeGenerics": "[\"Phyllocontin\",\"Theo-Asthalin\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 43
     }
   },
@@ -625,7 +625,7 @@
     "alternativeGenerics": "[\"Pulmicort\",\"Budamate\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 44
     }
   },
@@ -639,7 +639,7 @@
     "alternativeGenerics": "[\"Cetzine 10\",\"Alerid 10\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 45
     }
   },
@@ -653,7 +653,7 @@
     "alternativeGenerics": "[\"Fexova 120\",\"Histafree 120\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 46
     }
   },
@@ -667,7 +667,7 @@
     "alternativeGenerics": "[\"Decdan 4\",\"Demisone 4\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 47
     }
   },
@@ -681,7 +681,7 @@
     "alternativeGenerics": "[\"Frusenex 40\",\"Salurin 40\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 48
     }
   },
@@ -695,7 +695,7 @@
     "alternativeGenerics": "[\"Tropex\",\"Tropine\"]",
     "_syncMeta": {
       "sourceFile": "server/prisma/seedData.js",
-      "syncedAt": "2026-10-07T07:04:29.402Z",
+      "syncedAt": "2026-10-20T14:53:33.956Z",
       "seedDataIndex": 49
     }
   }

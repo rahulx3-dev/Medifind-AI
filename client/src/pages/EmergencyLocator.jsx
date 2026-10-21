@@ -6,6 +6,8 @@ import LoadingSkeleton from '../components/LoadingSkeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { buildFallbackSmsUri, buildFallbackTelUri, buildFallbackMessageText } from '../utils/fallbackSms';
+import { broadcastUpdate } from '../utils/realtimeUpdates';
+import RollingNumber from '../components/ui/RollingNumber';
 
 const FALLBACK_DEFAULT_PHARMACIES = [
   {
@@ -19,7 +21,7 @@ const FALLBACK_DEFAULT_PHARMACIES = [
   {
     id: '39b8b88c-a745-4883-a4a5-b9b56ec14e5a',
     name: 'Karuna Medicals',
-    address: 'XI/567(1), Chengannur, Alappuzha, Kerala – 689121, India',
+    address: 'XI/567(1), Chengannur, Kerala – 689121, India',
     phone: '9605718151',
     openingHours: '09:30–19:00',
     isParticipating: true
@@ -29,7 +31,7 @@ const FALLBACK_DEFAULT_PHARMACIES = [
 const AREA_LANDMARKS = [
   { name: 'Chengannur area', lat: 9.3200, lon: 76.6160 },
   { name: 'Haripad area', lat: 9.2350, lon: 76.4700 },
-  { name: 'Alappuzha area', lat: 9.4981, lon: 76.3388 },
+  { name: 'Kallissery area', lat: 9.3250, lon: 76.6200 },
   { name: 'Mavelikkara area', lat: 9.2650, lon: 76.5510 },
   { name: 'Thiruvalla area', lat: 9.3830, lon: 76.5740 }
 ];
@@ -86,7 +88,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
   const [locationStatus, setLocationStatus] = useState('DEFAULT');
 
   const [networkConfig, setNetworkConfig] = useState({
-    regionName: 'Chengannur / Alappuzha, Kerala',
+    regionName: 'Chengannur, Kerala',
     defaultLat: 9.3200,
     defaultLon: 76.6160,
     emergencyHotlines: [
@@ -449,6 +451,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
       const data = await res.json();
       if (data.success && data.order) {
         setEmergencySuccessOrder(data.order);
+        broadcastUpdate('ORDER_CREATED', { order: data.order });
       } else {
         setEmergencyError(data.error || 'Failed to submit emergency hold request. Please contact pharmacy directly.');
       }
@@ -600,10 +603,10 @@ export default function EmergencyLocator({ onOrderCreated }) {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2e685d' }}></span>
                 <span>Emergency Access Mode • Real-Time Inventory Scan</span>
               </div>
-              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#032f28', margin: 0, letterSpacing: '-0.02em' }}>
+              <h1 style={{ fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 700, color: '#032f28', margin: 0, letterSpacing: '-0.02em' }}>
                 Emergency Medicine Access
               </h1>
-              <p style={{ fontSize: 16, color: '#414846', margin: '0.4rem 0 0 0', maxWidth: 650 }}>
+              <p style={{ fontSize: 'clamp(13px, 2.5vw, 16px)', color: '#414846', margin: '0.4rem 0 0 0', maxWidth: 650 }}>
                 Find verified nearby pharmacies in {networkConfig.regionName} that stock urgent cardiac vasodilators, bronchodilators, and emergency life-saving agents.
               </p>
             </div>
@@ -618,7 +621,8 @@ export default function EmergencyLocator({ onOrderCreated }) {
               display: 'flex',
               flexDirection: 'column',
               gap: '0.5rem',
-              minWidth: 300
+              width: '100%',
+              maxWidth: 420
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#717976', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -806,9 +810,11 @@ export default function EmergencyLocator({ onOrderCreated }) {
                 borderRadius: 99,
                 padding: '2px 8px',
                 fontSize: 11,
-                fontWeight: 800
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center'
               }}>
-                {myRestockRequests.length}
+                <RollingNumber value={myRestockRequests.length} />
               </span>
             )}
           </button>
@@ -837,9 +843,9 @@ export default function EmergencyLocator({ onOrderCreated }) {
 
         {/* Tab 1: Emergency Pharmacy Network */}
         {activeTab === 'NETWORK' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* LEFT COLUMN: Results & Filters (7 cols) */}
-          <div style={{ gridColumn: 'span 7' }} className="emergency-list-column">
+          <div className="col-span-1 lg:col-span-7 emergency-list-column">
             {/* Filter Bar */}
             <div style={{
               background: '#ffffff',
@@ -862,9 +868,12 @@ export default function EmergencyLocator({ onOrderCreated }) {
                   borderRadius: 99,
                   padding: '0.15rem 0.6rem',
                   fontSize: 11,
-                  fontWeight: 700
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.2rem'
                 }}>
-                  {filteredPharmacies.length} Found
+                  <RollingNumber value={filteredPharmacies.length} /> Found
                 </span>
               </div>
 
@@ -882,7 +891,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                     cursor: 'pointer'
                   }}
                 >
-                  All ({pharmacies.length})
+                  All (<RollingNumber value={pharmacies.length} />)
                 </button>
                 <button
                   onClick={() => setFilterMode('24_7')}
@@ -1210,7 +1219,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
           </div>
 
           {/* RIGHT COLUMN: Interactive Leaflet Map (5 cols) */}
-          <aside style={{ gridColumn: 'span 5', position: 'sticky', top: '5.5rem' }} className="emergency-map-column">
+          <aside className="col-span-1 lg:col-span-5 lg:sticky lg:top-24 emergency-map-column">
             <div style={{
               background: '#ffffff',
               borderRadius: 20,
@@ -1228,7 +1237,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
               </div>
 
               {/* Map Canvas */}
-              <div style={{ height: 580, borderRadius: 14, overflow: 'hidden', border: '1px solid #d5e6e0' }}>
+              <div className="h-[320px] sm:h-[420px] lg:h-[580px] rounded-xl overflow-hidden border border-[#d5e6e0]">
                 <PharmacyMap
                   pharmacies={pharmacies}
                   center={centerCoords}
@@ -1338,8 +1347,8 @@ export default function EmergencyLocator({ onOrderCreated }) {
             )}
 
             {/* Layout: Inventory Browser (8 cols) + Active Restock Alerts (4 cols) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
-              <div style={{ gridColumn: 'span 8' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div className="col-span-1 lg:col-span-8">
                 <div style={{
                   background: '#ffffff',
                   borderRadius: 20,
@@ -1594,7 +1603,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
               </div>
 
               {/* Sidebar: My Restock Alerts (4 cols) */}
-              <div style={{ gridColumn: 'span 4' }}>
+              <div className="col-span-1 lg:col-span-4">
                 <div style={{
                   background: '#ffffff',
                   borderRadius: 20,
@@ -1865,7 +1874,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                     type="text"
                     value={fallbackMedName}
                     onChange={(e) => setFallbackMedName(e.target.value)}
-                    placeholder="e.g. Dolo 650, Augmentin 625 Duo"
+                    placeholder="Medicine"
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -1884,7 +1893,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                     type="text"
                     value={fallbackQty}
                     onChange={(e) => setFallbackQty(e.target.value)}
-                    placeholder="e.g. 1 strip"
+                    placeholder="Quantity"
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -1905,7 +1914,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                   type="text"
                   value={fallbackNote}
                   onChange={(e) => setFallbackNote(e.target.value)}
-                  placeholder="e.g. Inquiring on behalf of senior citizen, immediate pickup"
+                  placeholder="Notes"
                   style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -2050,7 +2059,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                 </div>
 
                 <p style={{ fontSize: 12, color: '#717976', margin: '0 0 1rem 0' }}>
-                  Authoritative participating pharmacies in Chengannur / Alappuzha for direct daytime telephone inquiries:
+                  Authoritative participating pharmacies in Chengannur for direct daytime telephone inquiries:
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -2073,7 +2082,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                           {p.name}
                         </div>
                         <div style={{ fontSize: 12, color: '#717976' }}>
-                          {p.address || 'Chengannur / Alappuzha'}
+                          {p.address || 'Chengannur, Kerala'}
                         </div>
                         <div style={{ fontSize: 11, color: '#2e685d', fontWeight: 600, marginTop: '0.2rem' }}>
                           Hours: {p.openingHours || '09:30 – 19:00'}
@@ -2475,7 +2484,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                         type="text"
                         value={emergencyDeliveryAddress}
                         onChange={e => setEmergencyDeliveryAddress(e.target.value)}
-                        placeholder="House / Flat No., Landmark, Road..."
+                        placeholder="Address"
                         style={{
                           width: '100%',
                           boxSizing: 'border-box',
