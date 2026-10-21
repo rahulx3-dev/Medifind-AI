@@ -43,10 +43,24 @@ export function AuthProvider({ children }) {
     loadUser();
   }, [token]);
 
+  // Helper to execute fetch with automatic cold-start retry
+  async function fetchWithRetry(url, options, retryCount = 1, delayMs = 2500) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (retryCount > 0) {
+        console.warn(`[AuthContext] Initial fetch to ${url} failed. Retrying in ${delayMs}ms (server waking up)...`);
+        await new Promise(r => setTimeout(r, delayMs));
+        return await fetch(url, options);
+      }
+      throw err;
+    }
+  }
+
   // Real user login (supports email, phone, pharmacy ID, assistant ID, admin ID)
   async function login(identifier, password, roleHint = null) {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetchWithRetry('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -67,14 +81,17 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Login network error:', err);
-      return { success: false, error: 'Unable to connect to authentication server. Please try again.' };
+      return {
+        success: false,
+        error: 'Unable to connect to authentication server. The cloud server may still be spinning up from sleep — please wait a moment and try again.'
+      };
     }
   }
 
   // Real user registration (Patient or Assistant account creation)
   async function register({ name, email, phone, password, confirmPassword, role = 'PATIENT' }) {
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetchWithRetry('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, password, confirmPassword, role })
@@ -90,14 +107,17 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Registration network error:', err);
-      return { success: false, error: 'Unable to connect to registration server. Please try again.' };
+      return {
+        success: false,
+        error: 'Unable to connect to registration server. Please wait a moment and try again.'
+      };
     }
   }
 
   // OAuth Sign-In / Sign-Up
   async function oauthLogin({ provider = 'google', email, name, avatarUrl }) {
     try {
-      const res = await fetch('/api/auth/oauth', {
+      const res = await fetchWithRetry('/api/auth/oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, email, name, avatarUrl })
@@ -113,14 +133,17 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('OAuth network error:', err);
-      return { success: false, error: `Unable to connect to ${provider} authentication service. Please try again.` };
+      return {
+        success: false,
+        error: `Unable to connect to ${provider} authentication service. Please wait a moment and try again.`
+      };
     }
   }
 
   // Phone Number + OTP Direct Sign In
   async function loginWithPhone(phone, code) {
     try {
-      const res = await fetch('/api/auth/phone-login', {
+      const res = await fetchWithRetry('/api/auth/phone-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code })
@@ -136,7 +159,10 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Phone login error:', err);
-      return { success: false, error: 'Unable to connect to authentication server.' };
+      return {
+        success: false,
+        error: 'Unable to connect to authentication server. Please wait a moment and try again.'
+      };
     }
   }
 
