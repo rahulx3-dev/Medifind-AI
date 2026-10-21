@@ -73,6 +73,18 @@ function resolveCoordinates(lat, lon, textLocation) {
   return { lat: 9.3170, lon: 76.6145, source: 'DEFAULT_HUB', town: 'Chengannur' };
 }
 
+/**
+ * Estimates transit travel time in minutes based on distance in kilometers
+ * Default average road speed: 30 km/h (standard for Kerala two-wheeler urban relay)
+ */
+function estimateTravelTimeMinutes(distanceKm, speedKmh = 30) {
+  if (typeof distanceKm !== 'number' || isNaN(distanceKm) || distanceKm <= 0) return 10;
+  const hours = distanceKm / speedKmh;
+  const minutes = Math.round(hours * 60);
+  return Math.max(5, minutes);
+}
+
+
 module.exports = {
   calculateDistance,
   estimateTravelTimeMinutes,
