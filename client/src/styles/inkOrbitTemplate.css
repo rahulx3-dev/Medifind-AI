@@ -449,7 +449,6 @@
     margin-top: 18px !important;
   }
 
-  .nf-hero-btn,
   .nf-hero-btn-frame {
     width: 100% !important;
     display: block !important;
@@ -457,9 +456,25 @@
 
   .nf-hero-btn {
     width: 100% !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
     justify-content: center !important;
+    gap: 8px !important;
     padding: 11px 16px !important;
     font-size: 13px !important;
+    white-space: nowrap !important;
+  }
+
+  .nf-hero-btn svg {
+    display: inline-block !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+  }
+
+  .nf-hero-btn span {
+    display: inline-block !important;
+    white-space: nowrap !important;
   }
 
   .nf-proof {

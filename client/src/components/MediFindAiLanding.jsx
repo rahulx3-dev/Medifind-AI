@@ -1032,25 +1032,25 @@ export default function MediFindAiLanding({ onNavigate, onSignIn, user }) {
               <div className="nf-hero-ctas">
                 <button
                   type="button"
-                  className="nf-btn nf-btn-dark nf-hero-btn"
+                  className="nf-btn nf-btn-dark nf-hero-btn flex items-center justify-center gap-2"
                   onClick={() => onNavigate('medicines')}
                   style={{ background: '#059669', color: '#ffffff' }}
                 >
-                  <span>Explore Medicine Catalog</span>
-                  <ArrowIcon size={14} />
+                  <span className="whitespace-nowrap">Explore Medicine Catalog</span>
+                  <ArrowIcon size={14} className="shrink-0" />
                 </button>
 
                 <span className="nf-frame nf-frame-hover nf-hero-btn-frame">
                   <CornerBrackets />
                   <button
                     type="button"
-                    className="nf-btn nf-btn-ghost nf-hero-btn"
+                    className="nf-btn nf-btn-ghost nf-hero-btn flex items-center justify-center gap-2"
                     onClick={() => setDemoOpen(true)}
                   >
-                    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className="shrink-0 inline-block">
                       <path d="M3 1.8v8.4L10 6z" fill="currentColor" />
                     </svg>
-                    <span>Interactive Relay Demo</span>
+                    <span className="whitespace-nowrap">Interactive Relay Demo</span>
                   </button>
                 </span>
               </div>
