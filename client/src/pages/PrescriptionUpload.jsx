@@ -1299,14 +1299,15 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
         screening: rxScreening
       });
 
-      // Clear hold duration (1.4s) at 100% so user can inspect verified extractions before moving to Step 3
-      setTimeout(() => {
-        if (data.warning) {
-          showToast(data.warning, 'info');
-        } else {
-          showToast(`Prescription analyzed! ${items.length} candidate medication(s) identified.`, 'success');
-        }
-      }, 1400);
+      // Clear hold duration (1.2s) at 100% so user can inspect verified extractions before moving to Step 3
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      setStep(3);
+
+      if (data.warning) {
+        showToast(data.warning, 'info');
+      } else {
+        showToast(`Prescription analyzed! ${items.length} candidate medication(s) identified.`, 'success');
+      }
     } catch (err) {
       clearTimeout(abortTimeout);
       clearInterval(progressTimer);
@@ -2120,25 +2121,26 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                 {/* Prescription Frame with Scanner Simulation & Laser Beam */}
                 <div className="relative w-full aspect-[1/1.25] bg-surface-container-low rounded-2xl overflow-hidden shadow-inner p-4 mt-4 flex items-center justify-center select-none">
-                  {currentPreviewSrc ? (
-                    <img
-                      src={currentPreviewSrc}
-                      alt="Prescription under scan"
-                      className="w-full h-full object-contain filter contrast-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-white rounded-xl border-2 border-dashed border-outline-variant/40 p-6 flex flex-col items-center justify-center text-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-2xl">document_scanner</span>
+                  <AuthenticatedPrescriptionImage
+                    prescriptionId={prescription?.id}
+                    imageId={selectedImageVersion?.id}
+                    fallbackSrc={filePreviewUrl || persistentImageSrc}
+                    alt="Prescription under scan"
+                    className="w-full h-full object-contain filter contrast-105"
+                    customEmptyState={
+                      <div className="w-full h-full bg-white rounded-xl border-2 border-dashed border-outline-variant/40 p-6 flex flex-col items-center justify-center text-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary">
+                          <span className="material-symbols-outlined text-2xl">document_scanner</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-bold text-on-surface">No Prescription Selected</span>
+                          <span className="text-[11px] text-on-surface-variant max-w-[200px]">
+                            Upload a prescription image or capture with camera to scan
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-on-surface">No Prescription Selected</span>
-                        <span className="text-[11px] text-on-surface-variant max-w-[200px]">
-                          Upload a prescription image or capture with camera to scan
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                    }
+                  />
 
                   {/* Animated Laser Scanning Bar */}
                   <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#b3eee0] to-transparent pointer-events-none shadow-[0_0_16px_4px_rgba(179,238,224,0.9)] animate-[scan_2.8s_ease-in-out_infinite]" />
@@ -2155,7 +2157,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                   {(() => {
                     const target = getScannerTargetBox(ocrProgress);
                     const confVal = typeof ocrConfidence === 'number' && ocrConfidence > 0
-                      ? (ocrConfidence * 100).toFixed(1)
+                      ? (ocrConfidence > 1 ? ocrConfidence : ocrConfidence * 100).toFixed(1)
                       : Math.min(99.4, (88.5 + (ocrProgress * 0.11))).toFixed(1);
 
                     return (
@@ -2342,8 +2344,18 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                   <span>Extracted formulations will require your clinical confirmation prior to dispensary matching.</span>
                 </div>
 
-                {/* Manual verification escape button if scanning takes time */}
-                <div className="pt-1 flex flex-col items-center text-center">
+                {/* Action buttons: Proceed to Verification or Skip to manual entry */}
+                <div className="pt-2 flex flex-col items-center gap-2.5 text-center">
+                  {(ocrProgress >= 99 || detectedItems.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setStep(3)}
+                      className="w-full py-3 px-6 rounded-2xl bg-secondary text-white font-extrabold text-sm shadow-md hover:bg-secondary/90 transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.01]"
+                    >
+                      <span className="material-symbols-outlined text-base">fact_check</span>
+                      <span>View &amp; Verify Extracted Medicines ({detectedItems.length || 'Ready'}) &rarr;</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

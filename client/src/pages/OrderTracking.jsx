@@ -9,6 +9,8 @@ import { broadcastUpdate, useRealtimeRefresh, subscribeToUpdates } from '../util
 import PatientClarificationCard from '../components/PatientClarificationCard';
 import AnimatedStatCard from '../components/ui/AnimatedStatCard';
 import RollingNumber from '../components/ui/RollingNumber';
+import { useAuth } from '../context/AuthContext';
+import { usePortalGreeting } from '../utils/greetingUtils';
 const FulfillmentMapBox = React.lazy(() => import('../components/FulfillmentMapBox'));
 
 const STATUS_CONFIG = {
@@ -137,6 +139,8 @@ function PaymentBadge({ payment }) {
 }
 
 export default function OrderTracking({ initialOrderId = null, initialCheckoutOrderId = null, onClearInitialOrderId = () => {}, onNavigate }) {
+  const { user } = useAuth();
+  const { firstName: patientFirstName, timeGreet: patientTimeGreet, icon: patientGreetIcon } = usePortalGreeting(user, 'PATIENT');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -455,36 +459,25 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
 
     return (
       <div style={{ background: '#ecfdf7', minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', sans-serif", paddingBottom: '4rem' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '1.5rem' }}>
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
 
           {/* Top Metadata Breadcrumb & Context Header */}
-          <div style={{ paddingTop: '1.5rem', paddingBottom: '1.5rem', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="pt-1 pb-3 sm:py-4 flex items-start sm:items-end justify-between flex-wrap gap-2.5 sm:gap-4">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <button
                 onClick={handleBackToList}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  color: '#2e685d',
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
+                className="inline-flex items-center gap-1.5 text-secondary hover:text-primary font-bold text-xs sm:text-sm cursor-pointer p-0 bg-transparent border-none transition-colors"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+                <span className="material-symbols-outlined text-base sm:text-lg">arrow_back</span>
                 <span>Back to My Orders</span>
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: '#032f28', margin: 0, letterSpacing: '-0.02em' }}>
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <h1 className="text-xl sm:text-3xl font-extrabold text-[#032f28] tracking-tight m-0">
                   Order Tracking &amp; Fulfillment Journey
                 </h1>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#b0ecdd', color: '#336c61', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2e685d' }}></span>
+                <div className="inline-flex items-center gap-1.5 bg-[#b0ecdd] text-[#336c61] px-2.5 py-1 rounded-full text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-[#2e685d]"></span>
                   <span>#{detailOrder.orderNumber || detailOrder.id?.slice(0, 10).toUpperCase()}</span>
                   <span>•</span>
                   <span>{detailOrder.pharmacy?.name || 'Participating Dispensary'}</span>
@@ -1680,41 +1673,65 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
   // ─────────────────────────────────────────────────────────────
   return (
     <div style={{ background: '#ecfdf7', minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', sans-serif", paddingBottom: '4rem' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '1.5rem' }}>
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 flex flex-col gap-3 sm:gap-5">
+
+        {/* Smart Patient Greeting Header matching Patient Homescreen */}
+        <section className="flex items-baseline justify-between flex-wrap gap-2 pt-1 pb-1">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-primary tracking-tight flex items-center gap-2 flex-wrap">
+              <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl select-none">
+                {patientGreetIcon}
+              </span>
+              <span>
+                {patientTimeGreet}, <span className="text-secondary">{patientFirstName || 'there'}</span>
+              </span>
+            </h1>
+            <p className="text-xs text-on-surface-variant mt-0.5">
+              Verified Clinical Rx Network &middot; Chengannur, Kerala
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-outline-variant/30 bg-surface-container-low text-xs font-medium text-on-surface-variant">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_6px_2px_rgba(52,211,153,0.5)]"></span>
+            </span>
+            <span>Network Live</span>
+          </div>
+        </section>
 
         {/* Header & Clinical Overview Row */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <section className="flex flex-col gap-2 sm:gap-3">
+          <div className="flex items-end justify-between flex-wrap gap-2 sm:gap-4">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
-                <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#b0ecdd', color: '#2e685d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>verified</span>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-5 h-5 rounded-full bg-[#b0ecdd] text-[#2e685d] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-xs">verified</span>
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2e685d' }}>
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-[#2e685d]">
                   VERIFIED PATIENT PORTAL
                 </span>
               </div>
-              <h1 style={{ fontSize: 36, fontWeight: 800, color: '#032f28', margin: 0, letterSpacing: '-0.02em' }}>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#032f28] tracking-tight m-0">
                 My Orders
-              </h1>
-              <p style={{ fontSize: 14, color: '#414846', margin: '0.35rem 0 0 0', maxWidth: 640 }}>
+              </h2>
+              <p className="text-xs sm:text-sm text-[#414846] mt-0.5 max-w-xl">
                 Track your verified medicine requests, fulfillment timelines, and dispensations across our clinical network.
               </p>
             </div>
 
             {/* Clinical Network Badge */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#ffffff', border: '1px solid #c0c8c5', padding: '0.45rem 1rem', borderRadius: 99, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2e685d' }}></div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>Pharmacy Network Live</span>
-              <span style={{ color: '#c0c8c5' }}>•</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#2e685d', background: '#e0f2eb', padding: '0.1rem 0.45rem', borderRadius: 99 }}>
+            <div className="inline-flex items-center gap-2 bg-white border border-[#c0c8c5] px-3 py-1.5 rounded-full shadow-2xs">
+              <div className="w-2 h-2 rounded-full bg-[#2e685d]"></div>
+              <span className="text-xs font-bold text-[#032f28]">Pharmacy Network Live</span>
+              <span className="text-[#c0c8c5]">•</span>
+              <span className="text-[11px] font-bold text-[#2e685d] bg-[#e0f2eb] px-2 py-0.5 rounded-full">
                 Encrypted
               </span>
             </div>
           </div>
 
-          {/* 4 Metric Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          {/* 4 Metric Summary Cards: 2x2 grid on mobile, 4-col on desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-1">
             {/* Metric 1: Active Orders */}
             <AnimatedStatCard
               icon="timelapse"
@@ -1732,7 +1749,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
             <AnimatedStatCard
               icon="hourglass_empty"
               value={pendingCount}
-              label="Awaiting Confirmation"
+              label="Awaiting Confirm"
               iconBg="#e0f2eb"
               iconColor="#717976"
               accentColor="#717976"
@@ -1745,7 +1762,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
             <AnimatedStatCard
               icon="storefront"
               value={readyCount}
-              label="Ready for Pickup"
+              label="Ready Pickup"
               iconBg="#c1ebe1"
               iconColor="#032f28"
               accentColor="#c1ebe1"
@@ -1917,40 +1934,20 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
               return (
                 <article
                   key={ord.id}
-                  style={{
-                    background: isCancelled ? '#fafafa' : '#ffffff',
-                    borderRadius: 20,
-                    border: isCancelled ? '1px dashed #d1d5db' : '1px solid #e0f2eb',
-                    boxShadow: isCancelled ? 'none' : '0 2px 10px rgba(3,47,40,0.04)',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    opacity: isCancelled ? 0.65 : 1,
-                    filter: isCancelled ? 'grayscale(25%)' : 'none',
-                    transition: 'opacity 0.2s ease, filter 0.2s ease'
-                  }}
+                  className={`rounded-2xl sm:rounded-3xl border overflow-hidden relative transition-all duration-200 ${
+                    isCancelled
+                      ? 'bg-[#fafafa] border-dashed border-[#d1d5db] opacity-70 grayscale-[20%]'
+                      : 'bg-white border-[#e0f2eb] shadow-2xs hover:shadow-md'
+                  }`}
                 >
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    width: 6,
-                    background: isCancelled ? '#9ca3af' : isReady ? '#2e685d' : isConfirmed ? '#336c61' : '#c0c8c5'
-                  }} />
+                  <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${
+                    isCancelled ? 'bg-[#9ca3af]' : isReady ? 'bg-[#2e685d]' : isConfirmed ? 'bg-[#336c61]' : '#c0c8c5'
+                  }`} />
 
                   {/* Top Metadata Header Strip */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem',
-                    padding: '1rem 1.5rem 1rem 1.75rem',
-                    background: '#f8faf9',
-                    borderBottom: '1px solid #e6f8f1'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: '#032f28' }}>
+                  <div className="flex items-center justify-between flex-wrap gap-2 px-3 py-2 sm:px-5 sm:py-3 bg-[#f8faf9] border-b border-[#e6f8f1]">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="text-xs sm:text-sm font-extrabold text-[#032f28]">
                         Order #{ord.orderNumber || ord.id.slice(0, 10).toUpperCase()}
                       </span>
                       <StatusBadge status={ord.status} />
@@ -2091,9 +2088,9 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                   </div>
 
                   {/* Body Content (12-Col Responsive Grid) */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-6 p-3 sm:p-6">
                     {/* Pharmacy & Items (8 cols on desktop) */}
-                    <div className="col-span-1 md:col-span-8 flex flex-col gap-3">
+                    <div className="col-span-1 md:col-span-8 flex flex-col gap-2.5 sm:gap-3">
                       {ord.isParentOrder && ord.childOrders?.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>

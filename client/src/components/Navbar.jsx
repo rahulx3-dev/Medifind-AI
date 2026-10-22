@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { usePortalGreeting } from '../utils/greetingUtils';
@@ -33,24 +33,37 @@ export default function Navbar({
   return (
     <>
       <header className="sticky top-0 z-50 bg-[#ecfdf7]/90 dark:bg-[#212529]/95 backdrop-blur-xl border-b border-[#e0e8e5] dark:border-[#3d4349] shadow-[0_1px_8px_rgba(3,47,40,0.04)] dark:shadow-[0_1px_8px_rgba(0,0,0,0.3)] transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 lg:h-20 flex items-center justify-between gap-3 sm:gap-4">
-          {/* Canonical Brand Logo */}
-          <button
-            onClick={() => {
-              if (user?.role === 'PHARMACIST') handleTabClick('pharmacist');
-              else if (user?.role === 'ASSISTANT') handleTabClick('assistant');
-              else if (user?.role === 'ADMIN') handleTabClick('admin');
-              else handleTabClick('medicines');
-            }}
-            className="flex items-center gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
-          >
-            <div className="block sm:hidden">
-              <MediFindLogo size="sm" showSubtitle={false} />
-            </div>
-            <div className="hidden sm:block">
-              <MediFindLogo size="md" showSubtitle={true} />
-            </div>
-          </button>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 lg:h-20 flex items-center justify-between gap-2 sm:gap-4">
+          {/* Left Group: Mobile Hamburger (left-aligned) & Canonical Brand Logo */}
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {/* Mobile Hamburger Toggle Button (On the LEFT) */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              className="lg:hidden w-9 h-9 sm:w-10 sm:h-10 -ml-1 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            >
+              <AnimatedHamburgerIcon isOpen={mobileMenuOpen} size={32} color="#032f28" circleColor="#2e685d" />
+            </button>
+
+            {/* Canonical Brand Logo */}
+            <button
+              onClick={() => {
+                if (user?.role === 'PHARMACIST') handleTabClick('pharmacist');
+                else if (user?.role === 'ASSISTANT') handleTabClick('assistant');
+                else if (user?.role === 'ADMIN') handleTabClick('admin');
+                else handleTabClick('medicines');
+              }}
+              className="flex items-center gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+            >
+              <div className="block sm:hidden">
+                <MediFindLogo size="sm" showSubtitle={false} />
+              </div>
+              <div className="hidden sm:block">
+                <MediFindLogo size="md" showSubtitle={true} />
+              </div>
+            </button>
+          </div>
 
           {/* Desktop Navigation Links (Pill Style with Spring Motion) */}
           <nav className="hidden lg:flex items-center gap-1 bg-surface-container-lowest/90 p-1.5 rounded-full border border-outline-variant/30 shadow-xs relative">
@@ -324,225 +337,274 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Authenticated User Pill Badge */}
+            {/* Authenticated User Pill Badge (Desktop / sm+) & Mobile Avatar (<sm) */}
             {user && (
-              <div className="hidden sm:flex items-center gap-2.5 bg-surface-container-lowest px-3 py-1.5 rounded-full border border-outline-variant/30 shadow-sm">
+              <>
                 <button
                   type="button"
                   onClick={() => handleTabClick('profile')}
-                  className="flex items-center gap-2.5 text-left bg-transparent border-none cursor-pointer p-0 hover:opacity-80 transition-opacity"
-                  title="View & Edit Profile"
+                  className="sm:hidden w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold uppercase shadow-xs shrink-0 cursor-pointer"
+                  title="View Profile"
                 >
-                  <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold uppercase">
-                    {userDisplayName ? userDisplayName.charAt(0) : 'U'}
-                  </div>
-                  <div className="flex flex-col text-left leading-none">
-                    <span className="text-xs font-bold text-primary truncate max-w-[120px]">
-                      {userDisplayName}
-                    </span>
-                    <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider mt-0.5">
-                      {user.role}
-                    </span>
-                  </div>
+                  {userDisplayName ? userDisplayName.charAt(0) : 'U'}
                 </button>
-                <button
-                  id="auth-logout-btn"
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="px-2.5 py-1.5 rounded-xl hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center gap-1.5 transition-colors ml-1 cursor-pointer border border-transparent hover:border-error/20 bg-transparent text-xs font-semibold"
-                  title="Sign out of MediFind"
-                >
-                  <span className="material-symbols-outlined text-base">logout</span>
-                  <span className="hidden sm:inline">Sign Out</span>
-                </button>
-              </div>
+                <div className="hidden sm:flex items-center gap-2.5 bg-surface-container-lowest px-3 py-1.5 rounded-full border border-outline-variant/30 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => handleTabClick('profile')}
+                    className="flex items-center gap-2.5 text-left bg-transparent border-none cursor-pointer p-0 hover:opacity-80 transition-opacity"
+                    title="View & Edit Profile"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold uppercase">
+                      {userDisplayName ? userDisplayName.charAt(0) : 'U'}
+                    </div>
+                    <div className="flex flex-col text-left leading-none">
+                      <span className="text-xs font-bold text-primary truncate max-w-[120px]">
+                        {userDisplayName}
+                      </span>
+                      <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider mt-0.5">
+                        {user.role}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    id="auth-logout-btn"
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className="px-2.5 py-1.5 rounded-xl hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center gap-1.5 transition-colors ml-1 cursor-pointer border border-transparent hover:border-error/20 bg-transparent text-xs font-semibold"
+                    title="Sign out of MediFind"
+                  >
+                    <span className="material-symbols-outlined text-base">logout</span>
+                    <span className="hidden sm:inline">Sign Out</span>
+                  </button>
+                </div>
+              </>
             )}
-
-            {/* Mobile Hamburger Toggle Button with Barba-style morphing */}
-            <button
-              onClick={() => setMobileMenuOpen(prev => !prev)}
-              className="lg:hidden w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
-              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-            >
-              <AnimatedHamburgerIcon isOpen={mobileMenuOpen} size={36} color="#032f28" circleColor="#2e685d" />
-            </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer / Collapsible Bar */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-outline-variant/30 bg-[#ecfdf7] px-4 py-4 flex flex-col gap-2 shadow-lg animate-in slide-in-from-top-2 duration-150">
-            {user?.role === 'PATIENT' && (
-              <>
-                <button
-                  onClick={() => handleTabClick('medicines')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center justify-between text-left transition-colors ${
-                    activeTab === 'medicines'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">search</span>
-                    <span>Search Medicines</span>
-                  </div>
-                  {medicineRequestCount > 0 && (
-                    <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-xs font-bold">
-                      {medicineRequestCount} in request
-                    </span>
-                  )}
-                </button>
+        {/* Mobile Navigation Sidebar Drawer (Slides in from LEFT only on mobile) */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <div className="fixed inset-0 z-[100] lg:hidden">
+              {/* Backdrop overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setMobileMenuOpen(false)}
+                className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+              />
 
-                <button
-                  onClick={() => handleTabClick('prescription')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
-                    activeTab === 'prescription'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">document_scanner</span>
-                  <span>Prescription Upload &amp; OCR</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('pharmacies')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
-                    activeTab === 'pharmacies'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">storefront</span>
-                  <span>Pharmacy Discovery &amp; Stock</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('emergency')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
-                    activeTab === 'emergency'
-                      ? 'bg-tertiary-container text-white shadow-sm'
-                      : 'bg-[#ffdad6]/60 text-tertiary hover:bg-[#ffdad6]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">e911_emergency</span>
-                  <span>24/7 Emergency Locator</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('orders')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
-                    activeTab === 'orders'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">local_shipping</span>
-                  <span>My Orders &amp; Reservations</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('healthcare')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
-                    activeTab === 'healthcare'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">medical_services</span>
-                  <span>Healthcare Professional Marketplace</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('profile')}
-                  className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
-                    activeTab === 'profile'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">account_circle</span>
-                  <span>My Profile &amp; Records</span>
-                </button>
-              </>
-            )}
-
-            {user?.role === 'PHARMACIST' && (
-              <button
-                onClick={() => handleTabClick('pharmacist')}
-                className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left ${
-                  activeTab === 'pharmacist' ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
-                }`}
+              {/* Sidebar drawer panel */}
+              <motion.aside
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+                className="fixed inset-y-0 left-0 w-[290px] max-w-[85vw] bg-[#ecfdf7] dark:bg-[#1a1e22] border-r border-[#cbe4db] dark:border-[#383f45] shadow-2xl flex flex-col z-10 overflow-y-auto"
               >
-                <span className="material-symbols-outlined text-lg">inventory_2</span>
-                <span>Pharmacist Inventory &amp; Dispatch</span>
-              </button>
-            )}
-
-            {user?.role === 'ASSISTANT' && (
-              <button
-                onClick={() => handleTabClick('assistant')}
-                className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left ${
-                  activeTab === 'assistant' ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
-                }`}
-              >
-                <span className="material-symbols-outlined text-lg">directions_bike</span>
-                <span>Medicine Access Assistant Portal</span>
-              </button>
-            )}
-
-            {user?.role === 'ADMIN' && (
-              <button
-                onClick={() => handleTabClick('admin')}
-                className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left ${
-                  activeTab === 'admin' ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
-                }`}
-              >
-                <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
-                <span>Admin Operations Center</span>
-              </button>
-            )}
-
-            {/* Mobile Theme Toggle Pill Button */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="w-full px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-between text-left transition-colors bg-surface-container-lowest text-on-surface hover:bg-surface-container border border-outline-variant/20 mt-1 cursor-pointer"
-              aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">
-                  {isDark ? 'light_mode' : 'dark_mode'}
-                </span>
-                <span>Interface Theme</span>
-              </div>
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
-                {isDark ? 'Dark Mode' : 'Light Mode'}
-              </span>
-            </button>
-
-            {/* User Profile in Mobile Drawer */}
-            {user && (
-              <div className="pt-2 border-t border-outline-variant/30 flex items-center justify-between mt-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs uppercase">
-                    {userDisplayName ? userDisplayName.charAt(0) : 'U'}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-primary">{userDisplayName}</span>
-                    <span className="text-[10px] text-secondary font-semibold uppercase">{user.role}</span>
-                  </div>
+                {/* Sidebar Header with Brand Logo & Close X */}
+                <div className="p-4 border-b border-outline-variant/30 flex items-center justify-between">
+                  <MediFindLogo size="sm" showSubtitle={true} />
+                  <button
+                    type="button"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-primary dark:text-surface hover:bg-surface-container/60 cursor-pointer transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <span className="material-symbols-outlined text-xl">close</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="px-3 py-1.5 rounded-full bg-error-container text-error text-xs font-bold flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-sm">logout</span>
-                  <span>Logout</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+
+                {/* User Greeting Card at top of Sidebar */}
+                {user && (
+                  <div className="mx-3 mt-3 p-3 rounded-2xl bg-surface-container-lowest dark:bg-[#252b30] border border-outline-variant/30 flex items-center gap-3 shadow-2xs">
+                    <div className="w-10 h-10 rounded-full bg-secondary text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0 uppercase">
+                      {userDisplayName ? userDisplayName.charAt(0) : 'U'}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs font-extrabold text-primary dark:text-surface truncate">
+                        {userDisplayName}
+                      </span>
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                        {user.role} Portal
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Navigation Links inside Sidebar */}
+                <div className="flex-1 p-3 flex flex-col gap-1.5 overflow-y-auto">
+                  {user?.role === 'PATIENT' && (
+                    <>
+                      <button
+                        onClick={() => handleTabClick('medicines')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center justify-between text-left transition-colors ${
+                          activeTab === 'medicines'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-lg">search</span>
+                          <span>Search Medicines</span>
+                        </div>
+                        {medicineRequestCount > 0 && (
+                          <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-xs font-bold">
+                            {medicineRequestCount} in request
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => handleTabClick('prescription')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                          activeTab === 'prescription'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">document_scanner</span>
+                        <span>Prescription Upload &amp; OCR</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleTabClick('pharmacies')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                          activeTab === 'pharmacies'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">storefront</span>
+                        <span>Pharmacy Discovery &amp; Stock</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleTabClick('emergency')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                          activeTab === 'emergency'
+                            ? 'bg-tertiary-container text-white shadow-sm'
+                            : 'bg-[#ffdad6]/60 text-tertiary hover:bg-[#ffdad6]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">e911_emergency</span>
+                        <span>24/7 Emergency Locator</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleTabClick('orders')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                          activeTab === 'orders'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">local_shipping</span>
+                        <span>My Orders &amp; Reservations</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleTabClick('healthcare')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                          activeTab === 'healthcare'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">medical_services</span>
+                        <span>Healthcare Professional Marketplace</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleTabClick('profile')}
+                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left transition-colors ${
+                          activeTab === 'profile'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">account_circle</span>
+                        <span>My Profile &amp; Records</span>
+                      </button>
+                    </>
+                  )}
+
+                  {user?.role === 'PHARMACIST' && (
+                    <button
+                      onClick={() => handleTabClick('pharmacist')}
+                      className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left ${
+                        activeTab === 'pharmacist' ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">inventory_2</span>
+                      <span>Pharmacist Inventory &amp; Dispatch</span>
+                    </button>
+                  )}
+
+                  {user?.role === 'ASSISTANT' && (
+                    <button
+                      onClick={() => handleTabClick('assistant')}
+                      className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left ${
+                        activeTab === 'assistant' ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">directions_bike</span>
+                      <span>Medicine Access Assistant Portal</span>
+                    </button>
+                  )}
+
+                  {user?.role === 'ADMIN' && (
+                    <button
+                      onClick={() => handleTabClick('admin')}
+                      className={`w-full px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 text-left ${
+                        activeTab === 'admin' ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
+                      <span>Admin Operations Center</span>
+                    </button>
+                  )}
+
+                  {/* Mobile Theme Toggle Pill Button */}
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className="w-full px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-between text-left transition-colors bg-surface-container-lowest text-on-surface hover:bg-surface-container border border-outline-variant/20 mt-1 cursor-pointer"
+                    aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base">
+                        {isDark ? 'light_mode' : 'dark_mode'}
+                      </span>
+                      <span>Interface Theme</span>
+                    </div>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                      {isDark ? 'Dark Mode' : 'Light Mode'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Bottom Sign Out */}
+                {user && (
+                  <div className="p-3 border-t border-outline-variant/30 bg-surface-container-low/40">
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setShowLogoutConfirm(true);
+                      }}
+                      className="w-full px-4 py-2.5 rounded-xl bg-error-container/40 text-error hover:bg-error-container/60 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base">logout</span>
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </motion.aside>
+            </div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Confirmation Dialog on Logout */}
