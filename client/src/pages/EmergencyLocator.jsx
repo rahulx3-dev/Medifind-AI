@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import AvailabilityModal from '../components/AvailabilityModal';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import PharmacyMap from '../components/PharmacyMap';
@@ -48,6 +49,57 @@ function getApproximateAreaName(lat, lon) {
   }
   return closestName;
 }
+
+const EMERGENCY_HOTLINE_CARDS = [
+  {
+    number: '112',
+    name: 'National Emergency',
+    tag: 'Police • Fire • Crisis Response',
+    dial: '112',
+    icon: 'e911_emergency',
+    color: '#ba1a1a',
+    bg: '#fff8f7',
+    border: '#ffdad6',
+    btnBg: '#ba1a1a',
+    btnText: '#ffffff'
+  },
+  {
+    number: '108',
+    name: 'Kerala Ambulance',
+    tag: 'EMRI 24/7 Free Medical Transport',
+    dial: '108',
+    icon: 'ambulance',
+    color: '#c0001f',
+    bg: '#fff8f6',
+    border: '#ffdad4',
+    btnBg: '#c0001f',
+    btnText: '#ffffff'
+  },
+  {
+    number: '1056',
+    name: 'DISHA Health Helpline',
+    tag: 'Kerala Govt. 24/7 Tele-Doctor Advice',
+    dial: '1056',
+    icon: 'medical_services',
+    color: '#006a60',
+    bg: '#f0fdfa',
+    border: '#bbf0e7',
+    btnBg: '#006a60',
+    btnText: '#ffffff'
+  },
+  {
+    number: '1800-599-0019',
+    name: 'National Health Toll-Free',
+    tag: 'AYUSH & Central Medical Support',
+    dial: '18005990019',
+    icon: 'support_agent',
+    color: '#2e685d',
+    bg: '#f2faf6',
+    border: '#d0ece0',
+    btnBg: '#2e685d',
+    btnText: '#ffffff'
+  }
+];
 
 export default function EmergencyLocator({ onOrderCreated }) {
   const [pharmacies, setPharmacies] = useState([]);
@@ -486,61 +538,6 @@ export default function EmergencyLocator({ onOrderCreated }) {
 
   return (
     <div style={{ background: '#ecfdf7', minHeight: '100vh', paddingBottom: '4rem' }}>
-      {/* Top Advisory Bar: Clinical Protocol & Non-Alarmist Emergency Notice */}
-      <section style={{ background: '#e0f2eb', borderBottom: '1px solid #d5e6e0', padding: '0.85rem 1.5rem' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#d5e6e0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#032f28', flexShrink: 0 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>medical_services</span>
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#2e685d', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                    Clinical Care Directive
-                  </span>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#c0c8c5' }}></span>
-                  <span style={{ fontSize: 13, color: '#414846', fontWeight: 500 }}>
-                    MediFind is designed for urgent pharmaceutical discovery &amp; reservation verification.
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: '#414846', margin: '2px 0 0 0' }}>
-                  Not for acute diagnostic triage or emergency dispatch. For life-threatening emergencies, immediately dial{' '}
-                  <strong style={{ color: '#ba1a1a' }}>112 / 108</strong>.
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Emergency Hotlines */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {networkConfig.emergencyHotlines?.map((h, i) => (
-                <a
-                  key={i}
-                  href={`tel:${h.dialable || h.label}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    background: '#ffffff',
-                    padding: '0.3rem 0.75rem',
-                    borderRadius: 99,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#032f28',
-                    textDecoration: 'none',
-                    border: '1px solid #c0c8c5',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#2e685d' }}>call</span>
-                  <span>{h.label} ({h.desc})</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Main Container */}
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
         {/* Offline Banner if active */}
@@ -584,59 +581,175 @@ export default function EmergencyLocator({ onOrderCreated }) {
           </div>
         )}
 
-        {/* Header Block & Search Origin */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
-            <div>
+        {/* ────────────────────────────────────────────────────────── */}
+        {/* IMMEDIATE EMERGENCY SPEED-DIAL HOTLINE CARDS */}
+        {/* ────────────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+            marginBottom: '0.85rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#ba1a1a' }}>crisis_alert</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#032f28', letterSpacing: '-0.01em' }}>
+                Life-Threatening Emergency Speed-Dial
+              </span>
+              <span style={{
+                fontSize: 11,
+                background: '#ffdad6',
+                color: '#93000a',
+                padding: '2px 8px',
+                borderRadius: 99,
+                fontWeight: 700
+              }}>
+                Direct Ambulance &amp; Crisis Lines
+              </span>
+            </div>
+            <span style={{ fontSize: 12, color: '#5c6460', fontWeight: 500 }}>
+              For acute cardiac arrest, stroke, or severe trauma, dial immediately
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {EMERGENCY_HOTLINE_CARDS.map((h) => (
+              <motion.a
+                key={h.number}
+                href={`tel:${h.dial}`}
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                style={{
+                  background: h.bg,
+                  border: `1px solid ${h.border}`,
+                  borderRadius: 18,
+                  padding: '1.1rem 1.15rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '0.85rem',
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <div style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: h.color,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      flexShrink: 0
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 22 }}>{h.icon}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#032f28', lineHeight: 1.25 }}>
+                        {h.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#66706c', marginTop: 2 }}>
+                        {h.tag}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingTop: '0.65rem',
+                  borderTop: `1px solid ${h.border}`
+                }}>
+                  <span style={{ fontSize: '1.35rem', fontWeight: 800, color: h.color, letterSpacing: '-0.02em', fontFamily: 'monospace' }}>
+                    {h.number}
+                  </span>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    background: h.btnBg,
+                    color: h.btnText,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 99,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>call</span>
+                    <span>Tap to Call</span>
+                  </span>
+                </div>
+              </motion.a>
+            ))}
+          </div>
+        </div>
+
+        {/* ────────────────────────────────────────────────────────── */}
+        {/* HEADER BLOCK & SEARCH ORIGIN */}
+        {/* ────────────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+            <div style={{ flex: 1, minWidth: 300 }}>
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                background: '#b0ecdd',
-                color: '#336c61',
-                padding: '0.3rem 0.85rem',
+                gap: '0.45rem',
+                background: '#e0f2eb',
+                color: '#032f28',
+                padding: '0.35rem 0.85rem',
                 borderRadius: 99,
                 fontSize: 12,
                 fontWeight: 700,
-                marginBottom: '0.5rem'
+                marginBottom: '0.65rem',
+                border: '1px solid #c0c8c5'
               }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2e685d' }}></span>
-                <span>Emergency Access Mode • Real-Time Inventory Scan</span>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} className="animate-pulse"></span>
+                <span>Verified Real-Time Emergency Dispensary Network</span>
               </div>
-              <h1 style={{ fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 700, color: '#032f28', margin: 0, letterSpacing: '-0.02em' }}>
+              <h1 style={{ fontSize: 'clamp(24px, 4vw, 34px)', fontWeight: 800, color: '#032f28', margin: 0, letterSpacing: '-0.025em' }}>
                 Emergency Medicine Access
               </h1>
-              <p style={{ fontSize: 'clamp(13px, 2.5vw, 16px)', color: '#414846', margin: '0.4rem 0 0 0', maxWidth: 650 }}>
-                Find verified nearby pharmacies in {networkConfig.regionName} that stock urgent cardiac vasodilators, bronchodilators, and emergency life-saving agents.
+              <p style={{ fontSize: 'clamp(13px, 2.5vw, 15px)', color: '#414846', margin: '0.5rem 0 0 0', maxWidth: 660, lineHeight: 1.5 }}>
+                Find verified 24/7 dispensaries and pharmacies in {networkConfig.regionName} stocking urgent cardiac vasodilators, rescue bronchodilators, adrenaline, and critical emergency formulations.
               </p>
             </div>
 
             {/* Search Origin Control Panel */}
             <div style={{
               background: '#ffffff',
-              padding: '1rem 1.25rem',
-              borderRadius: 16,
-              boxShadow: '0 1px 4px rgba(3,47,40,0.06)',
-              border: '1px solid #e0f2eb',
+              padding: '1.15rem 1.25rem',
+              borderRadius: 20,
+              boxShadow: '0 4px 16px rgba(3,47,40,0.05)',
+              border: '1px solid #d5e6e0',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.5rem',
+              gap: '0.6rem',
               width: '100%',
               maxWidth: 420
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#717976', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Search Origin
+                  Search Origin &amp; Range
                 </span>
                 <span style={{ fontSize: 11, color: '#2e685d', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>tune</span> Selected
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>tune</span> Active Hub
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>location_on</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#0f1e1b' }}>{areaLabel}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', paddingTop: '0.35rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', paddingTop: '0.35rem', flexWrap: 'wrap' }}>
                 <select
                   value={selectedTown}
                   onChange={e => handleSelectManualArea(e.target.value)}
@@ -644,7 +757,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                     background: '#e6f8f1',
                     border: '1px solid #c0c8c5',
                     borderRadius: 99,
-                    padding: '0.25rem 0.65rem',
+                    padding: '0.3rem 0.75rem',
                     fontSize: 12,
                     fontWeight: 600,
                     color: '#032f28',
@@ -666,17 +779,17 @@ export default function EmergencyLocator({ onOrderCreated }) {
                     color: locationSource === 'GPS' ? '#ffffff' : '#032f28',
                     border: 'none',
                     borderRadius: 99,
-                    padding: '0.25rem 0.75rem',
+                    padding: '0.3rem 0.85rem',
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.25rem'
+                    gap: '0.3rem'
                   }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>near_me</span>
-                  <span>{locationStatus === 'LOCATING' ? 'Locating...' : 'GPS'}</span>
+                  <span>{locationStatus === 'LOCATING' ? 'Locating...' : 'Live GPS'}</span>
                 </button>
 
                 {inMemoryCoords && (
@@ -687,7 +800,7 @@ export default function EmergencyLocator({ onOrderCreated }) {
                       background: '#d5e6e0',
                       border: 'none',
                       borderRadius: 99,
-                      padding: '0.25rem 0.5rem',
+                      padding: '0.3rem 0.55rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -701,55 +814,129 @@ export default function EmergencyLocator({ onOrderCreated }) {
             </div>
           </div>
 
-          {/* Requested Dispensation Bundle Context Capsule */}
+          {/* ────────────────────────────────────────────────────────── */}
+          {/* REAL EMERGENCY CAPABILITIES & MEDICINE OVERVIEW CARD */}
+          {/* ────────────────────────────────────────────────────────── */}
           <div style={{
-            background: '#e6f8f1',
-            padding: '1rem 1.25rem',
-            borderRadius: 16,
+            background: '#ffffff',
+            padding: '1.25rem 1.5rem',
+            borderRadius: 22,
             border: '1px solid #d5e6e0',
+            boxShadow: '0 2px 12px rgba(3,47,40,0.04)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
+            flexDirection: 'column',
             gap: '1rem'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#b0ecdd', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#032f28', flexShrink: 0 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 22 }}>prescriptions</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  background: '#e0f2eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2e685d'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>emergency_home</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>
+                    Tracked Emergency Formulations &amp; Fast-Track Dispensation
+                  </div>
+                  <div style={{ fontSize: 11, color: '#717976' }}>
+                    Critical supplies verified across participating Kerala pharmacies
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#2e685d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Active Critical Dispensary Filter
-                  </span>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#c0c8c5' }}></span>
-                  <span style={{ fontSize: 12, color: '#414846' }}>High-priority matching for emergency stock</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#032f28', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2e685d' }}></span>
-                    Cardiovascular &amp; Respiratory Emergency Formulations
-                  </span>
-                  <span style={{ fontSize: 13, color: '#717976' }}>•</span>
-                  <span style={{ fontSize: 13, color: '#414846' }}>Oral Capsules, Inhalers &amp; Injectables</span>
-                </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#2e685d',
+                  background: '#e6f8f1',
+                  padding: '0.3rem 0.75rem',
+                  borderRadius: 99,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
+                  <span>{pharmacies.length} Dispensaries Scanned</span>
+                </span>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#032f28',
+                  background: '#b0ecdd',
+                  padding: '0.3rem 0.75rem',
+                  borderRadius: 99,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>nightlight</span>
+                  <span>{pharmacies.filter(p => p.is24x7).length} Open 24/7</span>
+                </span>
               </div>
             </div>
 
+            {/* Emergency Medicine Category Badges */}
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              background: '#ffffff',
-              padding: '0.4rem 0.85rem',
-              borderRadius: 99,
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#2e685d',
-              border: '1px solid #c0c8c5'
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '0.75rem',
+              paddingTop: '0.25rem'
             }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
-              <span>Verified Pharmacist Network</span>
+              <div style={{
+                background: '#f9fbfb',
+                border: '1px solid #e0f2eb',
+                borderRadius: 14,
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem'
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#006a60' }}>pulmonology</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>Respiratory Bronchodilators</div>
+                  <div style={{ fontSize: 11, color: '#717976' }}>Asthalin Inhaler, Budecort, Deriphyllin</div>
+                </div>
+              </div>
+
+              <div style={{
+                background: '#f9fbfb',
+                border: '1px solid #e0f2eb',
+                borderRadius: 14,
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem'
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#ba1a1a' }}>cardiology</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>Cardiac Vasodilators</div>
+                  <div style={{ fontSize: 11, color: '#717976' }}>Sorbitrate 5mg sublingual tablets</div>
+                </div>
+              </div>
+
+              <div style={{
+                background: '#f9fbfb',
+                border: '1px solid #e0f2eb',
+                borderRadius: 14,
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem'
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#b45309' }}>vaccines</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>Anaphylaxis &amp; Critical Injectables</div>
+                  <div style={{ fontSize: 11, color: '#717976' }}>Epinephrine auto-injectors, emergency holds</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
