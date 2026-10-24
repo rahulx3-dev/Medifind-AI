@@ -1366,15 +1366,21 @@ export default function PharmacyDiscovery({
                           return (
                             <div
                               key={avIdx}
-                              className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/20 text-xs"
+                              className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all ${
+                                isAvail
+                                  ? 'bg-surface-container-low border-outline-variant/20'
+                                  : 'bg-surface-container-lowest/70 border-error/20 opacity-55 saturate-[0.75] hover:opacity-85'
+                              }`}
                             >
                               <div className="flex items-center gap-2">
                                 <span className={`w-2 h-2 rounded-full ${
-                                  isAvail ? 'bg-secondary' : 'bg-error'
+                                  isAvail ? 'bg-secondary' : 'bg-error/70'
                                 }`} />
                                 <div className="flex flex-col">
-                                  <span className="font-bold text-primary">{av.brandName}</span>
-                                  <span className="text-[11px] text-on-surface-variant">
+                                  <span className={`font-bold ${isAvail ? 'text-primary' : 'text-on-surface-variant line-through decoration-error/40'}`}>
+                                    {av.brandName}
+                                  </span>
+                                  <span className="text-[11px] text-on-surface-variant/80">
                                     {av.strength ? `${av.strength} • ` : ''}{av.dosageForm ? `${av.dosageForm} • ` : ''}{av.requestedQuantity || 1} unit(s) requested
                                   </span>
                                 </div>
