@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 import AuthenticatedPrescriptionImage from './AuthenticatedPrescriptionImage';
 import { findMatchingBrands } from '../utils/genericMedicineMatcher';
@@ -219,7 +220,7 @@ export default function ClinicalPrescriptionReviewModal({
   const ocrRuns = prescription?.ocrRuns || [];
   const latestOcrRun = ocrRuns[0];
 
-  return (
+  const modalEl = (
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -1016,4 +1017,6 @@ export default function ClinicalPrescriptionReviewModal({
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? ReactDOM.createPortal(modalEl, document.body) : modalEl;
 }

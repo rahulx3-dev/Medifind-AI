@@ -348,14 +348,14 @@ export default function Sidebar({
 
   return (
     <>
-      {/* ─── Mobile Backdrop Overlay ─────────────────────────────── */}
-      <div
-        onClick={onClose}
-        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        aria-hidden={!isOpen}
-      />
+      {/* ─── Mobile Backdrop Overlay (strictly mobile-only drawer backdrop) ─────────────────────────────── */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:!hidden transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      )}
 
       {/* ─── Main Sidebar Element ─────────────────────────────────── */}
       <motion.aside

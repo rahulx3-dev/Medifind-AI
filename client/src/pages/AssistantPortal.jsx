@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import LoadingSkeleton, { SkeletonMap } from '../components/LoadingSkeleton';
@@ -3945,11 +3946,12 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       )}
 
       {/* Capability Selection Modal */}
-      {editingCapabilities && (
+      {editingCapabilities && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(3,47,40,0.5)',
+          backdropFilter: 'blur(4px)',
           zIndex: 10000,
           display: 'flex',
           alignItems: 'center',
@@ -4049,7 +4051,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
               </FlowButton>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirmation Dialog */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 
 export default function PrescriptionClarificationModal({
@@ -137,7 +138,7 @@ export default function PrescriptionClarificationModal({
 
   if (!isOpen || !order) return null;
 
-  return (
+  const modalEl = (
     <div
       style={{
         position: 'fixed',
@@ -678,4 +679,6 @@ export default function PrescriptionClarificationModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? ReactDOM.createPortal(modalEl, document.body) : modalEl;
 }

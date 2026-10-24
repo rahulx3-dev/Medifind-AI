@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { motion } from 'motion/react';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import LoadingSkeleton from '../components/LoadingSkeleton';
@@ -1954,7 +1955,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
             )}
 
             {/* Verification Detail & Review Action Modal */}
-            {selectedApp && (
+            {selectedApp && typeof document !== 'undefined' && ReactDOM.createPortal(
               <div style={{
                 position: 'fixed',
                 inset: 0,
@@ -2463,7 +2464,8 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                     </div>
                   )}
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
 
             {/* TAB 2: USERS DIRECTORY */}
@@ -3080,7 +3082,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
       </div>
 
       {/* Emergency Buffer Direct Allocation Modal */}
-      {allocateModalItem && (
+      {allocateModalItem && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -3212,11 +3214,12 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add / Edit Pharmacy Modal */}
-      {pharmacyModal.isOpen && (
+      {pharmacyModal.isOpen && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
@@ -3708,7 +3711,8 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* High-Stakes Action Confirmation Modal */}

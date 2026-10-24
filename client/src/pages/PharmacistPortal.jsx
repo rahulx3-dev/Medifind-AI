@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import LoadingSkeleton from '../components/LoadingSkeleton';
@@ -1443,7 +1444,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
 
   const renderLifecycleActionModal = () => {
     if (!actionFeedbackModal) return null;
-    return (
+    const modalContent = (
       <div style={{
         position: 'fixed',
         inset: 0,
@@ -1653,6 +1654,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
         </div>
       </div>
     );
+    return typeof document !== 'undefined' ? ReactDOM.createPortal(modalContent, document.body) : modalContent;
   };
 
   if (counterPinOrder) {
@@ -1700,16 +1702,16 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
         />
 
         {/* Prescription Doc Modal */}
-        {showRxDocModal && (
+        {showRxDocModal && typeof document !== 'undefined' && ReactDOM.createPortal(
           <div style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(3,47,40,0.4)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(3,47,40,0.55)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 10000,
+            zIndex: 99999,
             padding: '1.5rem'
           }}>
             <div style={{
@@ -1820,7 +1822,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Lifecycle Action Feedback Popup Dialog */}
@@ -3322,8 +3325,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
       </div>
 
       {/* Clinical Inquiry Response Modal (Gate 8) */}
-      {selectedClinicalRequest && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      {selectedClinicalRequest && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ background: '#ffffff', borderRadius: 24, width: '100%', maxWidth: 560, padding: '2rem', boxShadow: '0 24px 64px rgba(3,47,40,0.25)', border: '1px solid #e0f2eb', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -3590,12 +3593,13 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Medicine Modal */}
-      {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      {showAddModal && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ background: '#ffffff', borderRadius: 24, width: '100%', maxWidth: 480, padding: '2rem', boxShadow: '0 24px 64px rgba(3,47,40,0.25)', border: '1px solid #e0f2eb' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#032f28', margin: 0 }}>
@@ -3679,7 +3683,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       </>
       )}
