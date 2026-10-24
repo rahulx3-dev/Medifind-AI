@@ -882,15 +882,38 @@ async function verifyAssistant(req, res) {
       return res.status(404).json({ success: false, error: 'Assistant profile not found.' });
     }
 
+    const updateData = {
+      verificationStatus: status,
+      reviewedById: req.user.id,
+      reviewedAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    if (status === 'APPROVED' && profile.assistantType === 'DELIVERY_ASSISTANT') {
+      updateData.capabilities = 'MEDICINE_DELIVERY,MEDICINE_COLLECTION';
+      updateData.approvedServices = JSON.stringify(['MEDICINE_DELIVERY']);
+    }
+
     const updated = await prisma.assistantProfile.update({
       where: { id: profile.id },
-      data: {
-        verificationStatus: status,
-        reviewedById: req.user.id,
-        reviewedAt: new Date(),
-        updatedAt: new Date()
-      }
+      data: updateData
     });
+
+    if (status === 'APPROVED') {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            title: 'Assistant Profile Verified',
+            message: `Your ${profile.assistantType === 'DELIVERY_ASSISTANT' ? 'Delivery Assistant' : 'Healthcare Professional'} account has been verified by administrators. You are now active for live operations.`,
+            type: 'ASSISTANT',
+            linkUrl: '/assistant-portal'
+          }
+        });
+      } catch (ne) {
+        console.warn('Failed to dispatch notification for verifyAssistant:', ne.message);
+      }
+    }
 
     return res.json({
       success: true,

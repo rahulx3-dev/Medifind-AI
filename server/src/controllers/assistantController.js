@@ -315,7 +315,7 @@ async function selectAssistantRole(req, res) {
     if (assistantType === 'DELIVERY_ASSISTANT') {
       updateData.onboardingCompleted = false;
       updateData.onboardingStep = 'DELIVERY_SETUP';
-      updateData.verificationStatus = 'NOT_APPLICABLE';
+      updateData.verificationStatus = 'PENDING';
       // Default delivery capabilities if none configured
       if (!profile.capabilities || profile.capabilities.trim() === '') {
         updateData.capabilities = 'MEDICINE_DELIVERY,MEDICINE_COLLECTION';
@@ -397,6 +397,10 @@ async function updateDeliveryProfile(req, res) {
       onboardingCompleted: true,
       onboardingStep: 'COMPLETED'
     };
+    if (profile.verificationStatus !== 'APPROVED') {
+      profileUpdate.verificationStatus = 'PENDING';
+      profileUpdate.submittedAt = profile.submittedAt || new Date();
+    }
     if (bio !== undefined) profileUpdate.bio = bio ? String(bio).trim() : null;
     if (operatingCity !== undefined) profileUpdate.operatingCity = String(operatingCity).trim();
     if (operatingRadiusKm !== undefined) profileUpdate.operatingRadiusKm = parsedRadius;
@@ -933,6 +937,14 @@ async function acceptTask(req, res) {
         error: profile.verificationStatus === 'APPROVED'
           ? 'Unauthorized: Healthcare Professionals cannot accept medicine delivery tasks. Delivery tasks are restricted to Delivery Assistants.'
           : 'Unauthorized: Healthcare Professionals with unapproved applications cannot accept tasks.'
+      });
+    }
+
+    // Verification check: Delivery Assistants must be approved by admin
+    if (profile.assistantType === 'DELIVERY_ASSISTANT' && profile.verificationStatus !== 'APPROVED') {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized: Your Delivery Assistant account is pending administrator review and clearance. You cannot accept delivery tasks until verified.'
       });
     }
 

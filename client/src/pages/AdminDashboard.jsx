@@ -383,6 +383,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
   const [verificationsList, setVerificationsList] = useState([]);
   const [appointmentsList, setAppointmentsList] = useState([]);
   const [verificationFilter, setVerificationFilter] = useState('ALL');
+  const [verificationTrack, setVerificationTrack] = useState('ALL'); // 'ALL' | 'DELIVERY_ASSISTANT' | 'HEALTHCARE_PROFESSIONAL'
   const [selectedApp, setSelectedApp] = useState(null);
   const [actionReason, setActionReason] = useState('');
   const [approvalServices, setApprovalServices] = useState([]);
@@ -587,7 +588,8 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`Assistant ${userName} verified & authorized for live dispatch!`, 'success');
+        showToast(`Assistant ${userName || ''} verified & authorized for live dispatch!`, 'success');
+        setSelectedApp(null);
         fetchAllAdminData(true);
       } else {
         showToast(data.error || 'Failed to verify assistant.', 'error');
@@ -977,7 +979,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
 
   const tabs = [
     { id: 'overview', label: 'Overview & Operations', icon: 'monitoring', count: null },
-    { id: 'verifications', label: 'Professional Verifications', icon: 'verified_user', count: pendingVerificationsCount },
+    { id: 'verifications', label: 'Assistant Verifications', icon: 'verified_user', count: pendingVerificationsCount },
     { id: 'users', label: 'Users Directory', icon: 'group', count: usersList.length },
     { id: 'pharmacies', label: 'Pharmacies & Verification', icon: 'domain', count: pharmaciesList.length },
     { id: 'orders', label: 'Orders Management', icon: 'receipt_long', count: ordersList.length },
@@ -1712,17 +1714,17 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                         </span>
                       </div>
                       <h3 style={{ fontSize: 20, fontWeight: 700, color: '#032f28', margin: 0 }}>
-                        Healthcare Professional Verification Queue ({verificationsList.length})
+                        Assistant &amp; Personnel Verification Queue ({verificationsList.length})
                       </h3>
                       <p style={{ fontSize: 13, color: '#414846', margin: '0.25rem 0 0 0' }}>
-                        Review applicant credentials, state nursing council registrations, and authorize clinical scopes. Unapproved professionals cannot receive clinical tasks.
+                        Verify delivery assistants and healthcare professionals. Review transport profiles, council registrations, and authorize operational scopes for live dispatch.
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <input
                         type="text"
-                        placeholder="Search"
+                        placeholder="Search by name, email, vehicle, city or reg..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         style={{
@@ -1730,19 +1732,72 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           borderRadius: 99,
                           border: '1px solid #c0c8c5',
                           fontSize: 13,
-                          width: 280,
+                          width: 320,
                           background: '#f8fafc'
                         }}
                       />
                     </div>
                   </div>
 
+                  {/* Role Track Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', borderBottom: '1px solid #e0f2eb', paddingBottom: '0.85rem' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#717976', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Filter Track:
+                    </span>
+                    {[
+                      { id: 'ALL', label: 'All Assistants', icon: 'groups' },
+                      { id: 'DELIVERY_ASSISTANT', label: 'Delivery Assistants', icon: 'two_wheeler' },
+                      { id: 'HEALTHCARE_PROFESSIONAL', label: 'Healthcare Professionals', icon: 'medical_services' }
+                    ].map(tr => {
+                      const isActive = verificationTrack === tr.id;
+                      const count = tr.id === 'ALL'
+                        ? verificationsList.length
+                        : verificationsList.filter(v => (v.assistantType || 'HEALTHCARE_PROFESSIONAL') === tr.id).length;
+                      return (
+                        <button
+                          key={tr.id}
+                          type="button"
+                          onClick={() => setVerificationTrack(tr.id)}
+                          style={{
+                            background: isActive ? '#032f28' : '#ffffff',
+                            color: isActive ? '#ffffff' : '#032f28',
+                            border: isActive ? '1px solid #032f28' : '1px solid #c0c8c5',
+                            borderRadius: 99,
+                            padding: '0.4rem 0.9rem',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{tr.icon}</span>
+                          <span>{tr.label}</span>
+                          <span style={{
+                            background: isActive ? 'rgba(255,255,255,0.25)' : '#e0f2eb',
+                            color: isActive ? '#ffffff' : '#032f28',
+                            padding: '1px 6px',
+                            borderRadius: 99,
+                            fontSize: 10,
+                            fontWeight: 800
+                          }}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   {/* Filter Pills */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                     {['ALL', 'PENDING', 'UNDER_REVIEW', 'NEEDS_CORRECTION', 'APPROVED', 'REJECTED', 'SUSPENDED'].map(f => {
+                      const trackFiltered = verificationTrack === 'ALL'
+                        ? verificationsList
+                        : verificationsList.filter(v => (v.assistantType || 'HEALTHCARE_PROFESSIONAL') === verificationTrack);
                       const count = f === 'ALL'
-                        ? verificationsList.length
-                        : verificationsList.filter(v => v.verificationStatus === f).length;
+                        ? trackFiltered.length
+                        : trackFiltered.filter(v => v.verificationStatus === f).length;
                       const isActive = verificationFilter === f;
                       return (
                         <button
@@ -1782,14 +1837,18 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                   {/* Applications Queue Table */}
                   {(() => {
                     const filteredApps = verificationsList.filter(app => {
+                      const matchesTrack = verificationTrack === 'ALL' || (app.assistantType || 'HEALTHCARE_PROFESSIONAL') === verificationTrack;
                       const matchesStatus = verificationFilter === 'ALL' || app.verificationStatus === verificationFilter;
-                      const matchesSearch = !searchTerm.trim() || (
-                        (app.name && app.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                        (app.email && app.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                        (app.registrationNumber && app.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                        (app.professionTitle && app.professionTitle.toLowerCase().includes(searchTerm.toLowerCase()))
+                      const q = searchTerm.trim().toLowerCase();
+                      const matchesSearch = !q || (
+                        (app.name && app.name.toLowerCase().includes(q)) ||
+                        (app.email && app.email.toLowerCase().includes(q)) ||
+                        (app.registrationNumber && app.registrationNumber.toLowerCase().includes(q)) ||
+                        (app.professionTitle && app.professionTitle.toLowerCase().includes(q)) ||
+                        (app.operatingCity && app.operatingCity.toLowerCase().includes(q)) ||
+                        (app.vehicleType && app.vehicleType.toLowerCase().includes(q))
                       );
-                      return matchesStatus && matchesSearch;
+                      return matchesTrack && matchesStatus && matchesSearch;
                     });
 
                     if (filteredApps.length === 0) {
@@ -1798,7 +1857,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           <span className="material-symbols-outlined" style={{ fontSize: 36, color: '#2e685d', marginBottom: '0.5rem' }}>assignment_turned_in</span>
                           <p style={{ color: '#032f28', fontWeight: 700, fontSize: 15, margin: '0 0 0.25rem 0' }}>No Applications Matching Filter</p>
                           <p style={{ color: '#717976', fontSize: 13, margin: 0 }}>
-                            {verificationFilter === 'ALL' ? 'No healthcare professional applications have been filed yet.' : `No applications found with status '${verificationFilter}'.`}
+                            {verificationFilter === 'ALL' ? 'No applications have been filed yet in this category.' : `No applications found with status '${verificationFilter}'.`}
                           </p>
                         </div>
                       );
@@ -1810,9 +1869,9 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           <thead>
                             <tr style={{ background: '#e0f2eb', color: '#414846', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                               <th style={{ padding: '0.75rem 1rem' }}>Applicant Name &amp; Contact</th>
-                              <th style={{ padding: '0.75rem 1rem' }}>Profession &amp; Council License</th>
-                              <th style={{ padding: '0.75rem 1rem' }}>Qualifications &amp; Exp</th>
-                              <th style={{ padding: '0.75rem 1rem' }}>Requested Scopes</th>
+                              <th style={{ padding: '0.75rem 1rem' }}>Track &amp; Vehicle / Council License</th>
+                              <th style={{ padding: '0.75rem 1rem' }}>Qualifications &amp; Territory</th>
+                              <th style={{ padding: '0.75rem 1rem' }}>Operational Scope</th>
                               <th style={{ padding: '0.75rem 1rem' }}>Docs</th>
                               <th style={{ padding: '0.75rem 1rem' }}>Application Status</th>
                               <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
@@ -1820,6 +1879,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           </thead>
                           <tbody>
                             {filteredApps.map(app => {
+                              const isDelivery = app.assistantType === 'DELIVERY_ASSISTANT';
                               const statusBg =
                                 app.verificationStatus === 'APPROVED' ? '#b0ecdd' :
                                 app.verificationStatus === 'UNDER_REVIEW' ? '#d0e1fd' :
@@ -1842,34 +1902,83 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                                   </td>
 
                                   <td style={{ padding: '0.85rem 1rem' }}>
-                                    <div style={{ fontWeight: 600, color: '#032f28' }}>{app.professionTitle || 'Healthcare Worker'}</div>
-                                    <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#2e685d', fontWeight: 700, marginTop: 2 }}>
-                                      Reg: {app.registrationNumber || 'Not submitted'}
-                                    </div>
-                                    {app.issuingAuthority && (
-                                      <div style={{ fontSize: 11, color: '#717976' }}>{app.issuingAuthority}</div>
+                                    {isDelivery ? (
+                                      <div>
+                                        <span style={{
+                                          background: '#dcfce7',
+                                          color: '#166534',
+                                          padding: '2px 8px',
+                                          borderRadius: 99,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4
+                                        }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>two_wheeler</span>
+                                          Delivery Assistant
+                                        </span>
+                                        <div style={{ fontSize: 12, color: '#032f28', fontWeight: 600, marginTop: 4 }}>
+                                          Vehicle: <span style={{ color: '#2e685d', fontWeight: 700 }}>{app.vehicleType || 'Two Wheeler'}</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <span style={{
+                                          background: '#e0f2fe',
+                                          color: '#0369a1',
+                                          padding: '2px 8px',
+                                          borderRadius: 99,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4
+                                        }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>medical_services</span>
+                                          Healthcare Professional
+                                        </span>
+                                        <div style={{ fontWeight: 600, color: '#032f28', marginTop: 4 }}>{app.professionTitle || 'Healthcare Worker'}</div>
+                                        <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#2e685d', fontWeight: 700 }}>
+                                          Reg: {app.registrationNumber || 'Not submitted'}
+                                        </div>
+                                      </div>
                                     )}
                                   </td>
 
                                   <td style={{ padding: '0.85rem 1rem' }}>
-                                    <div style={{ color: '#032f28', fontWeight: 600 }}>{app.qualifications || 'N/A'}</div>
-                                    <div style={{ fontSize: 11, color: '#717976' }}>
-                                      {app.yearsOfExperience != null ? `${app.yearsOfExperience} years experience` : 'Experience not set'}
-                                    </div>
-                                    <div style={{ fontSize: 11, color: '#717976' }}>
-                                      {app.operatingCity || 'Chengannur'} ({app.operatingRadiusKm || 10} km)
-                                    </div>
+                                    {isDelivery ? (
+                                      <div>
+                                        <div style={{ color: '#032f28', fontWeight: 600 }}>{app.operatingCity || 'Chengannur'}</div>
+                                        <div style={{ fontSize: 11, color: '#717976' }}>
+                                          Coverage: {app.operatingRadiusKm || 10} km radius
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <div style={{ color: '#032f28', fontWeight: 600 }}>{app.qualifications || 'N/A'}</div>
+                                        <div style={{ fontSize: 11, color: '#717976' }}>
+                                          {app.yearsOfExperience != null ? `${app.yearsOfExperience} yrs exp` : 'Exp not set'} • {app.operatingCity || 'Chengannur'} ({app.operatingRadiusKm || 10} km)
+                                        </div>
+                                      </div>
+                                    )}
                                   </td>
 
                                   <td style={{ padding: '0.85rem 1rem' }}>
-                                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', maxWidth: 220 }}>
-                                      {(app.serviceAreasApplied || []).map(s => (
-                                        <span key={s} style={{ background: '#e0f2eb', color: '#2e685d', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
-                                          {s.replace(/_/g, ' ')}
-                                        </span>
-                                      ))}
-                                    </div>
-                                    {app.verificationStatus === 'APPROVED' && app.approvedServices?.length > 0 && (
+                                    {isDelivery ? (
+                                      <span style={{ background: '#e0f2eb', color: '#2e685d', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
+                                        Medicine Delivery
+                                      </span>
+                                    ) : (
+                                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', maxWidth: 220 }}>
+                                        {(app.serviceAreasApplied || []).map(s => (
+                                          <span key={s} style={{ background: '#e0f2eb', color: '#2e685d', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                                            {s.replace(/_/g, ' ')}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {app.verificationStatus === 'APPROVED' && app.approvedServices?.length > 0 && !isDelivery && (
                                       <div style={{ fontSize: 10, color: '#00201b', fontWeight: 700, marginTop: 4 }}>
                                         Approved: {app.approvedServices.join(', ')}
                                       </div>
@@ -1877,16 +1986,29 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                                   </td>
 
                                   <td style={{ padding: '0.85rem 1rem' }}>
-                                    <span style={{
-                                      background: (app.documents || []).length > 0 ? '#e0f2eb' : '#ffdad6',
-                                      color: (app.documents || []).length > 0 ? '#2e685d' : '#ba1a1a',
-                                      padding: '0.2rem 0.55rem',
-                                      borderRadius: 99,
-                                      fontSize: 11,
-                                      fontWeight: 700
-                                    }}>
-                                      {(app.documents || []).length} Doc(s)
-                                    </span>
+                                    {isDelivery ? (
+                                      <span style={{
+                                        background: '#f1f5f9',
+                                        color: '#475569',
+                                        padding: '0.2rem 0.55rem',
+                                        borderRadius: 99,
+                                        fontSize: 10,
+                                        fontWeight: 700
+                                      }}>
+                                        Self-Declaration
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        background: (app.documents || []).length > 0 ? '#e0f2eb' : '#ffdad6',
+                                        color: (app.documents || []).length > 0 ? '#2e685d' : '#ba1a1a',
+                                        padding: '0.2rem 0.55rem',
+                                        borderRadius: 99,
+                                        fontSize: 11,
+                                        fontWeight: 700
+                                      }}>
+                                        {(app.documents || []).length} Doc(s)
+                                      </span>
+                                    )}
                                   </td>
 
                                   <td style={{ padding: '0.85rem 1rem' }}>
@@ -1911,11 +2033,37 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                                   </td>
 
                                   <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                                    {isDelivery && app.verificationStatus !== 'APPROVED' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleVerifyAssistant(app.userId, app.name)}
+                                        style={{
+                                          background: '#047857',
+                                          color: '#ffffff',
+                                          border: 'none',
+                                          borderRadius: 99,
+                                          padding: '0.45rem 0.85rem',
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '0.3rem',
+                                          marginRight: '0.4rem',
+                                          boxShadow: '0 1px 3px rgba(4,120,87,0.3)'
+                                        }}
+                                        title="Directly verify and approve delivery assistant"
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>verified</span>
+                                        <span>Verify &amp; Approve</span>
+                                      </button>
+                                    )}
+
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setSelectedApp(app);
-                                        setApprovalServices(app.serviceAreasApplied || []);
+                                        setApprovalServices(isDelivery ? ['MEDICINE_DELIVERY'] : (app.serviceAreasApplied || []));
                                         setActionReason('');
                                         setReviewChecklist({
                                           identityVerified: false,
@@ -1938,7 +2086,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                                         gap: '0.35rem'
                                       }}
                                     >
-                                      <span>Review &amp; Verify</span>
+                                      <span>{isDelivery ? 'View Details' : 'Review & Verify'}</span>
                                       <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_right</span>
                                     </button>
                                   </td>
@@ -1985,8 +2133,18 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
                         <span style={{
-                          background: '#032f28',
+                          background: selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? '#047857' : '#032f28',
                           color: '#ffffff',
+                          padding: '0.2rem 0.65rem',
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 700
+                        }}>
+                          {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? 'TRACK: DELIVERY ASSISTANT' : 'TRACK: HEALTHCARE PROFESSIONAL'}
+                        </span>
+                        <span style={{
+                          background: '#f1f5f9',
+                          color: '#032f28',
                           padding: '0.2rem 0.65rem',
                           borderRadius: 99,
                           fontSize: 11,
@@ -1997,7 +2155,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                         <span style={{ fontSize: 12, color: '#717976' }}>Application ID: {selectedApp.id.slice(0, 8)}</span>
                       </div>
                       <h2 style={{ fontSize: 24, fontWeight: 800, color: '#032f28', margin: 0 }}>
-                        {selectedApp.name} — {selectedApp.professionTitle}
+                        {selectedApp.name} — {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? 'Medicine Delivery Track' : (selectedApp.professionTitle || 'Healthcare Worker')}
                       </h2>
                       <div style={{ fontSize: 13, color: '#414846', marginTop: 2 }}>
                         {selectedApp.email} • {selectedApp.phone || 'Phone not provided'}
@@ -2025,47 +2183,87 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                   </div>
 
                   {/* Profile Credentials Summary */}
-                  <div style={{
-                    background: '#f8fafc',
-                    borderRadius: 16,
-                    padding: '1.25rem',
-                    border: '1px solid #e0f2eb',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '1rem',
-                    fontSize: 13
-                  }}>
-                    <div>
-                      <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Council License Number</span>
-                      <strong style={{ color: '#032f28', fontFamily: 'monospace', fontSize: 14 }}>{selectedApp.registrationNumber || 'Not provided'}</strong>
+                  {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? (
+                    <div style={{
+                      background: '#f8fafc',
+                      borderRadius: 16,
+                      padding: '1.25rem',
+                      border: '1px solid #e0f2eb',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '1rem',
+                      fontSize: 13
+                    }}>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Operational Track</span>
+                        <strong style={{ color: '#032f28', fontSize: 14 }}>Prescription Medicine Delivery</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Assigned Vehicle</span>
+                        <strong style={{ color: '#047857', fontSize: 14 }}>{selectedApp.vehicleType || 'Two Wheeler / Motorcycle'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Operating Zone</span>
+                        <strong style={{ color: '#032f28' }}>{selectedApp.operatingCity || 'Chengannur'} ({selectedApp.operatingRadiusKm || 10} km radius)</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Authorized Scope</span>
+                        <strong style={{ color: '#032f28' }}>Medicine Transit &amp; Handover</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Submission Date</span>
+                        <strong style={{ color: '#032f28' }}>
+                          {selectedApp.submittedAt ? new Date(selectedApp.submittedAt).toLocaleDateString() : 'Active Registration'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Applicant Declaration</span>
+                        <strong style={{ color: '#2e685d' }}>✓ Confirmed &amp; Declared</strong>
+                      </div>
                     </div>
-                    <div>
-                      <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Issuing Regulatory Body</span>
-                      <strong style={{ color: '#032f28' }}>{selectedApp.issuingAuthority || 'State Nursing Board'}</strong>
+                  ) : (
+                    <div style={{
+                      background: '#f8fafc',
+                      borderRadius: 16,
+                      padding: '1.25rem',
+                      border: '1px solid #e0f2eb',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '1rem',
+                      fontSize: 13
+                    }}>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Council License Number</span>
+                        <strong style={{ color: '#032f28', fontFamily: 'monospace', fontSize: 14 }}>{selectedApp.registrationNumber || 'Not provided'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Issuing Regulatory Body</span>
+                        <strong style={{ color: '#032f28' }}>{selectedApp.issuingAuthority || 'State Nursing Board'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Qualifications &amp; Degrees</span>
+                        <strong style={{ color: '#032f28' }}>{selectedApp.qualifications || 'None stated'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Clinical Experience</span>
+                        <strong style={{ color: '#032f28' }}>{selectedApp.yearsOfExperience != null ? `${selectedApp.yearsOfExperience} Years` : 'Unspecified'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Operating Territory</span>
+                        <strong style={{ color: '#032f28' }}>{selectedApp.operatingCity || 'Chengannur'} ({selectedApp.operatingRadiusKm || 10} km)</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Applicant Truth Declaration</span>
+                        <strong style={{ color: selectedApp.declarationAccepted ? '#2e685d' : '#ba1a1a' }}>
+                          {selectedApp.declarationAccepted ? '✓ Declared Truthful' : '✗ Declaration Missing'}
+                        </strong>
+                      </div>
                     </div>
-                    <div>
-                      <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Qualifications &amp; Degrees</span>
-                      <strong style={{ color: '#032f28' }}>{selectedApp.qualifications || 'None stated'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Clinical Experience</span>
-                      <strong style={{ color: '#032f28' }}>{selectedApp.yearsOfExperience != null ? `${selectedApp.yearsOfExperience} Years` : 'Unspecified'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Operating Territory</span>
-                      <strong style={{ color: '#032f28' }}>{selectedApp.operatingCity || 'Chengannur'} ({selectedApp.operatingRadiusKm || 10} km)</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#717976', fontSize: 11, textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>Applicant Truth Declaration</span>
-                      <strong style={{ color: selectedApp.declarationAccepted ? '#2e685d' : '#ba1a1a' }}>
-                        {selectedApp.declarationAccepted ? '✓ Declared Truthful' : '✗ Declaration Missing'}
-                      </strong>
-                    </div>
-                  </div>
+                  )}
 
                   {selectedApp.bio && (
                     <div style={{ fontSize: 13, color: '#414846', background: '#ffffff', border: '1px solid #e0f2eb', borderRadius: 12, padding: '0.75rem 1rem' }}>
-                      <strong style={{ color: '#032f28' }}>Professional Bio:</strong> {selectedApp.bio}
+                      <strong style={{ color: '#032f28' }}>{selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? 'Delivery Notes / Bio:' : 'Professional Bio:'}</strong> {selectedApp.bio}
                     </div>
                   )}
 
@@ -2080,9 +2278,16 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                     </p>
 
                     {(selectedApp.documents || []).length === 0 ? (
-                      <div style={{ padding: '1rem', background: '#fff8f6', border: '1px solid #ffdad6', borderRadius: 12, color: '#ba1a1a', fontSize: 12, fontWeight: 600 }}>
-                        No supporting verification documents uploaded. Cannot approve without authentic certificates.
-                      </div>
+                      selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? (
+                        <div style={{ padding: '1rem', background: '#e0f2eb', border: '1px solid #b0ecdd', borderRadius: 12, color: '#032f28', fontSize: 13, fontWeight: 600 }}>
+                          <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: 6, color: '#2e685d' }}>check_circle</span>
+                          Standard Delivery Assistant Track — Council medical licensure is not required. Verification authorizes prescription transport from verified partner pharmacies to patient addresses.
+                        </div>
+                      ) : (
+                        <div style={{ padding: '1rem', background: '#fff8f6', border: '1px solid #ffdad6', borderRadius: 12, color: '#ba1a1a', fontSize: 12, fontWeight: 600 }}>
+                          No supporting verification documents uploaded. Cannot approve without authentic certificates.
+                        </div>
+                      )
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {selectedApp.documents.map(doc => (
@@ -2139,96 +2344,122 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                     )}
                   </div>
 
-                  {/* Verification Review Checklist */}
-                  <div style={{ background: '#e6f8f1', padding: '1rem', borderRadius: 16, border: '1px solid #d5e6e0' }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 700, color: '#032f28', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Administrator Verification Checklist
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.5rem', fontSize: 12 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={reviewChecklist.identityVerified}
-                          onChange={e => setReviewChecklist({ ...reviewChecklist, identityVerified: e.target.checked })}
-                          style={{ accentColor: '#032f28' }}
-                        />
-                        <span>Official ID verified against applicant details</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={reviewChecklist.councilActive}
-                          onChange={e => setReviewChecklist({ ...reviewChecklist, councilActive: e.target.checked })}
-                          style={{ accentColor: '#032f28' }}
-                        />
-                        <span>Council registration validated on active state registry</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={reviewChecklist.qualificationValid}
-                          onChange={e => setReviewChecklist({ ...reviewChecklist, qualificationValid: e.target.checked })}
-                          style={{ accentColor: '#032f28' }}
-                        />
-                        <span>Nursing degree / diploma authenticated</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={reviewChecklist.scopeAppropriate}
-                          onChange={e => setReviewChecklist({ ...reviewChecklist, scopeAppropriate: e.target.checked })}
-                          style={{ accentColor: '#032f28' }}
-                        />
-                        <span>Approved scopes match certified training</span>
-                      </label>
+                  {/* Verification Review Checklist / Authorization Notice */}
+                  {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? (
+                    <div style={{ background: '#e6f8f1', padding: '1.25rem', borderRadius: 16, border: '1px solid #d5e6e0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                        <span className="material-symbols-outlined" style={{ color: '#047857', fontSize: 20 }}>local_shipping</span>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, color: '#032f28', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Delivery Assistant Dispatch Authorization
+                        </h4>
+                      </div>
+                      <p style={{ fontSize: 13, color: '#2e685d', margin: 0, lineHeight: 1.5 }}>
+                        Approving this delivery assistant authorizes their account for live delivery dispatch across <strong>{selectedApp.operatingCity || 'Chengannur'}</strong> ({selectedApp.operatingRadiusKm || 10} km radius) with vehicle <strong>{selectedApp.vehicleType || 'Two Wheeler'}</strong>. The review banner will clear on the assistant portal, allowing instant acceptance of pharmacy delivery jobs.
+                      </p>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ background: '#e6f8f1', padding: '1rem', borderRadius: 16, border: '1px solid #d5e6e0' }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 700, color: '#032f28', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Administrator Verification Checklist
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.5rem', fontSize: 12 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={reviewChecklist.identityVerified}
+                            onChange={e => setReviewChecklist({ ...reviewChecklist, identityVerified: e.target.checked })}
+                            style={{ accentColor: '#032f28' }}
+                          />
+                          <span>Official ID verified against applicant details</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={reviewChecklist.councilActive}
+                            onChange={e => setReviewChecklist({ ...reviewChecklist, councilActive: e.target.checked })}
+                            style={{ accentColor: '#032f28' }}
+                          />
+                          <span>Council registration validated on active state registry</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={reviewChecklist.qualificationValid}
+                            onChange={e => setReviewChecklist({ ...reviewChecklist, qualificationValid: e.target.checked })}
+                            style={{ accentColor: '#032f28' }}
+                          />
+                          <span>Nursing degree / diploma authenticated</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={reviewChecklist.scopeAppropriate}
+                            onChange={e => setReviewChecklist({ ...reviewChecklist, scopeAppropriate: e.target.checked })}
+                            style={{ accentColor: '#032f28' }}
+                          />
+                          <span>Approved scopes match certified training</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Service-Specific Approval Selector */}
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <label style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>
-                        Service-Specific Clinical Scope Approval
-                      </label>
-                      <span style={{ fontSize: 11, color: '#ba1a1a', fontWeight: 600 }}>
-                        High-risk invasive procedures prohibited
+                  {/* Scope Approval Selector */}
+                  {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? (
+                    <div style={{ background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: 12, border: '1px solid #e0f2eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <strong style={{ color: '#032f28', fontSize: 13 }}>Assigned Operational Scope:</strong>
+                        <div style={{ fontSize: 12, color: '#414846', marginTop: 2 }}>Medicine transport, pharmacy collection, and customer doorstep delivery</div>
+                      </div>
+                      <span style={{ background: '#047857', color: '#ffffff', padding: '4px 12px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                        MEDICINE DELIVERY
                       </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {['NURSING_VISIT', 'VITAL_SIGN_MEASUREMENT', 'POST_HOSPITAL_CARE', 'WOUND_CARE_ASSISTANCE', 'HOME_NURSING_SUPPORT'].map(svc => {
-                        const isChecked = approvalServices.includes(svc);
-                        return (
-                          <label
-                            key={svc}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
-                              padding: '0.35rem 0.75rem',
-                              borderRadius: 99,
-                              background: isChecked ? '#b0ecdd' : '#f8fafc',
-                              border: isChecked ? '1px solid #336c61' : '1px solid #c0c8c5',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                setApprovalServices(prev =>
-                                  isChecked ? prev.filter(s => s !== svc) : [...prev, svc]
-                                );
+                  ) : (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <label style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>
+                          Service-Specific Clinical Scope Approval
+                        </label>
+                        <span style={{ fontSize: 11, color: '#ba1a1a', fontWeight: 600 }}>
+                          High-risk invasive procedures prohibited
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {['NURSING_VISIT', 'VITAL_SIGN_MEASUREMENT', 'POST_HOSPITAL_CARE', 'WOUND_CARE_ASSISTANCE', 'HOME_NURSING_SUPPORT'].map(svc => {
+                          const isChecked = approvalServices.includes(svc);
+                          return (
+                            <label
+                              key={svc}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: 99,
+                                background: isChecked ? '#b0ecdd' : '#f8fafc',
+                                border: isChecked ? '1px solid #336c61' : '1px solid #c0c8c5',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: 'pointer'
                               }}
-                              style={{ accentColor: '#032f28' }}
-                            />
-                            <span>{svc.replace(/_/g, ' ')}</span>
-                          </label>
-                        );
-                      })}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setApprovalServices(prev =>
+                                    isChecked ? prev.filter(s => s !== svc) : [...prev, svc]
+                                  );
+                                }}
+                                style={{ accentColor: '#032f28' }}
+                              />
+                              <span>{svc.replace(/_/g, ' ')}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Review Notes / Reason Input */}
                   <div>
@@ -2307,7 +2538,7 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                         onClick={() => {
                           setConfirmDialog({
                             isOpen: true,
-                            title: 'Reject Professional Application?',
+                            title: 'Reject Application?',
                             message: `Reject the application submitted by ${selectedApp.name}? Explanation: "${actionReason}"`,
                             confirmLabel: 'Confirm Rejection',
                             variant: 'danger',
@@ -2338,8 +2569,8 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           onClick={() => {
                             setConfirmDialog({
                               isOpen: true,
-                              title: 'Suspend Professional Account?',
-                              message: `Suspend healthcare professional ${selectedApp.name}? Reason: "${actionReason}"`,
+                              title: 'Suspend Account?',
+                              message: `Suspend assistant ${selectedApp.name}? Reason: "${actionReason}"`,
                               confirmLabel: 'Confirm Suspension',
                               variant: 'danger',
                               impactPoints: [
@@ -2370,13 +2601,13 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           onClick={() => {
                             setConfirmDialog({
                               isOpen: true,
-                              title: 'Restore Professional Account Access?',
-                              message: `Restore healthcare professional ${selectedApp.name}? Reason: "${actionReason}"`,
+                              title: 'Restore Account Access?',
+                              message: `Restore assistant ${selectedApp.name}? Reason: "${actionReason}"`,
                               confirmLabel: 'Confirm Restoration',
                               variant: 'primary',
                               impactPoints: [
                                 'Account status will transition back to APPROVED.',
-                                'Approved clinical services and capabilities will be restored immediately.'
+                                'Approved services and capabilities will be restored immediately.'
                               ],
                               onConfirm: () => handleRestoreProfessional(selectedApp.id)
                             });
@@ -2397,37 +2628,68 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                       )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmDialog({
-                          isOpen: true,
-                          title: 'Approve Healthcare Professional Application?',
-                          message: `Authorize ${selectedApp.name} for ${approvalServices.length} clinical service category(s)?`,
-                          confirmLabel: 'Approve & Activate Scope',
-                          variant: 'primary',
-                          impactPoints: [
-                            `Approved Categories: ${approvalServices.join(', ')}`,
-                            'Documents will be marked VERIFIED in central audit trail.',
-                            'A notification will be dispatched to the professional.'
-                          ],
-                          onConfirm: () => handleApproveApplication(selectedApp.id)
-                        });
-                      }}
-                      style={{
-                        background: '#032f28',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: 99,
-                        padding: '0.65rem 1.5rem',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 8px rgba(3,47,40,0.2)'
-                      }}
-                    >
-                      Approve Application
-                    </button>
+                    {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? (
+                      selectedApp.verificationStatus !== 'APPROVED' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyAssistant(selectedApp.userId, selectedApp.name)}
+                          style={{
+                            background: '#047857',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: 99,
+                            padding: '0.65rem 1.5rem',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            boxShadow: '0 2px 8px rgba(4,120,87,0.3)'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>verified</span>
+                          <span>Approve Delivery Assistant</span>
+                        </button>
+                      ) : (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#047857', fontWeight: 700, fontSize: 13 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>
+                          <span>Assistant Verified &amp; Active</span>
+                        </div>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmDialog({
+                            isOpen: true,
+                            title: 'Approve Healthcare Professional Application?',
+                            message: `Authorize ${selectedApp.name} for ${approvalServices.length} clinical service category(s)?`,
+                            confirmLabel: 'Approve & Activate Scope',
+                            variant: 'primary',
+                            impactPoints: [
+                              `Approved Categories: ${approvalServices.join(', ')}`,
+                              'Documents will be marked VERIFIED in central audit trail.',
+                              'A notification will be dispatched to the professional.'
+                            ],
+                            onConfirm: () => handleApproveApplication(selectedApp.id)
+                          });
+                        }}
+                        style={{
+                          background: '#032f28',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 99,
+                          padding: '0.65rem 1.5rem',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(3,47,40,0.2)'
+                        }}
+                      >
+                        Approve Application
+                      </button>
+                    )}
                   </div>
 
                   {/* Prior Review Logs / Audit Trail */}

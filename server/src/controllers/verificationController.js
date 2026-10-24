@@ -62,6 +62,8 @@ function formatApplicationPayload(profile, user, documents = [], reviewLogs = []
     yearsOfExperience: profile.yearsOfExperience != null ? profile.yearsOfExperience : null,
     operatingCity: profile.operatingCity || 'Chengannur',
     operatingRadiusKm: profile.operatingRadiusKm != null ? profile.operatingRadiusKm : 10,
+    vehicleType: profile.vehicleType || 'MOTORCYCLE',
+    capabilities: profile.capabilities || '',
     bio: profile.bio || '',
 
     // Clinical Services
@@ -601,11 +603,15 @@ async function getAdminVerificationQueue(req, res) {
     if (req.user?.role !== 'ADMIN') {
       return res.status(403).json({ success: false, error: 'Unauthorized. Admin access required.' });
     }
-    const { status, search } = req.query;
+    const { status, search, track } = req.query;
 
     const where = {
-      assistantType: 'HEALTHCARE_PROFESSIONAL'
+      assistantType: { not: null }
     };
+
+    if (track && track !== 'ALL') {
+      where.assistantType = track;
+    }
 
     if (status && status !== 'ALL' && APPLICATION_STATUSES[status]) {
       where.verificationStatus = status;
@@ -629,7 +635,9 @@ async function getAdminVerificationQueue(req, res) {
           p.user?.name?.toLowerCase().includes(q) ||
           p.user?.email?.toLowerCase().includes(q) ||
           p.registrationNumber?.toLowerCase().includes(q) ||
-          p.professionTitle?.toLowerCase().includes(q)
+          p.professionTitle?.toLowerCase().includes(q) ||
+          p.operatingCity?.toLowerCase().includes(q) ||
+          p.vehicleType?.toLowerCase().includes(q)
         );
       });
     }
@@ -872,7 +880,69 @@ async function approveApplication(req, res) {
     const { approvedServices, notes, reviewChecklist, checklistConfirmed } = req.body;
     const adminId = req.user.id;
 
-    // Strict validation of individually approved service categories
+    const profile = await prisma.assistantProfile.findUnique({
+      where: { id },
+      include: { user: true, documents: true, reviewLogs: true }
+    });
+
+    if (!profile) {
+      return res.status(404).json({ success: false, error: 'Application not found.' });
+    }
+
+    // ── Delivery Assistant Approval Branch (No clinical council checks required) ──
+    if (profile.assistantType === 'DELIVERY_ASSISTANT') {
+      const now = new Date();
+      const prevStatus = profile.verificationStatus;
+      const updated = await prisma.$transaction(async (tx) => {
+        const p = await tx.assistantProfile.update({
+          where: { id },
+          data: {
+            verificationStatus: APPLICATION_STATUSES.APPROVED,
+            capabilities: 'MEDICINE_DELIVERY,MEDICINE_COLLECTION',
+            approvedServices: JSON.stringify(['MEDICINE_DELIVERY']),
+            reviewedById: adminId,
+            reviewedAt: now,
+            rejectionReason: null,
+            correctionReason: null,
+            suspensionReason: null
+          },
+          include: { user: true, documents: true, reviewLogs: true }
+        });
+
+        await tx.notification.create({
+          data: {
+            userId: profile.userId,
+            title: 'Delivery Assistant Account Verified',
+            message: 'Your Delivery Assistant profile has been reviewed and approved by administrators. You are now authorized to accept live medicine delivery orders.',
+            type: 'ASSISTANT',
+            linkUrl: '/assistant-portal'
+          }
+        });
+
+        await tx.verificationReviewLog.create({
+          data: {
+            assistantProfileId: id,
+            adminId,
+            previousStatus: prevStatus,
+            newStatus: APPLICATION_STATUSES.APPROVED,
+            action: 'APPROVE',
+            reason: notes || 'Delivery Assistant profile verified for live dispatch.',
+            decisionChecklist: JSON.stringify({ deliveryAuthorized: true })
+          }
+        });
+
+        return p;
+      });
+
+      return res.json({
+        success: true,
+        message: 'Delivery Assistant approved & authorized for live dispatch.',
+        profile: updated,
+        application: formatApplicationPayload(updated, updated.user, updated.documents, updated.reviewLogs)
+      });
+    }
+
+    // Strict validation of individually approved service categories (Healthcare Professionals)
     const validation = validateServiceApprovalCategories(approvedServices);
     if (!validation.valid) {
       return res.status(400).json({ success: false, error: validation.error });
@@ -896,15 +966,6 @@ async function approveApplication(req, res) {
         success: false,
         error: 'Administrator review checklist confirmation is required. All 4 verification criteria (government ID, active council registration, authenticated qualifications, and scope appropriateness) must be checked before approval.'
       });
-    }
-
-    const profile = await prisma.assistantProfile.findUnique({
-      where: { id },
-      include: { user: true, documents: true, reviewLogs: true }
-    });
-
-    if (!profile) {
-      return res.status(404).json({ success: false, error: 'Application not found.' });
     }
 
     // Only applications in PENDING or UNDER_REVIEW can be approved
