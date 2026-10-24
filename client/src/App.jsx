@@ -1079,6 +1079,8 @@ function MainApp() {
                     onOrderCreated={handleOrderCreated}
                     selectedMedicines={selectedMedicines}
                     onClearSelectedMedicines={clearMedicineRequest}
+                    onRemoveMedicine={removeFromMedicineRequest}
+                    onUpdateQuantity={updateRequestQuantity}
                     prescriptionId={activePrescriptionId}
                   />
                 )}

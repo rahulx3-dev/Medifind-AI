@@ -18,16 +18,52 @@ import { referencePricingData } from '../data/medicineReferencePricing';
 
 export default function ReservationConfirmation({
   pharmacy,
-  items = [],
+  items: initialItems = [],
   prescriptionId = null,
   onConfirmReservation,
   onBackToDiscovery,
   submitting = false,
   errorMessage = null
 }) {
+  const [items, setItems] = useState(initialItems);
   const [pharmacistNote, setPharmacistNote] = useState('');
   const [localError, setLocalError] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
+
+  const handleUpdateItemQuantity = (medicineIdOrIdx, delta) => {
+    setItems(prev => {
+      return prev.map((item, idx) => {
+        const matches = (item.medicineId && item.medicineId === medicineIdOrIdx) || idx === medicineIdOrIdx;
+        if (!matches) return item;
+        const currentQty = Number(item.quantity) || 1;
+        const newQty = Math.max(1, Math.min(200, currentQty + delta));
+        return { ...item, quantity: newQty };
+      });
+    });
+  };
+
+  const handleSetItemQuantity = (medicineIdOrIdx, newQtyRaw) => {
+    const val = parseInt(newQtyRaw, 10);
+    if (isNaN(val) || val < 1) return;
+    setItems(prev => {
+      return prev.map((item, idx) => {
+        const matches = (item.medicineId && item.medicineId === medicineIdOrIdx) || idx === medicineIdOrIdx;
+        if (!matches) return item;
+        return { ...item, quantity: Math.min(200, val) };
+      });
+    });
+  };
+
+  const handleRemoveItem = (medicineIdOrIdx) => {
+    setItems(prev => prev.filter((item, idx) => {
+      if (item.medicineId && item.medicineId === medicineIdOrIdx) return false;
+      return idx !== medicineIdOrIdx;
+    }));
+  };
 
   // Authoritative medicine pricing resolution helper (per-tablet / per-unit)
   const resolveItemPrice = (item) => {
@@ -318,14 +354,62 @@ export default function ReservationConfirmation({
                         </div>
                       </div>
 
-                      <div className="flex sm:flex-col items-center sm:items-end justify-between shrink-0">
-                        <span className="text-xs text-on-surface-variant bg-surface-container-lowest px-2 py-0.5 rounded-full font-mono font-medium">
-                          Qty: x{qty} × ₹{itemPrice.toFixed(2)} ({getItemPricingUnit(item)})
-                        </span>
-                        <span className="text-sm font-bold text-primary font-mono">
-                          ₹{(itemPrice * qty).toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-outline">Formulation Subtotal</span>
+                      <div className="flex flex-wrap sm:flex-col items-end justify-between sm:justify-center gap-2 shrink-0">
+                        {/* Quantity Stepper & Remove */}
+                        <div className="flex items-center gap-1.5 bg-surface-container-lowest p-1 rounded-full border border-outline-variant/30 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQuantity(item.medicineId || idx, -1)}
+                            disabled={qty <= 1}
+                            title="Decrease quantity"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <span className="material-symbols-outlined text-xs">remove</span>
+                          </button>
+
+                          <div className="flex items-center gap-1 px-1">
+                            <span className="text-[10px] text-outline font-semibold">Qty:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="200"
+                              value={qty}
+                              onChange={(e) => handleSetItemQuantity(item.medicineId || idx, e.target.value)}
+                              className="w-8 text-center text-xs font-bold text-primary font-mono bg-transparent border-0 outline-none p-0 focus:ring-0"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQuantity(item.medicineId || idx, 1)}
+                            disabled={qty >= 200}
+                            title="Increase quantity"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <span className="material-symbols-outlined text-xs">add</span>
+                          </button>
+
+                          <div className="w-[1px] h-3.5 bg-outline-variant/30 mx-0.5" />
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(item.medicineId || idx)}
+                            title="Remove this medicine from reservation hold"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 transition-all cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-xs">delete</span>
+                          </button>
+                        </div>
+
+                        {/* Price Breakdown */}
+                        <div className="flex items-baseline gap-1.5 text-right">
+                          <span className="text-[11px] text-on-surface-variant font-mono">
+                            ₹{itemPrice.toFixed(2)}/{getItemPricingUnit(item).replace('per ', '')}
+                          </span>
+                          <span className="text-sm font-bold text-primary font-mono">
+                            = ₹{(itemPrice * qty).toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );

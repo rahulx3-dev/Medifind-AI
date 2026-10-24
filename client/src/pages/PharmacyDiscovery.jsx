@@ -33,6 +33,8 @@ export default function PharmacyDiscovery({
   onOrderCreated,
   selectedMedicines = [],
   onClearSelectedMedicines,
+  onRemoveMedicine,
+  onUpdateQuantity,
   prescriptionId = null
 }) {
   const [inMemoryCoords, setInMemoryCoords] = useState(null);
@@ -838,22 +840,73 @@ export default function PharmacyDiscovery({
             {/* Content: Selected Medicines or Directory Exploration Prompt */}
             {hasActiveMedicines ? (
               <div className="flex flex-wrap gap-2 py-0.5">
-                {selectedMedicines.map(m => (
-                  <div
-                    key={m.medicineId || m.id}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant/20 text-xs shadow-2xs hover:border-secondary transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-sm text-secondary">medication</span>
-                    <span className="font-bold text-primary">{m.brandName}</span>
-                    <span className="text-[11px] font-mono text-on-surface-variant font-medium bg-surface-container px-1.5 py-0.5 rounded-md">
-                      x{m.quantity || 1} units
-                    </span>
-                    <span className="text-[10px] text-secondary font-bold flex items-center gap-0.5">
-                      <span className="material-symbols-outlined text-[12px]">check</span>
-                      Ready
-                    </span>
-                  </div>
-                ))}
+                {selectedMedicines.map(m => {
+                  const mId = m.medicineId || m.id;
+                  const qty = Number(m.quantity) || 1;
+                  return (
+                    <div
+                      key={mId}
+                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-xs shadow-2xs hover:border-secondary transition-all"
+                    >
+                      <span className="material-symbols-outlined text-sm text-secondary">medication</span>
+                      <span className="font-bold text-primary">{m.brandName}</span>
+                      
+                      {/* Quantity Stepper & Direct Editable Input */}
+                      <div className="flex items-center bg-surface-container-low rounded-lg p-0.5 border border-outline-variant/30">
+                        {onUpdateQuantity && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateQuantity(mId, Math.max(1, qty - 1))}
+                            disabled={qty <= 1}
+                            title="Decrease quantity"
+                            className="w-5 h-5 rounded-md flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">remove</span>
+                          </button>
+                        )}
+
+                        <input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={qty}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val >= 1 && onUpdateQuantity) {
+                              onUpdateQuantity(mId, Math.min(200, val));
+                            }
+                          }}
+                          className="w-7 text-center text-[11px] font-bold text-primary font-mono bg-transparent border-0 outline-none p-0 focus:ring-0"
+                          title="Click to edit quantity"
+                        />
+
+                        {onUpdateQuantity && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateQuantity(mId, Math.min(200, qty + 1))}
+                            disabled={qty >= 200}
+                            title="Increase quantity"
+                            className="w-5 h-5 rounded-md flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">add</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Remove Button */}
+                      {onRemoveMedicine && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMedicine(mId)}
+                          title={`Remove ${m.brandName} from request queue`}
+                          className="w-5 h-5 rounded-md flex items-center justify-center text-outline hover:text-error hover:bg-error-container/20 transition-all cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-xs">close</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 text-xs gap-3 shadow-2xs">
@@ -1326,24 +1379,40 @@ export default function PharmacyDiscovery({
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-right flex flex-col items-end gap-0.5">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
-                                  isAvail
-                                    ? 'bg-secondary-container text-on-secondary-container'
-                                    : 'bg-[#ffdad6] text-error'
-                                }`}>
-                                  {av.status === 'CLINICAL_MISMATCH'
-                                    ? 'Non-Equivalent'
-                                    : (isAvail
-                                        ? (av.status === 'INSUFFICIENT_STOCK' ? `Low Stock (${av.stock})` : 'Available')
-                                        : (av.status === 'UNKNOWN' ? 'Stock Unknown' : 'Not available at this pharmacy'))}
-                                </span>
-                                {av.unitPrice != null ? (
-                                  <span className="text-[10px] text-on-surface-variant font-mono">
-                                    ₹{Number(av.unitPrice).toFixed(2)}/{av.pricingUnit ? av.pricingUnit.replace('per ', '') : 'tab'} {av.itemSubtotal ? `(subtotal ₹${Number(av.itemSubtotal).toFixed(2)})` : ''}
+                              <div className="text-right flex items-center gap-2">
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
+                                    isAvail
+                                      ? 'bg-secondary-container text-on-secondary-container'
+                                      : 'bg-[#ffdad6] text-error'
+                                  }`}>
+                                    {av.status === 'CLINICAL_MISMATCH'
+                                      ? 'Non-Equivalent'
+                                      : (isAvail
+                                          ? (av.status === 'INSUFFICIENT_STOCK' ? `Low Stock (${av.stock})` : 'Available')
+                                          : (av.status === 'UNKNOWN' ? 'Stock Unknown' : 'Not available at this pharmacy'))}
                                   </span>
-                                ) : (
-                                  <span className="text-[10px] text-outline italic">Price unlisted</span>
+                                  {av.unitPrice != null ? (
+                                    <span className="text-[10px] text-on-surface-variant font-mono">
+                                      ₹{Number(av.unitPrice).toFixed(2)}/{av.pricingUnit ? av.pricingUnit.replace('per ', '') : 'tab'} {av.itemSubtotal ? `(subtotal ₹${Number(av.itemSubtotal).toFixed(2)})` : ''}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-outline italic">Price unlisted</span>
+                                  )}
+                                </div>
+
+                                {onRemoveMedicine && av.medicineId && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onRemoveMedicine(av.medicineId);
+                                    }}
+                                    title={`Remove ${av.brandName} from search request`}
+                                    className="p-1 rounded-lg text-outline hover:text-error hover:bg-error-container/20 transition-all cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
