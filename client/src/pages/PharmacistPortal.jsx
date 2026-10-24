@@ -1377,7 +1377,9 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   const pendingCount = orders.filter(o => o.status === 'PENDING').length;
   const confirmedCount = orders.filter(o => o.status === 'CONFIRMED').length;
   const readyCount = orders.filter(o => o.status === 'READY_FOR_PICKUP').length;
+  const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
   const cancelledCount = orders.filter(o => o.status === 'CANCELLED').length;
+  const rejectedCount = orders.filter(o => o.status === 'REJECTED').length;
   const lowStockCount = inventory.filter(i => (i.stock || 0) <= 5).length;
   const activeCatalogueCount = inventory.length;
 
