@@ -8,6 +8,7 @@ import ReservationSuccess from '../components/ReservationSuccess';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 import { referencePricingData } from '../data/medicineReferencePricing';
 import RollingNumber from '../components/ui/RollingNumber';
+import FlowButton from '../components/FlowButton';
 
 const AREA_LANDMARKS = [
   { name: 'Chengannur area', lat: 9.3170, lon: 76.6145 },
@@ -1449,77 +1450,75 @@ export default function PharmacyDiscovery({
                   <div className="pt-2 flex flex-col sm:flex-row items-center gap-2 border-t border-surface-container">
                     {!hasActiveMedicines ? (
                       <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                        <button
-                          type="button"
+                        <FlowButton
+                          variant="primary"
+                          size="md"
+                          fullWidth
                           onClick={() => {
                             setSelectedPharmacyForMap(p);
                             setMedSelectorOpen(true);
                           }}
-                          className="w-full sm:flex-1 py-3 px-4 rounded-full font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 bg-primary hover:bg-primary-container text-white cursor-pointer"
+                          className="!py-2.5 !text-xs !font-bold"
                           title="Select medicines from catalogue to reserve at this dispensary"
                         >
-                          <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
-                          <span>Select Medicines to Reserve</span>
-                        </button>
-                        <button
-                          type="button"
+                          Select Medicines to Reserve
+                        </FlowButton>
+                        <FlowButton
+                          variant="secondary"
+                          size="md"
                           onClick={() => setSelectedPharmacyForDetails(p)}
-                          className="w-full sm:w-auto py-3 px-4 rounded-full font-semibold text-xs border border-outline-variant/40 hover:bg-surface-container text-primary transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full sm:w-auto !py-2.5 !text-xs !font-semibold whitespace-nowrap"
                           title="View pharmacy hours, services, and location details"
                         >
-                          <span className="material-symbols-outlined text-sm">info</span>
-                          <span>Hours &amp; Info</span>
-                        </button>
+                          Hours &amp; Info
+                        </FlowButton>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        disabled={hasNoMedicinesAvailable || isClosed}
-                        onClick={() => {
-                          if (!hasNoMedicinesAvailable && !isClosed) {
-                            handleInitiateReservation(p, selectedMedicines.length > 0 ? selectedMedicines : availabilityList);
+                      <div className="flex-1 w-full">
+                        <FlowButton
+                          variant="primary"
+                          size="md"
+                          fullWidth
+                          disabled={hasNoMedicinesAvailable || isClosed}
+                          onClick={() => {
+                            if (!hasNoMedicinesAvailable && !isClosed) {
+                              handleInitiateReservation(p, selectedMedicines.length > 0 ? selectedMedicines : availabilityList);
+                            }
+                          }}
+                          className={`!py-3 !text-xs !font-bold ${
+                            isClosed || hasNoMedicinesAvailable ? '!opacity-50 !cursor-not-allowed' : ''
+                          }`}
+                          title={
+                            isClosed
+                              ? `Dispensary is closed. Reservations cannot be placed. Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}.`
+                              : hasNoMedicinesAvailable
+                              ? 'No requested medications are available at this pharmacy'
+                              : 'Inspect & Select Pharmacy'
                           }
-                        }}
-                        className={`w-full sm:flex-1 py-3 px-4 rounded-full font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 ${
-                          isClosed
-                            ? 'opacity-60 bg-rose-100 text-rose-800 border border-rose-300 cursor-not-allowed shadow-none'
-                            : hasNoMedicinesAvailable
-                            ? 'opacity-40 bg-surface-container text-on-surface-variant/50 border border-outline-variant/30 cursor-not-allowed shadow-none'
-                            : 'bg-primary hover:bg-primary-container text-white cursor-pointer'
-                        }`}
-                        title={
-                          isClosed
-                            ? `Dispensary is closed. Reservations cannot be placed. Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}.`
-                            : hasNoMedicinesAvailable
-                            ? 'No requested medications are available at this pharmacy'
-                            : 'Inspect & Select Pharmacy'
-                        }
-                      >
-                        <span>
+                        >
                           {isClosed
                             ? `Closed • Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}`
                             : hasNoMedicinesAvailable
                             ? 'No Stock Available'
                             : 'Inspect & Select Pharmacy'}
-                        </span>
-                        <span className="material-symbols-outlined text-sm">
-                          {isClosed ? 'lock' : hasNoMedicinesAvailable ? 'block' : 'arrow_forward'}
-                        </span>
-                      </button>
+                        </FlowButton>
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPharmacyForMap(p);
-                        const idx = displayedPharmacies.findIndex(x => x.id === p.id);
-                        if (idx >= 0) setSelectedMapIndex(idx);
-                        setViewMode('map-exploration');
-                      }}
-                      className="w-full sm:w-auto py-3 px-5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">place</span>
-                      <span>View on Map</span>
-                    </button>
+                    <div className="w-full sm:w-auto shrink-0">
+                      <FlowButton
+                        variant="secondary"
+                        size="md"
+                        onClick={() => {
+                          setSelectedPharmacyForMap(p);
+                          const idx = displayedPharmacies.findIndex(x => x.id === p.id);
+                          if (idx >= 0) setSelectedMapIndex(idx);
+                          setViewMode('map-exploration');
+                        }}
+                        className="w-full sm:w-auto !py-3 !px-5 !text-xs !font-bold whitespace-nowrap"
+                      >
+                        View on Map
+                      </FlowButton>
+                    </div>
                   </div>
                 </article>
               );
