@@ -225,6 +225,7 @@ export function AuthProvider({ children }) {
     try {
       localStorage.removeItem('medifind_token');
       localStorage.removeItem('medifind_prescription_session');
+      localStorage.removeItem('medifind_assistant_profile_cache');
       sessionStorage.removeItem('medifind_rx_image');
     } catch (err) {
       console.warn('Prescription session logout cleanup warning:', err);

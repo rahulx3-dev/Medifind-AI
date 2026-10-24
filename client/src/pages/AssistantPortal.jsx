@@ -631,8 +631,27 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   const tab = currentTab !== undefined ? currentTab : internalTab;
   const setTab = onTabChange || setInternalTab;
 
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(() => {
+    try {
+      const cached = localStorage.getItem('medifind_assistant_profile_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (e) {}
+    return null;
+  });
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('medifind_assistant_profile_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.onboardingCompleted) return false;
+      }
+    } catch (e) {}
+    return true;
+  });
   const [actionLoading, setActionLoading] = useState(false);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
@@ -642,7 +661,31 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   const [selectedCapabilities, setSelectedCapabilities] = useState([]);
 
   // Onboarding View Flow States: 'ROLE_SELECTION' | 'DELIVERY_SETUP' | 'PROFESSIONAL_APPLICATION'
-  const [onboardingStage, setOnboardingStage] = useState('ROLE_SELECTION');
+  const [onboardingStage, setOnboardingStage] = useState(() => {
+    try {
+      const cached = localStorage.getItem('medifind_assistant_profile_cache');
+      if (cached) {
+        const p = JSON.parse(cached);
+        if (p.assistantType && !p.onboardingCompleted) {
+          if (p.assistantType === 'DELIVERY_ASSISTANT') return 'DELIVERY_SETUP';
+          if (p.assistantType === 'HEALTHCARE_PROFESSIONAL') return 'PROFESSIONAL_APPLICATION';
+        }
+      }
+    } catch (e) {}
+    return 'ROLE_SELECTION';
+  });
+
+  // Synchronize profile state with localStorage cache
+  const updateProfile = (newProfile) => {
+    setProfile(newProfile);
+    try {
+      if (newProfile) {
+        localStorage.setItem('medifind_assistant_profile_cache', JSON.stringify(newProfile));
+      } else {
+        localStorage.removeItem('medifind_assistant_profile_cache');
+      }
+    } catch (e) {}
+  };
 
   // Delivery Setup Form
   const [deliveryForm, setDeliveryForm] = useState({
@@ -825,14 +868,17 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
 
   async function fetchProfile() {
     const token = localStorage.getItem('medifind_token');
-    if (!token) return;
+    if (!token) {
+      setProfileLoaded(true);
+      return;
+    }
     try {
       const res = await fetch('/api/assistant/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success && data.profile) {
-        setProfile(data.profile);
+        updateProfile(data.profile);
         setSelectedCapabilities(data.profile.capabilities || []);
         setDeliveryForm(prev => ({
           ...prev,
@@ -872,6 +918,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       }
     } catch (e) {
       console.error('Failed to load assistant profile:', e);
+    } finally {
+      setProfileLoaded(true);
     }
   }
 
@@ -890,7 +938,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       });
       const data = await res.json();
       if (data.success && data.profile) {
-        setProfile(data.profile);
+        updateProfile(data.profile);
         showToast(`Duty status updated: ${newStatus ? 'Active & Available' : 'Paused / Offline'}.`, 'success');
         fetchTasks();
       } else {
@@ -916,7 +964,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       });
       const data = await res.json();
       if (data.success && data.profile) {
-        setProfile(data.profile);
+        updateProfile(data.profile);
         setEditingCapabilities(false);
         showToast('Service scope confirmed for Medicine Delivery.', 'success');
         fetchTasks();
@@ -944,7 +992,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       const data = await res.json();
       setActionLoading(false);
       if (data.success && data.profile) {
-        setProfile(data.profile);
+        updateProfile(data.profile);
         if (targetRole === 'DELIVERY_ASSISTANT') {
           setOnboardingStage('DELIVERY_SETUP');
         } else {
@@ -976,7 +1024,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       const data = await res.json();
       setActionLoading(false);
       if (data.success && data.profile) {
-        setProfile(data.profile);
+        updateProfile(data.profile);
         showToast('Delivery profile created! Welcome to the Delivery Assistant Portal.', 'success');
         fetchTasks();
       } else {
@@ -1029,7 +1077,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       const data = await res.json();
       setActionLoading(false);
       if (data.success && data.profile) {
-        setProfile(data.profile);
+        updateProfile(data.profile);
         setIsEditingApplication(false);
         showToast('Application submitted! Status: PENDING administrator review.', 'success');
         fetchProfile();
@@ -1154,7 +1202,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
           const data = await res.json();
           setActionLoading(false);
           if (data.success && data.profile) {
-            setProfile(data.profile);
+            updateProfile(data.profile);
             showToast(data.message || `Switched to ${targetRole}.`, 'success');
             fetchTasks();
           } else {
@@ -1169,12 +1217,20 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   };
 
   useEffect(() => {
+    let isMounted = true;
     async function init() {
-      setLoading(true);
+      // Only set loading to true if we don't have an onboarded profile cached
+      if (!profile || !profile.onboardingCompleted) {
+        setLoading(true);
+      }
       await Promise.all([fetchProfile(), fetchTasks(true)]);
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+        setProfileLoaded(true);
+      }
     }
     init();
+    return () => { isMounted = false; };
   }, [user]);
 
   useRealtimeRefresh({
@@ -1211,7 +1267,9 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
         console.error('Error fetching assistant tasks:', err);
       }
     } finally {
-      setLoading(false);
+      if (!isBackground) {
+        setLoading(false);
+      }
     }
   }
 
@@ -1281,8 +1339,11 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   const completedTasks = myTasks.filter(task => task.status === 'CONFIRMED');
   const primaryActiveTask = activeTasks[0];
 
-  const isRoleOnboarded = profile && profile.onboardingCompleted === true && !!profile.assistantType;
+  const isRoleOnboarded = Boolean(profile && profile.onboardingCompleted === true && profile.assistantType);
   const isHealthcareRole = profile?.assistantType === 'HEALTHCARE_PROFESSIONAL';
+
+  // Do not show role selection screen while still loading or before profile has been loaded
+  const showSkeleton = loading && !isRoleOnboarded;
 
   return (
     <div className="portal-page" style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
@@ -1315,7 +1376,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {/* LOADING SKELETON STATE */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {loading && (
+      {showSkeleton && (
         <div style={{ maxWidth: 1280, margin: '2rem auto', padding: '0 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ background: '#ffffff', borderRadius: 24, padding: '1.75rem', border: '1px solid #e0f2eb', boxShadow: '0 2px 8px rgba(3,47,40,0.04)' }} className="animate-pulse">
             <div style={{ width: '220px', height: '22px', borderRadius: '10px', background: '#e0f2eb', marginBottom: '14px' }} />
@@ -1344,7 +1405,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {/* FIRST-TIME ROLE SELECTION & ONBOARDING VIEW */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {!loading && !isRoleOnboarded && (
+      {!showSkeleton && (profile || profileLoaded) && !isRoleOnboarded && (
         <div style={{ maxWidth: 960, margin: '2rem auto', padding: '0 1.5rem' }}>
           {onboardingStage === 'ROLE_SELECTION' && (
             <div style={{
@@ -2300,7 +2361,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {/* ONBOARDED ASSISTANT PORTAL WORKSPACE */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {!loading && isRoleOnboarded && (
+      {!showSkeleton && isRoleOnboarded && (
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
           {/* Top Workspace Context & Status Banner */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
