@@ -2032,63 +2032,71 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                                     )}
                                   </td>
 
-                                  <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                                    {isDelivery && app.verificationStatus !== 'APPROVED' && (
-                                      <button
+                                  <td style={{ padding: '0.85rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                      {isDelivery && app.verificationStatus !== 'APPROVED' && (
+                                        <motion.button
+                                          type="button"
+                                          whileHover={{ scale: 1.04, y: -1 }}
+                                          whileTap={{ scale: 0.97 }}
+                                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                                          onClick={() => handleVerifyAssistant(app.userId, app.name)}
+                                          style={{
+                                            background: 'linear-gradient(135deg, #047857 0%, #065f46 100%)',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            borderRadius: 99,
+                                            padding: '0.5rem 1rem',
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem',
+                                            boxShadow: '0 2px 8px rgba(4,120,87,0.3)'
+                                          }}
+                                          title="Directly verify and approve delivery assistant"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
+                                          <span>Verify &amp; Approve</span>
+                                        </motion.button>
+                                      )}
+
+                                      <motion.button
                                         type="button"
-                                        onClick={() => handleVerifyAssistant(app.userId, app.name)}
+                                        whileHover={{ scale: 1.04, y: -1, background: '#f8fafc', borderColor: '#032f28' }}
+                                        whileTap={{ scale: 0.97 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                                        onClick={() => {
+                                          setSelectedApp(app);
+                                          setApprovalServices(isDelivery ? ['MEDICINE_DELIVERY'] : (app.serviceAreasApplied || []));
+                                          setActionReason('');
+                                          setReviewChecklist({
+                                            identityVerified: false,
+                                            councilActive: false,
+                                            qualificationValid: false,
+                                            scopeAppropriate: false
+                                          });
+                                        }}
                                         style={{
-                                          background: '#047857',
-                                          color: '#ffffff',
-                                          border: 'none',
+                                          background: '#ffffff',
+                                          color: '#032f28',
+                                          border: '1.5px solid #c0c8c5',
                                           borderRadius: 99,
-                                          padding: '0.45rem 0.85rem',
-                                          fontSize: 11,
+                                          padding: '0.45rem 1rem',
+                                          fontSize: 12,
                                           fontWeight: 700,
                                           cursor: 'pointer',
                                           display: 'inline-flex',
                                           alignItems: 'center',
-                                          gap: '0.3rem',
-                                          marginRight: '0.4rem',
-                                          boxShadow: '0 1px 3px rgba(4,120,87,0.3)'
+                                          gap: '0.35rem',
+                                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                                         }}
-                                        title="Directly verify and approve delivery assistant"
                                       >
-                                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>verified</span>
-                                        <span>Verify &amp; Approve</span>
-                                      </button>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedApp(app);
-                                        setApprovalServices(isDelivery ? ['MEDICINE_DELIVERY'] : (app.serviceAreasApplied || []));
-                                        setActionReason('');
-                                        setReviewChecklist({
-                                          identityVerified: false,
-                                          councilActive: false,
-                                          qualificationValid: false,
-                                          scopeAppropriate: false
-                                        });
-                                      }}
-                                      style={{
-                                        background: '#032f28',
-                                        color: '#ffffff',
-                                        border: 'none',
-                                        borderRadius: 99,
-                                        padding: '0.45rem 1rem',
-                                        fontSize: 12,
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.35rem'
-                                      }}
-                                    >
-                                      <span>{isDelivery ? 'View Details' : 'Review & Verify'}</span>
-                                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_right</span>
-                                    </button>
+                                        <span>{isDelivery ? 'View Details' : 'Review & Verify'}</span>
+                                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_right</span>
+                                      </motion.button>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -2482,29 +2490,41 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                   </div>
 
                   {/* Decision Action Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #e0f2eb' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {selectedApp.verificationStatus === 'PENDING' && (
-                        <button
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.85rem', paddingTop: '1rem', borderTop: '1px solid #e0f2eb' }}>
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {/* Only Healthcare Professionals require a formal council review phase */}
+                      {selectedApp.verificationStatus === 'PENDING' && selectedApp.assistantType !== 'DELIVERY_ASSISTANT' && (
+                        <motion.button
                           type="button"
+                          whileHover={{ scale: 1.03, y: -1, background: '#e0f2fe' }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                           onClick={() => handleStartReview(selectedApp.id)}
                           style={{
-                            background: '#0284c7',
-                            color: '#ffffff',
-                            border: 'none',
+                            background: '#f0f9ff',
+                            color: '#0369a1',
+                            border: '1.5px solid #0284c7',
                             borderRadius: 99,
                             padding: '0.55rem 1.15rem',
                             fontSize: 12,
                             fontWeight: 700,
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            boxShadow: '0 1px 3px rgba(2,132,199,0.1)'
                           }}
                         >
-                          Start Formal Review
-                        </button>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>fact_check</span>
+                          <span>Start Formal Review</span>
+                        </motion.button>
                       )}
 
-                      <button
+                      <motion.button
                         type="button"
+                        whileHover={{ scale: 1.03, y: -1, background: '#fef3c7' }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                         onClick={() => {
                           setConfirmDialog({
                             isOpen: true,
@@ -2520,21 +2540,29 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           });
                         }}
                         style={{
-                          background: '#f59e0b',
-                          color: '#ffffff',
-                          border: 'none',
+                          background: '#fffbeb',
+                          color: '#b45309',
+                          border: '1.5px solid #f59e0b',
                           borderRadius: 99,
                           padding: '0.55rem 1.15rem',
                           fontSize: 12,
                           fontWeight: 700,
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          boxShadow: '0 1px 3px rgba(245,158,11,0.1)'
                         }}
                       >
-                        Request Corrections
-                      </button>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>
+                        <span>Request Corrections</span>
+                      </motion.button>
 
-                      <button
+                      <motion.button
                         type="button"
+                        whileHover={{ scale: 1.03, y: -1, background: '#ffe4e6' }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                         onClick={() => {
                           setConfirmDialog({
                             isOpen: true,
@@ -2550,22 +2578,30 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           });
                         }}
                         style={{
-                          background: '#ba1a1a',
-                          color: '#ffffff',
-                          border: 'none',
+                          background: '#fff1f2',
+                          color: '#be123c',
+                          border: '1.5px solid #fecdd3',
                           borderRadius: 99,
                           padding: '0.55rem 1.15rem',
                           fontSize: 12,
                           fontWeight: 700,
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          boxShadow: '0 1px 3px rgba(190,18,60,0.1)'
                         }}
                       >
-                        Reject Application
-                      </button>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>cancel</span>
+                        <span>Reject Application</span>
+                      </motion.button>
 
                       {selectedApp.verificationStatus === 'APPROVED' && (
-                        <button
+                        <motion.button
                           type="button"
+                          whileHover={{ scale: 1.03, y: -1, background: '#ffe4e6' }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                           onClick={() => {
                             setConfirmDialog({
                               isOpen: true,
@@ -2581,23 +2617,30 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                             });
                           }}
                           style={{
-                            background: '#881337',
-                            color: '#ffffff',
-                            border: 'none',
+                            background: '#fff1f2',
+                            color: '#9f1239',
+                            border: '1.5px solid #f43f5e',
                             borderRadius: 99,
                             padding: '0.55rem 1.15rem',
                             fontSize: 12,
                             fontWeight: 700,
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
                           }}
                         >
-                          Suspend Account
-                        </button>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>block</span>
+                          <span>Suspend Account</span>
+                        </motion.button>
                       )}
 
                       {selectedApp.verificationStatus === 'SUSPENDED' && (
-                        <button
+                        <motion.button
                           type="button"
+                          whileHover={{ scale: 1.03, y: -1, background: '#dcfce7' }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                           onClick={() => {
                             setConfirmDialog({
                               isOpen: true,
@@ -2613,53 +2656,63 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                             });
                           }}
                           style={{
-                            background: '#047857',
-                            color: '#ffffff',
-                            border: 'none',
+                            background: '#ecfdf5',
+                            color: '#047857',
+                            border: '1.5px solid #10b981',
                             borderRadius: 99,
                             padding: '0.55rem 1.15rem',
                             fontSize: 12,
                             fontWeight: 700,
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
                           }}
                         >
-                          Restore Access
-                        </button>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>restore</span>
+                          <span>Restore Access</span>
+                        </motion.button>
                       )}
                     </div>
 
                     {selectedApp.assistantType === 'DELIVERY_ASSISTANT' ? (
                       selectedApp.verificationStatus !== 'APPROVED' ? (
-                        <button
+                        <motion.button
                           type="button"
+                          whileHover={{ scale: 1.04, y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                           onClick={() => handleVerifyAssistant(selectedApp.userId, selectedApp.name)}
                           style={{
-                            background: '#047857',
+                            background: 'linear-gradient(135deg, #047857 0%, #065f46 100%)',
                             color: '#ffffff',
                             border: 'none',
                             borderRadius: 99,
-                            padding: '0.65rem 1.5rem',
+                            padding: '0.7rem 1.6rem',
                             fontSize: 13,
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.4rem',
-                            boxShadow: '0 2px 8px rgba(4,120,87,0.3)'
+                            gap: '0.45rem',
+                            boxShadow: '0 4px 14px rgba(4,120,87,0.35)'
                           }}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>verified</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: 19 }}>verified</span>
                           <span>Approve Delivery Assistant</span>
-                        </button>
+                        </motion.button>
                       ) : (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#047857', fontWeight: 700, fontSize: 13 }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#047857', fontWeight: 700, fontSize: 13, background: '#dcfce7', padding: '0.5rem 1rem', borderRadius: 99, border: '1px solid #86efac' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>
                           <span>Assistant Verified &amp; Active</span>
                         </div>
                       )
                     ) : (
-                      <button
+                      <motion.button
                         type="button"
+                        whileHover={{ scale: 1.04, y: -1 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                         onClick={() => {
                           setConfirmDialog({
                             isOpen: true,
@@ -2676,19 +2729,23 @@ export default function AdminDashboard({ currentTab, onTabChange }) {
                           });
                         }}
                         style={{
-                          background: '#032f28',
+                          background: 'linear-gradient(135deg, #032f28 0%, #164e63 100%)',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: 99,
-                          padding: '0.65rem 1.5rem',
+                          padding: '0.7rem 1.6rem',
                           fontSize: 13,
                           fontWeight: 700,
                           cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(3,47,40,0.2)'
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          boxShadow: '0 4px 14px rgba(3,47,40,0.35)'
                         }}
                       >
-                        Approve Application
-                      </button>
+                        <span className="material-symbols-outlined" style={{ fontSize: 19 }}>verified</span>
+                        <span>Approve Application</span>
+                      </motion.button>
                     )}
                   </div>
 

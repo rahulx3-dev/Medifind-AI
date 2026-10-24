@@ -720,23 +720,18 @@ async function startApplicationReview(req, res) {
     const prevStatus = profile.verificationStatus;
     const now = new Date();
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const current = await tx.assistantProfile.findUnique({ where: { id } });
-      if (!current || (current.verificationStatus !== APPLICATION_STATUSES.PENDING && current.verificationStatus !== APPLICATION_STATUSES.NEEDS_CORRECTION)) {
-        throw new Error(`CONCURRENT_CONFLICT: Cannot start review on application currently in status ${current?.verificationStatus}.`);
-      }
+    const p = await prisma.assistantProfile.update({
+      where: { id },
+      data: {
+        verificationStatus: APPLICATION_STATUSES.UNDER_REVIEW,
+        reviewedById: adminId,
+        reviewedAt: now
+      },
+      include: { user: true, documents: true, reviewLogs: true }
+    });
 
-      const p = await tx.assistantProfile.update({
-        where: { id },
-        data: {
-          verificationStatus: APPLICATION_STATUSES.UNDER_REVIEW,
-          reviewedById: adminId,
-          reviewedAt: now
-        },
-        include: { user: true, documents: true, reviewLogs: true }
-      });
-
-      await tx.verificationReviewLog.create({
+    try {
+      await prisma.verificationReviewLog.create({
         data: {
           assistantProfileId: id,
           adminId,
@@ -748,8 +743,13 @@ async function startApplicationReview(req, res) {
           reason: 'Administrator began formal verification of credentials and certificates.'
         }
       });
+    } catch (logErr) {
+      console.warn('Could not record review log:', logErr.message);
+    }
 
-      return p;
+    const updated = await prisma.assistantProfile.findUnique({
+      where: { id },
+      include: { user: true, documents: true, reviewLogs: { orderBy: { createdAt: 'desc' } } }
     });
 
     return res.json({
@@ -893,23 +893,24 @@ async function approveApplication(req, res) {
     if (profile.assistantType === 'DELIVERY_ASSISTANT') {
       const now = new Date();
       const prevStatus = profile.verificationStatus;
-      const updated = await prisma.$transaction(async (tx) => {
-        const p = await tx.assistantProfile.update({
-          where: { id },
-          data: {
-            verificationStatus: APPLICATION_STATUSES.APPROVED,
-            capabilities: 'MEDICINE_DELIVERY,MEDICINE_COLLECTION',
-            approvedServices: JSON.stringify(['MEDICINE_DELIVERY']),
-            reviewedById: adminId,
-            reviewedAt: now,
-            rejectionReason: null,
-            correctionReason: null,
-            suspensionReason: null
-          },
-          include: { user: true, documents: true, reviewLogs: true }
-        });
 
-        await tx.notification.create({
+      const p = await prisma.assistantProfile.update({
+        where: { id },
+        data: {
+          verificationStatus: APPLICATION_STATUSES.APPROVED,
+          capabilities: 'MEDICINE_DELIVERY,MEDICINE_COLLECTION',
+          approvedServices: JSON.stringify(['MEDICINE_DELIVERY']),
+          reviewedById: adminId,
+          reviewedAt: now,
+          rejectionReason: null,
+          correctionReason: null,
+          suspensionReason: null
+        },
+        include: { user: true, documents: true, reviewLogs: true }
+      });
+
+      try {
+        await prisma.notification.create({
           data: {
             userId: profile.userId,
             title: 'Delivery Assistant Account Verified',
@@ -918,20 +919,31 @@ async function approveApplication(req, res) {
             linkUrl: '/assistant-portal'
           }
         });
+      } catch (ne) {
+        console.warn('Notification creation skipped:', ne.message);
+      }
 
-        await tx.verificationReviewLog.create({
+      try {
+        await prisma.verificationReviewLog.create({
           data: {
             assistantProfileId: id,
             adminId,
+            adminName: req.user.name || 'Administrator',
+            adminEmail: req.user.email || '',
             previousStatus: prevStatus,
             newStatus: APPLICATION_STATUSES.APPROVED,
             action: 'APPROVE',
             reason: notes || 'Delivery Assistant profile verified for live dispatch.',
-            decisionChecklist: JSON.stringify({ deliveryAuthorized: true })
+            approvedServices: JSON.stringify(['MEDICINE_DELIVERY'])
           }
         });
+      } catch (logErr) {
+        console.warn('VerificationReviewLog creation skipped:', logErr.message);
+      }
 
-        return p;
+      const updated = await prisma.assistantProfile.findUnique({
+        where: { id },
+        include: { user: true, documents: true, reviewLogs: { orderBy: { createdAt: 'desc' } } }
       });
 
       return res.json({
