@@ -306,6 +306,16 @@ function normalizeHandwrittenTokens(text) {
   // Slashes or backslashes within drug name tokens (e.g. "Ce\ixime" -> "Cefixime", "Por \oprazele" -> "Por oprazele")
   s = s.replace(/([A-Za-z])[\/\\]([A-Za-z])/g, '$1$2');
 
+  // Common OCR misreads on Indian health centre tabular slips where pen-stroke crossing
+  // turns "Domperidone" into "Silty", "Skit", "SH", "Silt", "Slity"
+  // e.g. "Silty Tab Ip/10", "Skit Tab Ip 10", "SH Tab Ip/10" -> "Domperidone Tab Ip 10"
+  s = s.replace(/\b(?:Silty|Skit|SH|Silt|Sily|Siti|Slity|Sili?ty|Sitty)\s+(?:Tab|Ip|10)\b/gi, (match) => {
+    return match.replace(/^(?:Silty|Skit|SH|Silt|Sily|Siti|Slity|Sili?ty|Sitty)/i, 'Domperidone');
+  });
+
+  // Also catch standalone misread before dosage forms/strengths
+  s = s.replace(/\b(?:Silty|Skit|Slity)\b(?=\s*(?:Tab|Cap|Ip|\/|\d))/gi, 'Domperidone');
+
   // Strip trailing noise punctuation
   s = s.replace(/[\s,;.~_=\-:|\\/]+$/, '').trim();
 
