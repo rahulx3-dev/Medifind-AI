@@ -13,63 +13,31 @@ import AnimatedStatCard from '../components/ui/AnimatedStatCard';
 import RollingNumber from '../components/ui/RollingNumber';
 const FulfillmentMapBox = React.lazy(() => import('../components/FulfillmentMapBox'));
 
-// ── Service Type Configuration (Canonical 8 Types Preserved for System Compatibility) ──
+// ── Service Type Configuration (Dedicated Delivery Only for Delivery Assistants) ──
 const SERVICE_TYPE_CONFIG = {
+  MEDICINE_DELIVERY: {
+    label: 'Medicine Delivery',
+    icon: 'local_shipping',
+    color: '#032f28',
+    bg: '#e6f8f1',
+    instruction: 'Collect reserved medicine and complete secure doorstep delivery with PIN verification.'
+  },
   MEDICINE_COLLECTION: {
     label: 'Medicine Collection',
     icon: 'medication',
     color: '#2e685d',
     bg: '#e0f2eb',
     instruction: 'Collect the patient’s reserved medicine from the selected pharmacy.'
-  },
-  PHARMACY_VISIT: {
-    label: 'Pharmacy Visit',
-    icon: 'store',
-    color: '#336c61',
-    bg: '#b0ecdd',
-    instruction: 'Visit the selected pharmacy and complete the requested pharmacy-access task.'
-  },
-  PHARMACY_COMPANION: {
-    label: 'Pharmacy Companion',
-    icon: 'group',
-    color: '#1e453e',
-    bg: '#c1ebe1',
-    instruction: 'Meet and accompany the patient for the pharmacy visit.'
-  },
+  }
+};
+
+const DELIVERY_CAPABILITIES_CONFIG = {
   MEDICINE_DELIVERY: {
     label: 'Medicine Delivery',
-    icon: 'home_pin',
+    icon: 'local_shipping',
     color: '#032f28',
     bg: '#e6f8f1',
-    instruction: 'Collect the reserved medicine and assist with delivery to the patient.'
-  },
-  DIGITAL_ASSISTANCE: {
-    label: 'Digital Assistance',
-    icon: 'devices',
-    color: '#2e685d',
-    bg: '#e0f2eb',
-    instruction: 'Help the patient navigate the MediFind process. Do not provide medical advice.'
-  },
-  PHARMACY_COMMS: {
-    label: 'Pharmacy Communication',
-    icon: 'forum',
-    color: '#336c61',
-    bg: '#b0ecdd',
-    instruction: 'Assist with non-clinical communication with the participating pharmacy.'
-  },
-  RESTOCK_ASSISTANCE: {
-    label: 'Restock Assistance',
-    icon: 'inventory',
-    color: '#1e453e',
-    bg: '#c1ebe1',
-    instruction: 'Assist the patient with the availability/restock process.'
-  },
-  PRESCRIPTION_ASSISTANCE: {
-    label: 'Prescription Assistance',
-    icon: 'upload_file',
-    color: '#032f28',
-    bg: '#e6f8f1',
-    instruction: 'Help the patient capture/upload the prescription. Do not interpret or modify it.'
+    instruction: 'Collect the reserved prescription from participating pharmacies and complete secure doorstep delivery with 4-digit PIN verification.'
   }
 };
 
@@ -935,11 +903,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
 
   const handleSaveCapabilities = async () => {
     if (!profile) return;
-    if (selectedCapabilities.length === 0) {
-      showToast('You must select at least one supported service capability.', 'warning');
-      return;
-    }
     const token = localStorage.getItem('medifind_token');
+    const capsToSave = ['MEDICINE_DELIVERY', 'MEDICINE_COLLECTION'];
     try {
       const res = await fetch('/api/assistant/profile', {
         method: 'PUT',
@@ -947,13 +912,13 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ capabilities: selectedCapabilities })
+        body: JSON.stringify({ capabilities: capsToSave })
       });
       const data = await res.json();
       if (data.success && data.profile) {
         setProfile(data.profile);
         setEditingCapabilities(false);
-        showToast('Service capabilities updated successfully.', 'success');
+        showToast('Service scope confirmed for Medicine Delivery.', 'success');
         fetchTasks();
       } else {
         showToast(data.error || 'Failed to update capabilities.', 'error');
@@ -2433,33 +2398,12 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                 <p style={{ fontSize: 15, color: '#414846', margin: '0.35rem 0 0 0' }}>
                   {isHealthcareRole
                     ? 'Manage your professional application, view approved clinical scopes, and track verification status.'
-                    : 'Coordinate secure medicine access services — collection, pharmacy visits, companion assistance, and PIN-verified doorstep delivery.'}
+                    : 'Coordinate secure medicine collection and PIN-verified doorstep delivery.'}
                 </p>
               </div>
 
-              {/* Actions & Role Switching */}
+              {/* Actions Console */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => handleSwitchRole(isHealthcareRole ? 'DELIVERY_ASSISTANT' : 'HEALTHCARE_PROFESSIONAL')}
-                  style={{
-                    background: '#ffffff',
-                    color: '#2e685d',
-                    border: '1px solid #2e685d',
-                    borderRadius: 99,
-                    padding: '0.55rem 1.15rem',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem'
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>swap_horiz</span>
-                  <span>Switch to {isHealthcareRole ? 'Delivery Assistant' : 'Healthcare Professional'}</span>
-                </button>
-
                 <button
                   onClick={fetchTasks}
                   style={{
@@ -2542,7 +2486,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                     {isHealthcareRole ? (
                       <span>Application State: <strong>{profile.verificationStatus || 'PENDING'} Review</strong> • Clinical Scope Protected</span>
                     ) : (
-                      <span>Supported Services: <strong>{(profile?.capabilities || []).length} / 8</strong> canonical types • Vehicle: <strong>{profile?.vehicleType || 'MOTORCYCLE'}</strong></span>
+                      <span>Service Scope: <strong>Medicine Delivery</strong> • Vehicle: <strong>{profile?.vehicleType || 'MOTORCYCLE'}</strong></span>
                     )}
                     {profile?.bio ? ` • “${profile.bio}”` : ''}
                   </div>
@@ -3389,14 +3333,20 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                 <AnimatedStatCard
                   layout="split"
                   icon="sensors"
-                  value="Active Guard"
-                  label="Relay Status"
-                  subtitle="Role-isolated task dispatch"
-                  iconBg="#e0f2eb"
-                  iconColor="#2e685d"
-                  accentColor="#2e685d"
+                  value={profile?.isAvailable ? 'Online' : 'Paused'}
+                  label="Dispatch Status"
+                  subtitle={profile?.isAvailable ? 'Ready for live delivery orders' : 'Duty paused • Standby'}
+                  iconBg={profile?.isAvailable ? '#e0f2eb' : '#fff7ed'}
+                  iconColor={profile?.isAvailable ? '#059669' : '#d97706'}
+                  accentColor={profile?.isAvailable ? '#059669' : '#d97706'}
                   hasBottomBar={false}
                   delay={0.18}
+                  valueStyle={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: profile?.isAvailable ? '#059669' : '#d97706',
+                    letterSpacing: '-0.01em'
+                  }}
                 />
               </div>
             )}
@@ -3968,7 +3918,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#032f28', margin: 0 }}>
-                Manage Supported Service Capabilities
+                Delivery Assistant Capabilities
               </h3>
               <button
                 type="button"
@@ -3978,48 +3928,51 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <p style={{ fontSize: 12, color: '#414846', marginTop: 0, marginBottom: '1rem' }}>
-              Select which non-clinical service types you are available and authorized to fulfill. Only tasks matching your selected capabilities will be shown in your dispatch feed.
+            <p style={{ fontSize: 13, color: '#414846', marginTop: 0, marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Delivery Assistants are strictly dedicated to medicine delivery fulfillment. Non-clinical side services have been removed to ensure focused, rapid doorstep delivery.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 340, overflowY: 'auto', marginBottom: '1.25rem' }}>
-              {Object.keys(SERVICE_TYPE_CONFIG).map(typeKey => {
-                const cfg = SERVICE_TYPE_CONFIG[typeKey];
-                const isChecked = selectedCapabilities.includes(typeKey);
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.5rem' }}>
+              {Object.keys(DELIVERY_CAPABILITIES_CONFIG).map(typeKey => {
+                const cfg = DELIVERY_CAPABILITIES_CONFIG[typeKey];
                 return (
-                  <label
+                  <div
                     key={typeKey}
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 12,
-                      border: isChecked ? '1px solid #2e685d' : '1px solid #e0f2eb',
-                      background: isChecked ? '#f5faf8' : '#ffffff',
-                      cursor: 'pointer'
+                      gap: '0.85rem',
+                      padding: '0.85rem 1rem',
+                      borderRadius: 14,
+                      border: '1.5px solid #2e685d',
+                      background: '#f5faf8'
                     }}
                   >
                     <input
                       type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {
-                        setSelectedCapabilities(prev =>
-                          prev.includes(typeKey)
-                            ? prev.filter(k => k !== typeKey)
-                            : [...prev, typeKey]
-                        );
-                      }}
-                      style={{ marginTop: 3 }}
+                      checked={true}
+                      readOnly
+                      style={{ marginTop: 3, accentColor: '#2e685d' }}
                     />
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>{cfg.label}</span>
-                        <ServiceTypeBadge serviceType={typeKey} size="sm" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>{cfg.label}</span>
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          background: '#b0ecdd',
+                          color: '#00201b',
+                          padding: '0.15rem 0.55rem',
+                          borderRadius: 99
+                        }}>
+                          ACTIVE SERVICE SCOPE
+                        </span>
                       </div>
-                      <div style={{ fontSize: 11, color: '#717976', marginTop: 2 }}>{cfg.instruction}</div>
+                      <div style={{ fontSize: 12, color: '#414846', marginTop: 4, lineHeight: 1.4 }}>
+                        {cfg.instruction}
+                      </div>
                     </div>
-                  </label>
+                  </div>
                 );
               })}
             </div>
@@ -4029,26 +3982,18 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                 type="button"
                 onClick={() => setEditingCapabilities(false)}
                 style={{
-                  background: '#f8fafc',
-                  color: '#414846',
-                  border: '1px solid #c0c8c5',
+                  background: '#2e685d',
+                  color: '#ffffff',
+                  border: 'none',
                   borderRadius: 99,
-                  padding: '0.5rem 1.25rem',
-                  fontSize: 12,
-                  fontWeight: 600,
+                  padding: '0.55rem 1.4rem',
+                  fontSize: 13,
+                  fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >
-                Cancel
+                Close
               </button>
-              <FlowButton
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={handleSaveCapabilities}
-              >
-                Save Capabilities
-              </FlowButton>
             </div>
           </div>
         </div>,

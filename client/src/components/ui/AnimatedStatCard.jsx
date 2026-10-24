@@ -156,6 +156,7 @@ export default function AnimatedStatCard({
   refreshKey = 0,
   className = '',
   cardStyle = {},
+  valueStyle = {},
   children
 }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -248,7 +249,15 @@ export default function AnimatedStatCard({
 
           {/* Number & Label */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#032f28', lineHeight: 1.15, display: 'flex', alignItems: 'center' }}>
+            <div style={{
+              fontSize: typeof value === 'string' && isNaN(Number(value)) ? 18 : 28,
+              fontWeight: 800,
+              color: '#032f28',
+              lineHeight: 1.15,
+              display: 'flex',
+              alignItems: 'center',
+              ...valueStyle
+            }}>
               <RollingNumber value={value} delay={delay + 0.05} refreshKey={refreshKey} />
             </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#717976', marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -283,13 +292,14 @@ export default function AnimatedStatCard({
               </span>
               <div
                 style={{
-                  fontSize: 28,
+                  fontSize: typeof value === 'string' && isNaN(Number(value)) ? 18 : 28,
                   fontWeight: 800,
                   color: '#032f28',
                   marginTop: '0.25rem',
                   lineHeight: 1.15,
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  ...valueStyle
                 }}
               >
                 <RollingNumber value={value} delay={delay + 0.05} refreshKey={refreshKey} />

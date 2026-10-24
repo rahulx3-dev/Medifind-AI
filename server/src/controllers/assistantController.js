@@ -531,6 +531,14 @@ async function switchAssistantRole(req, res) {
       });
     }
 
+    // Role Lock: Once an assistant has registered in one track, they cannot switch to the other track
+    if (profile.assistantType && profile.assistantType !== targetRole) {
+      return res.status(403).json({
+        success: false,
+        error: `Role track locked: This account is permanently registered as ${profile.assistantType === 'DELIVERY_ASSISTANT' ? 'Delivery Assistant' : 'Healthcare Professional'}. Track switching is disabled.`
+      });
+    }
+
     if (profile.assistantType === targetRole) {
       return res.json({
         success: true,
