@@ -49,9 +49,33 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
     initiateNeonGoogleAuth,
     logout
   } = useAuth();
+  // Core Authentication & Portal States
   const [mode, setMode] = useState('login'); // 'login' or 'register'
   const [loginMethod, setLoginMethod] = useState('password'); // 'password' | 'phone_otp'
   const [phoneLoginStep, setPhoneLoginStep] = useState(1); // 1 = enter phone, 2 = enter otp
+  const [loginPortalRole, setLoginPortalRole] = useState(() => {
+    if (initialRole === 'PHARMACIST') return 'PHARMACY';
+    return initialRole || 'PATIENT';
+  });
+  const [registerRole, setRegisterRole] = useState('PATIENT'); // 'PATIENT' | 'ASSISTANT'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [oauthLoadingProvider, setOauthLoadingProvider] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (initialRole) {
+      setLoginPortalRole(initialRole === 'PHARMACIST' ? 'PHARMACY' : initialRole);
+    }
+  }, [initialRole]);
 
   // Helper to validate that authenticated account role matches the active portal tab
   const validatePortalRole = (userRole) => {
@@ -72,9 +96,6 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
     }
     return true;
   };
-
-  // Google OAuth sign-in via Neon Auth & Google Cloud Client Credentials
-  const [oauthLoadingProvider, setOauthLoadingProvider] = useState(null);
 
   const handleGoogleSignIn = async () => {
     setOauthLoadingProvider('Google');
@@ -140,27 +161,6 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
       });
     }
   }, [loginPortalRole]);
-
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [registerRole, setRegisterRole] = useState('PATIENT'); // 'PATIENT' | 'ASSISTANT'
-  const [loginPortalRole, setLoginPortalRole] = useState(() => {
-    if (initialRole === 'PHARMACIST') return 'PHARMACY';
-    return initialRole || 'PATIENT';
-  });
-
-  useEffect(() => {
-    if (initialRole) {
-      setLoginPortalRole(initialRole === 'PHARMACIST' ? 'PHARMACY' : initialRole);
-    }
-  }, [initialRole]);
 
   // Multi-step Registration State
   const [signUpStep, setSignUpStep] = useState(1); // 1 = Details, 2 = OTP, 3 = Password
@@ -316,10 +316,7 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
     }
   };
 
-  // UI states
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // Form submission handlers
 
   // 1. Login Submit (supports email, phone, pharmacyId, assistantId, adminId)
   const handleLoginSubmit = async (e) => {
