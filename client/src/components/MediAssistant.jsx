@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import VoicePoweredOrb from './VoicePoweredOrb';
 
 /* ─── Intent engine ─────────────────────────────────────────────────────── */
@@ -714,22 +715,25 @@ export default function MediAssistant({
         </div>
       </div>
 
-      {/* Modal Panel */}
-      {isOpen && (
-        <div className="fixed inset-0 z-[195] flex items-end sm:items-end sm:justify-end sm:pr-6 sm:pb-24"
+      {/* Modal Panel - Portaled to document.body and constrained to viewport */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:justify-end sm:p-6"
           style={{ pointerEvents:'none' }}>
           <div className="absolute inset-0"
             style={{ background:'rgba(3, 47, 40, 0.45)', backdropFilter:'blur(8px)', pointerEvents:'auto' }}
             onClick={handleClose}/>
 
           {/* Panel */}
-          <div className="relative w-full sm:w-[390px] flex flex-col overflow-hidden shadow-2xl"
+          <div className="relative w-full sm:w-[400px] flex flex-col overflow-hidden shadow-2xl"
             style={{
-              maxHeight:'92vh', height:660, borderRadius:'24px 24px 0 0',
-              background:'#E8F5E9',
-              border:'1.5px solid #9CB080',
-              boxShadow:'0 -20px 80px rgba(3,47,40,0.18), 0 0 0 1px #9CB080',
-              pointerEvents:'auto', animation:'mediPanelIn 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+              maxHeight: 'calc(100dvh - 32px)',
+              height: 'min(640px, calc(100dvh - 32px))',
+              borderRadius: '24px',
+              background: '#E8F5E9',
+              border: '1.5px solid #9CB080',
+              boxShadow: '0 20px 60px rgba(3,47,40,0.25), 0 0 0 1px #9CB080',
+              pointerEvents: 'auto',
+              animation: 'mediPanelIn 0.35s cubic-bezier(0.34,1.56,0.64,1)',
             }}>
 
             {/* Header */}
@@ -857,7 +861,8 @@ export default function MediAssistant({
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Animations */}
