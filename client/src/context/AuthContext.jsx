@@ -111,12 +111,12 @@ export function AuthProvider({ children }) {
   }
 
   // OAuth Sign-In / Sign-Up
-  async function oauthLogin({ provider = 'google', email, name, avatarUrl }) {
+  async function oauthLogin({ provider = 'google', email, name, avatarUrl, role = null }) {
     try {
       const res = await fetchWithRetry('/api/auth/oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, email, name, avatarUrl })
+        body: JSON.stringify({ provider, email, name, avatarUrl, role })
       });
       const data = await res.json();
       if (data.success && data.token) {
@@ -137,12 +137,12 @@ export function AuthProvider({ children }) {
   }
 
   // Phone Number + OTP Direct Sign In
-  async function loginWithPhone(phone, code) {
+  async function loginWithPhone(phone, code, roleHint = null) {
     try {
       const res = await fetchWithRetry('/api/auth/phone-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code })
+        body: JSON.stringify({ phone, code, role: roleHint })
       });
       const data = await res.json();
       if (data.success && data.token) {

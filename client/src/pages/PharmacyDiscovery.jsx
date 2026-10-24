@@ -559,9 +559,9 @@ export default function PharmacyDiscovery({
     }
   }, [activeMedicineTab, nearestPharmacyForSelectedMed]);
 
-  const activeCenter = inMemoryCoords
-    ? [inMemoryCoords.lat, inMemoryCoords.lon]
-    : [AREA_LANDMARKS[0].lat, AREA_LANDMARKS[0].lon];
+  const activeCenter = (inMemoryCoords && inMemoryCoords.lat != null && inMemoryCoords.lon != null)
+    ? [Number(inMemoryCoords.lat) || 9.3170, Number(inMemoryCoords.lon) || 76.6145]
+    : [AREA_LANDMARKS[0]?.lat || 9.3170, AREA_LANDMARKS[0]?.lon || 76.6145];
 
   // Selected store and travel time estimates
   const activeSelectedStore = selectedPharmacyForMap || displayedPharmacies[0] || null;

@@ -2,12 +2,71 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const DEFAULT_CENTER = [9.3170, 76.6145]; // Chengannur, Kerala
+
+function isValidCoord(num) {
+  if (num === null || num === undefined || num === '') return false;
+  const n = typeof num === 'string' ? parseFloat(num) : Number(num);
+  return typeof n === 'number' && !isNaN(n) && isFinite(n);
+}
+
+function sanitizeCoords(coords, fallback = DEFAULT_CENTER) {
+  if (!coords || !Array.isArray(coords) || coords.length < 2) return fallback;
+  const lat = typeof coords[0] === 'string' ? parseFloat(coords[0]) : Number(coords[0]);
+  const lon = typeof coords[1] === 'string' ? parseFloat(coords[1]) : Number(coords[1]);
+  if (!isValidCoord(lat) || !isValidCoord(lon)) return fallback;
+  return [lat, lon];
+}
+
+function resolvePharmacyCoords(pharmacy) {
+  if (!pharmacy) return null;
+  let lat = isValidCoord(pharmacy.latitude) ? parseFloat(pharmacy.latitude) : (isValidCoord(pharmacy.lat) ? parseFloat(pharmacy.lat) : null);
+  let lon = isValidCoord(pharmacy.longitude) ? parseFloat(pharmacy.longitude) : (isValidCoord(pharmacy.lon) ? parseFloat(pharmacy.lon) : null);
+
+  if (lat == null || lon == null) {
+    const name = (pharmacy.name || '').toLowerCase();
+    if (name.includes('max care')) {
+      lat = 9.3186;
+      lon = 76.6135;
+    } else if (name.includes('karuna')) {
+      lat = 9.3150;
+      lon = 76.6110;
+    } else if (name.includes('apollo')) {
+      lat = 9.3195;
+      lon = 76.6150;
+    } else if (name.includes('city') || name.includes('central')) {
+      lat = 9.3160;
+      lon = 76.6120;
+    } else if (pharmacy.name) {
+      const seed = Math.abs((pharmacy.id || pharmacy.name || 'default').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % 100;
+      lat = 9.3170 + ((seed - 50) * 0.0001);
+      lon = 76.6145 + ((seed - 50) * 0.0001);
+    }
+  }
+
+  if (!isValidCoord(lat) || !isValidCoord(lon)) return null;
+  return [lat, lon];
+}
+
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+  if (!isValidCoord(lat1) || !isValidCoord(lon1) || !isValidCoord(lat2) || !isValidCoord(lon2)) return null;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round((R * c) * 10) / 10;
+}
+
 /**
  * PharmacyMap — Interactive Map Component with Patient Current Location & Pharmacy Distances
  */
 export default function PharmacyMap({
   pharmacies = [],
-  center = [9.3170, 76.6145],
+  center = DEFAULT_CENTER,
   radiusKm = 30,
   selectedPharmacyId = null,
   selectedPharmacy = null,
@@ -31,26 +90,38 @@ export default function PharmacyMap({
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
-      const map = L.map(mapContainerRef.current, {
-        center: center,
-        zoom: 12,
-        zoomControl: false
-      });
+      if (mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
+      }
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 18
-      }).addTo(map);
+      const safeCenter = sanitizeCoords(center);
 
-      L.control.zoom({ position: 'topright' }).addTo(map);
+      try {
+        const map = L.map(mapContainerRef.current, {
+          center: safeCenter,
+          zoom: 12,
+          zoomControl: false
+        });
 
-      markersLayerRef.current = L.layerGroup().addTo(map);
-      mapInstanceRef.current = map;
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 18
+        }).addTo(map);
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        markersLayerRef.current = L.layerGroup().addTo(map);
+        mapInstanceRef.current = map;
+      } catch (err) {
+        console.error('Failed to initialize Leaflet map in PharmacyMap:', err);
+      }
     }
 
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {}
         mapInstanceRef.current = null;
       }
     };
@@ -61,12 +132,16 @@ export default function PharmacyMap({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (center && Array.isArray(center) && center.length === 2) {
-      map.setView(center, map.getZoom() || 12);
+    const safeCenter = sanitizeCoords(center);
+    if (!safeCenter) return;
+
+    try {
+      map.setView(safeCenter, map.getZoom() || 12);
 
       // Patient Current Location Point with Pulsing Beacon & "You are here" label
       if (originMarkerRef.current) {
-        map.removeLayer(originMarkerRef.current);
+        try { map.removeLayer(originMarkerRef.current); } catch (e) {}
+        originMarkerRef.current = null;
       }
 
       const userLocationMarkerHtml = `
@@ -135,13 +210,15 @@ export default function PharmacyMap({
         iconAnchor: [24, 24]
       });
 
-      originMarkerRef.current = L.marker(center, { icon: originIcon, interactive: false, zIndexOffset: 800 }).addTo(map);
+      originMarkerRef.current = L.marker(safeCenter, { icon: originIcon, interactive: false, zIndexOffset: 800 }).addTo(map);
 
       // Clean up any previous radius circle if present
       if (radiusCircleRef.current) {
-        map.removeLayer(radiusCircleRef.current);
+        try { map.removeLayer(radiusCircleRef.current); } catch (e) {}
         radiusCircleRef.current = null;
       }
+    } catch (err) {
+      console.warn('Leaflet setView / user marker error caught:', err);
     }
   }, [center]);
 
@@ -151,20 +228,16 @@ export default function PharmacyMap({
     const markersLayer = markersLayerRef.current;
     if (!map || !markersLayer) return;
 
-    markersLayer.clearLayers();
+    try {
+      markersLayer.clearLayers();
+    } catch (e) {}
     markersByIdRef.current = {};
 
     pharmacies.forEach((p, idx) => {
-      // Authoritative coordinate resolution with fallback for registered dispensaries
-      const lat = (typeof p.latitude === 'number' && !isNaN(p.latitude))
-        ? p.latitude
-        : ((p.name && p.name.toLowerCase().includes('max care')) ? 9.3186 : ((p.name && p.name.toLowerCase().includes('karuna')) ? 9.3150 : (p.lat || null)));
-
-      const lon = (typeof p.longitude === 'number' && !isNaN(p.longitude))
-        ? p.longitude
-        : ((p.name && p.name.toLowerCase().includes('max care')) ? 76.6135 : ((p.name && p.name.toLowerCase().includes('karuna')) ? 76.6110 : (p.lon || null)));
-
-      if (!lat || !lon) return;
+      try {
+        const coords = resolvePharmacyCoords(p);
+        if (!coords) return;
+        const [lat, lon] = coords;
 
       const isSelected = selectedPharmacyId === p.id;
       const isEmergency = p.is24x7 || p.isEmergency;
@@ -345,50 +418,46 @@ export default function PharmacyMap({
 
       marker.addTo(markersLayer);
       markersByIdRef.current[p.id] = marker;
-    });
-  }, [pharmacies, selectedPharmacyId, onSelectPharmacy, activeRequestItems]);
+    } catch (err) {
+      console.warn('Failed to build pharmacy marker:', err);
+    }
+  });
+}, [pharmacies, selectedPharmacyId, onSelectPharmacy, activeRequestItems]);
 
   // Automatically fly to selected pharmacy and open popup
   useEffect(() => {
     if (!selectedPharmacyId) return;
     const marker = markersByIdRef.current[selectedPharmacyId];
     if (marker && mapInstanceRef.current) {
-      const latLng = marker.getLatLng();
-      mapInstanceRef.current.flyTo(latLng, Math.max(mapInstanceRef.current.getZoom(), 14), {
-        duration: 0.8
-      });
-      setTimeout(() => {
-        marker.openPopup();
-      }, 250);
+      try {
+        const latLng = marker.getLatLng();
+        if (latLng && isValidCoord(latLng.lat) && isValidCoord(latLng.lng)) {
+          mapInstanceRef.current.flyTo(latLng, Math.max(mapInstanceRef.current.getZoom(), 14), {
+            duration: 0.8
+          });
+          setTimeout(() => {
+            if (marker && typeof marker.openPopup === 'function') {
+              marker.openPopup();
+            }
+          }, 250);
+        }
+      } catch (err) {
+        console.warn('Failed to fly to marker:', err);
+      }
     }
   }, [selectedPharmacyId]);
 
-function calculateHaversineKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round((R * c) * 10) / 10;
-}
-
   // Calculate authoritative distances from patient location to each pharmacy
   const pharmaciesWithDistance = useMemo(() => {
-    const [userLat, userLon] = Array.isArray(center) ? center : [9.3200, 76.6160];
+    const safeCenter = sanitizeCoords(center);
+    const [userLat, userLon] = safeCenter;
     return (pharmacies || []).map((p, idx) => {
-      const lat = (typeof p.latitude === 'number' && !isNaN(p.latitude))
-        ? p.latitude
-        : ((p.name && p.name.toLowerCase().includes('max care')) ? 9.3186 : ((p.name && p.name.toLowerCase().includes('karuna')) ? 9.3150 : (p.lat || null)));
-      const lon = (typeof p.longitude === 'number' && !isNaN(p.longitude))
-        ? p.longitude
-        : ((p.name && p.name.toLowerCase().includes('max care')) ? 76.6135 : ((p.name && p.name.toLowerCase().includes('karuna')) ? 76.6110 : (p.lon || null)));
+      const coords = resolvePharmacyCoords(p);
+      const lat = coords ? coords[0] : null;
+      const lon = coords ? coords[1] : null;
 
       let dist = p.distanceKm;
-      if ((dist == null || isNaN(dist)) && lat && lon && userLat && userLon) {
+      if ((dist == null || isNaN(dist)) && lat != null && lon != null && isValidCoord(userLat) && isValidCoord(userLon)) {
         dist = calculateHaversineKm(userLat, userLon, lat, lon);
       }
       return {
@@ -419,56 +488,63 @@ function calculateHaversineKm(lat1, lon1, lat2, lon2) {
     if (!map) return;
 
     if (directionLineRef.current) {
-      map.removeLayer(directionLineRef.current);
+      try { map.removeLayer(directionLineRef.current); } catch (e) {}
       directionLineRef.current = null;
     }
     if (directionMidpointMarkerRef.current) {
-      map.removeLayer(directionMidpointMarkerRef.current);
+      try { map.removeLayer(directionMidpointMarkerRef.current); } catch (e) {}
       directionMidpointMarkerRef.current = null;
     }
 
-    if (activePharmacy?.resolvedLat && activePharmacy?.resolvedLon && center && Array.isArray(center) && center.length === 2) {
-      const uLat = center[0];
-      const uLon = center[1];
-      const pLat = activePharmacy.resolvedLat;
-      const pLon = activePharmacy.resolvedLon;
+    const safeCenter = sanitizeCoords(center);
+    const pCoords = resolvePharmacyCoords(activePharmacy);
 
-      const polyline = L.polyline([[uLat, uLon], [pLat, pLon]], {
-        color: '#0066cc',
-        weight: 3.5,
-        dashArray: '7, 9',
-        opacity: 0.9,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(map);
+    if (safeCenter && pCoords) {
+      const [uLat, uLon] = safeCenter;
+      const [pLat, pLon] = pCoords;
 
-      directionLineRef.current = polyline;
+      if (isValidCoord(uLat) && isValidCoord(uLon) && isValidCoord(pLat) && isValidCoord(pLon)) {
+        try {
+          const polyline = L.polyline([[uLat, uLon], [pLat, pLon]], {
+            color: '#0066cc',
+            weight: 3.5,
+            dashArray: '7, 9',
+            opacity: 0.9,
+            lineCap: 'round',
+            lineJoin: 'round'
+          }).addTo(map);
 
-      const midLat = (uLat + pLat) / 2;
-      const midLon = (uLon + pLon) / 2;
-      const dist = activePharmacy.resolvedDistanceKm;
+          directionLineRef.current = polyline;
 
-      if (dist != null) {
-        const midIcon = L.divIcon({
-          html: `<div style="
-            background: #ffffff;
-            color: #0066cc;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2.5px 8px;
-            border-radius: 999px;
-            box-shadow: 0 2px 10px rgba(0,102,204,0.3);
-            border: 1.5px solid #0066cc;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-          "><span>🧭</span> <span>${dist} km</span></div>`,
-          className: 'route-midpoint-badge',
-          iconSize: [72, 22],
-          iconAnchor: [36, 11]
-        });
-        directionMidpointMarkerRef.current = L.marker([midLat, midLon], { icon: midIcon, interactive: false, zIndexOffset: 700 }).addTo(map);
+          const midLat = (uLat + pLat) / 2;
+          const midLon = (uLon + pLon) / 2;
+          const dist = activePharmacy?.resolvedDistanceKm;
+
+          if (dist != null && isValidCoord(midLat) && isValidCoord(midLon)) {
+            const midIcon = L.divIcon({
+              html: `<div style="
+                background: #ffffff;
+                color: #0066cc;
+                font-size: 10px;
+                font-weight: 800;
+                padding: 2.5px 8px;
+                border-radius: 999px;
+                box-shadow: 0 2px 10px rgba(0,102,204,0.3);
+                border: 1.5px solid #0066cc;
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                gap: 3px;
+              "><span>🧭</span> <span>${dist} km</span></div>`,
+              className: 'route-midpoint-badge',
+              iconSize: [72, 22],
+              iconAnchor: [36, 11]
+            });
+            directionMidpointMarkerRef.current = L.marker([midLat, midLon], { icon: midIcon, interactive: false, zIndexOffset: 700 }).addTo(map);
+          }
+        } catch (err) {
+          console.warn('Failed to draw direction route on map:', err);
+        }
       }
     }
   }, [activePharmacy, center]);

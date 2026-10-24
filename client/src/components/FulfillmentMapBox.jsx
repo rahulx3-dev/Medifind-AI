@@ -2,12 +2,47 @@ import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+const DEFAULT_CENTER = [9.3170, 76.6145]; // Chengannur, Kerala
+
+function isValidCoord(num) {
+  if (num === null || num === undefined || num === '') return false;
+  const n = typeof num === 'string' ? parseFloat(num) : Number(num);
+  return typeof n === 'number' && !isNaN(n) && isFinite(n);
+}
+
+function resolveFulfillmentCoords(pharmacy) {
+  if (!pharmacy) return null;
+  let lat = isValidCoord(pharmacy.latitude) ? parseFloat(pharmacy.latitude) : (isValidCoord(pharmacy.lat) ? parseFloat(pharmacy.lat) : null);
+  let lon = isValidCoord(pharmacy.longitude) ? parseFloat(pharmacy.longitude) : (isValidCoord(pharmacy.lon) ? parseFloat(pharmacy.lon) : null);
+
+  if (lat == null || lon == null) {
+    const name = (pharmacy.name || '').toLowerCase();
+    if (name.includes('max care')) {
+      lat = 9.3186;
+      lon = 76.6135;
+    } else if (name.includes('karuna')) {
+      lat = 9.3150;
+      lon = 76.6110;
+    } else if (name.includes('apollo')) {
+      lat = 9.3195;
+      lon = 76.6150;
+    } else if (pharmacy.name) {
+      // Default to known Chengannur dispensary location
+      lat = 9.3170;
+      lon = 76.6145;
+    }
+  }
+
+  if (!isValidCoord(lat) || !isValidCoord(lon)) return null;
+  return [lat, lon];
+}
+
 /**
  * FulfillmentMapBox — High-Performance Leaflet Fulfillment Journey Map
  *
  * Reliable Leaflet HTML5 raster rendering matching PharmacyMap:
  * - Real backend coordinates for pharmacy & patient destination
- * - Instant map loading without WebGL timeouts
+ * - Fully guarded against Invalid LatLng (NaN, NaN)
  * - MediFind Logo custom marker pin
  * - Automatically open pharmacy popover card
  * - Optional route line if destination coordinates exist
@@ -23,30 +58,24 @@ export default function FulfillmentMapBox({
   const mapInstanceRef = useRef(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Authoritative coordinates with fallback for verified dispensaries
-  const resolvedPharmLat = (typeof pharmacy?.latitude === "number" && !isNaN(pharmacy.latitude))
-    ? pharmacy.latitude
-    : (pharmacy?.name?.toLowerCase().includes("max care") ? 9.3186 : (pharmacy?.name?.toLowerCase().includes("karuna") ? 9.3150 : null));
-
-  const resolvedPharmLng = (typeof pharmacy?.longitude === "number" && !isNaN(pharmacy.longitude))
-    ? pharmacy.longitude
-    : (pharmacy?.name?.toLowerCase().includes("max care") ? 76.6135 : (pharmacy?.name?.toLowerCase().includes("karuna") ? 76.6110 : null));
-
-  const hasPharmCoords = resolvedPharmLat != null && resolvedPharmLng != null;
-  const pharmLat = resolvedPharmLat;
-  const pharmLng = resolvedPharmLng;
+  // Authoritative coordinates resolution with safe fallbacks
+  const pharmCoords = resolveFulfillmentCoords(pharmacy);
+  const hasPharmCoords = pharmCoords !== null;
+  const pharmLat = pharmCoords ? pharmCoords[0] : null;
+  const pharmLng = pharmCoords ? pharmCoords[1] : null;
   const pharmName = pharmacy?.name || "Dispensary Location";
   const pharmAddr = pharmacy?.address || "Registered Pharmacy Address";
   const isPharmVerified = !!(pharmacy?.isVerified || pharmacy?.verificationStatus === "VERIFIED");
 
-  const hasDestCoords =
-    typeof destination?.latitude === "number" &&
-    typeof destination?.longitude === "number" &&
-    !isNaN(destination.latitude) &&
-    !isNaN(destination.longitude);
+  const destCoords = (destination && isValidCoord(destination.latitude) && isValidCoord(destination.longitude))
+    ? [parseFloat(destination.latitude), parseFloat(destination.longitude)]
+    : ((destination && isValidCoord(destination.lat) && isValidCoord(destination.lon))
+        ? [parseFloat(destination.lat), parseFloat(destination.lon)]
+        : null);
 
-  const destLat = hasDestCoords ? destination.latitude : null;
-  const destLng = hasDestCoords ? destination.longitude : null;
+  const hasDestCoords = destCoords !== null;
+  const destLat = destCoords ? destCoords[0] : null;
+  const destLng = destCoords ? destCoords[1] : null;
   const destAddr = destination?.address || "Delivery Address";
 
   useEffect(() => {
@@ -54,162 +83,179 @@ export default function FulfillmentMapBox({
     const container = mapContainerRef.current;
     if (!container) return;
 
+    if (container._leaflet_id) {
+      delete container._leaflet_id;
+    }
+
     if (!mapInstanceRef.current) {
-      const center = hasPharmCoords ? [pharmLat, pharmLng] : [destLat, destLng];
+      const center = (hasPharmCoords && isValidCoord(pharmLat) && isValidCoord(pharmLng))
+        ? [pharmLat, pharmLng]
+        : ((hasDestCoords && isValidCoord(destLat) && isValidCoord(destLng))
+            ? [destLat, destLng]
+            : DEFAULT_CENTER);
+
       const zoom = (hasPharmCoords && hasDestCoords) ? 13 : 15;
 
-      const map = L.map(container, {
-        center: center,
-        zoom: zoom,
-        zoomControl: true,
-        attributionControl: false
-      });
+      try {
+        const map = L.map(container, {
+          center: center,
+          zoom: zoom,
+          zoomControl: true,
+          attributionControl: false
+        });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      }).addTo(map);
-
-      // Route line if both points exist
-      if (hasPharmCoords && hasDestCoords) {
-        L.polyline([[pharmLat, pharmLng], [destLat, destLng]], {
-          color: '#0d9488',
-          weight: 4,
-          dashArray: '6, 6',
-          opacity: 0.85
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
         }).addTo(map);
 
-        map.fitBounds([[pharmLat, pharmLng], [destLat, destLng]], { padding: [40, 40] });
-      }
+        // Route line if both points exist and are valid numbers
+        if (hasPharmCoords && hasDestCoords && isValidCoord(pharmLat) && isValidCoord(pharmLng) && isValidCoord(destLat) && isValidCoord(destLng)) {
+          L.polyline([[pharmLat, pharmLng], [destLat, destLng]], {
+            color: '#0d9488',
+            weight: 4,
+            dashArray: '6, 6',
+            opacity: 0.85
+          }).addTo(map);
 
-      // Pharmacy marker with MediFind Logo Pin
-      if (hasPharmCoords) {
-        const pharmIconHtml = `
-          <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-            <div style="
-              width: 44px;
-              height: 44px;
-              border-radius: 50%;
-              background: #ffffff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 4px 14px rgba(3, 47, 40, 0.4);
-              border: 3px solid #032f28;
-              position: relative;
-            ">
-              <img src="/medifind_logo.png" alt="MediFind" style="width: 28px; height: 28px; object-fit: contain; pointer-events: none;" />
+          map.fitBounds([[pharmLat, pharmLng], [destLat, destLng]], { padding: [40, 40] });
+        }
+
+        // Pharmacy marker with MediFind Logo Pin
+        if (hasPharmCoords && isValidCoord(pharmLat) && isValidCoord(pharmLng)) {
+          const pharmIconHtml = `
+            <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
               <div style="
-                position: absolute;
-                top: -2px;
-                right: -2px;
-                width: 15px;
-                height: 15px;
+                width: 44px;
+                height: 44px;
                 border-radius: 50%;
-                background: #059669;
-                border: 1.5px solid #fff;
+                background: #ffffff;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: #fff;
-                font-size: 10px;
-                font-weight: 900;
-              ">✓</div>
+                box-shadow: 0 4px 14px rgba(3, 47, 40, 0.4);
+                border: 3px solid #032f28;
+                position: relative;
+              ">
+                <img src="/medifind_logo.png" alt="MediFind" style="width: 28px; height: 28px; object-fit: contain; pointer-events: none;" />
+                <div style="
+                  position: absolute;
+                  top: -2px;
+                  right: -2px;
+                  width: 15px;
+                  height: 15px;
+                  border-radius: 50%;
+                  background: #059669;
+                  border: 1.5px solid #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: #fff;
+                  font-size: 10px;
+                  font-weight: 900;
+                ">✓</div>
+              </div>
+              <div style="
+                width: 0;
+                height: 0;
+                border-left: 7px solid transparent;
+                border-right: 7px solid transparent;
+                border-top: 9px solid #032f28;
+                margin-top: -2px;
+              "></div>
             </div>
-            <div style="
-              width: 0;
-              height: 0;
-              border-left: 7px solid transparent;
-              border-right: 7px solid transparent;
-              border-top: 9px solid #032f28;
-              margin-top: -2px;
-            "></div>
-          </div>
-        `;
+          `;
 
-        const pharmIcon = L.divIcon({
-          html: pharmIconHtml,
-          className: 'medifind-fulfillment-pin',
-          iconSize: [44, 52],
-          iconAnchor: [22, 52],
-          popupAnchor: [0, -52]
-        });
+          const pharmIcon = L.divIcon({
+            html: pharmIconHtml,
+            className: 'medifind-fulfillment-pin',
+            iconSize: [44, 52],
+            iconAnchor: [22, 52],
+            popupAnchor: [0, -52]
+          });
 
-        const pharmMarker = L.marker([pharmLat, pharmLng], { icon: pharmIcon }).addTo(map);
+          const pharmMarker = L.marker([pharmLat, pharmLng], { icon: pharmIcon }).addTo(map);
 
-        const popupHtml = `
-          <div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; padding: 10px 12px; min-width: 220px; border-radius: 14px; color: #032f28;">
-            <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 4px;">
-              <img src="/medifind_logo.png" alt="MediFind" style="width: 16px; height: 16px; object-fit: contain;" />
-              <span style="font-size: 10px; font-weight: 800; color: #2e685d; text-transform: uppercase;">MediFind Apothecary</span>
+          const popupHtml = `
+            <div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; padding: 10px 12px; min-width: 220px; border-radius: 14px; color: #032f28;">
+              <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 4px;">
+                <img src="/medifind_logo.png" alt="MediFind" style="width: 16px; height: 16px; object-fit: contain;" />
+                <span style="font-size: 10px; font-weight: 800; color: #2e685d; text-transform: uppercase;">MediFind Apothecary</span>
+              </div>
+              <div style="font-size: 13px; font-weight: 800; color: #032f28;">${pharmName}</div>
+              <div style="font-size: 11px; color: #52605c; margin-top: 3px;">${pharmAddr}</div>
+              <div style="font-size: 10px; font-weight: 700; color: #059669; margin-top: 6px; display: flex; align-items: center; gap: 4px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                Participating Dispensary (Pickup Counter)
+              </div>
             </div>
-            <div style="font-size: 13px; font-weight: 800; color: #032f28;">${pharmName}</div>
-            <div style="font-size: 11px; color: #52605c; margin-top: 3px;">${pharmAddr}</div>
-            <div style="font-size: 10px; font-weight: 700; color: #059669; margin-top: 6px; display: flex; align-items: center; gap: 4px;">
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-              Participating Dispensary (Pickup Counter)
-            </div>
-          </div>
-        `;
+          `;
 
-        pharmMarker.bindPopup(popupHtml, { maxWidth: 280, className: 'stitch-leaflet-popup' });
-        setTimeout(() => {
-          pharmMarker.openPopup();
-        }, 200);
+          pharmMarker.bindPopup(popupHtml, { maxWidth: 280, className: 'stitch-leaflet-popup' });
+          setTimeout(() => {
+            try {
+              pharmMarker.openPopup();
+            } catch (e) {}
+          }, 200);
+        }
+
+        // Destination marker (if delivery address has valid coords)
+        if (hasDestCoords && isValidCoord(destLat) && isValidCoord(destLng)) {
+          const destIconHtml = `
+            <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+              <div style="
+                width: 38px;
+                height: 38px;
+                border-radius: 50%;
+                background: #ba1a1a;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 14px rgba(186, 26, 26, 0.4);
+                border: 2px solid #ffffff;
+              ">
+                <span class="material-symbols-outlined" style="font-size: 20px;">home</span>
+              </div>
+              <div style="
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 8px solid #ba1a1a;
+                margin-top: -2px;
+              "></div>
+            </div>
+          `;
+
+          const destIcon = L.divIcon({
+            html: destIconHtml,
+            className: 'dest-fulfillment-pin',
+            iconSize: [38, 46],
+            iconAnchor: [19, 46],
+            popupAnchor: [0, -46]
+          });
+
+          const destMarker = L.marker([destLat, destLng], { icon: destIcon }).addTo(map);
+          destMarker.bindPopup(`
+            <div style="padding: 8px; font-family: sans-serif; font-size: 12px; color: #032f28;">
+              <strong>Delivery Destination</strong>
+              <div style="font-size: 11px; color: #52605c; margin-top: 2px;">${destAddr}</div>
+            </div>
+          `, { className: 'stitch-leaflet-popup' });
+        }
+
+        mapInstanceRef.current = map;
+        setIsLoaded(true);
+      } catch (err) {
+        console.error("Leaflet map initialization error in FulfillmentMapBox:", err);
       }
-
-      // Destination marker (if delivery address has coords)
-      if (hasDestCoords) {
-        const destIconHtml = `
-          <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-            <div style="
-              width: 38px;
-              height: 38px;
-              border-radius: 50%;
-              background: #ba1a1a;
-              color: #ffffff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 4px 14px rgba(186, 26, 26, 0.4);
-              border: 2px solid #ffffff;
-            ">
-              <span class="material-symbols-outlined" style="font-size: 20px;">home</span>
-            </div>
-            <div style="
-              width: 0;
-              height: 0;
-              border-left: 6px solid transparent;
-              border-right: 6px solid transparent;
-              border-top: 8px solid #ba1a1a;
-              margin-top: -2px;
-            "></div>
-          </div>
-        `;
-
-        const destIcon = L.divIcon({
-          html: destIconHtml,
-          className: 'dest-fulfillment-pin',
-          iconSize: [38, 46],
-          iconAnchor: [19, 46],
-          popupAnchor: [0, -46]
-        });
-
-        const destMarker = L.marker([destLat, destLng], { icon: destIcon }).addTo(map);
-        destMarker.bindPopup(`
-          <div style="padding: 8px; font-family: sans-serif; font-size: 12px; color: #032f28;">
-            <strong>Delivery Destination</strong>
-            <div style="font-size: 11px; color: #52605c; margin-top: 2px;">${destAddr}</div>
-          </div>
-        `, { className: 'stitch-leaflet-popup' });
-      }
-
-      mapInstanceRef.current = map;
-      setIsLoaded(true);
     }
 
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {}
         mapInstanceRef.current = null;
       }
     };

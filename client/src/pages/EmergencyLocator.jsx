@@ -480,9 +480,9 @@ export default function EmergencyLocator({ onOrderCreated }) {
     return true;
   });
 
-  const centerCoords = inMemoryCoords
-    ? [inMemoryCoords.lat, inMemoryCoords.lon]
-    : [networkConfig.defaultLat, networkConfig.defaultLon];
+  const centerCoords = (inMemoryCoords && inMemoryCoords.lat != null && inMemoryCoords.lon != null)
+    ? [Number(inMemoryCoords.lat) || 9.3200, Number(inMemoryCoords.lon) || 76.6160]
+    : [Number(networkConfig?.defaultLat) || 9.3200, Number(networkConfig?.defaultLon) || 76.6160];
 
   return (
     <div style={{ background: '#ecfdf7', minHeight: '100vh', paddingBottom: '4rem' }}>

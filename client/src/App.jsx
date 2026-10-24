@@ -677,6 +677,15 @@ function MainApp() {
                 }}
               >
                 <AuthPage
+                  initialRole={
+                    pendingTargetTab === 'pharmacist'
+                      ? 'PHARMACY'
+                      : pendingTargetTab === 'assistant'
+                      ? 'ASSISTANT'
+                      : pendingTargetTab === 'admin'
+                      ? 'ADMIN'
+                      : 'PATIENT'
+                  }
                   onLoginSuccess={(role) => {
                     try { sessionStorage.setItem('medifind_auth_entrance', '1'); } catch (_) {}
                     setAuthRevealed(false);

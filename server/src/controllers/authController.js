@@ -251,6 +251,33 @@ async function login(req, res) {
       return res.status(401).json({ success: false, error: 'Invalid credentials. Please verify your Email/Phone/ID and password.' });
     }
 
+    // Role-based portal access validation: verify requested portal matches user's assigned role
+    const normalizeRole = (r) => {
+      if (!r) return null;
+      const upper = String(r).trim().toUpperCase();
+      if (upper === 'PHARMACY' || upper === 'PHARMACIST') return 'PHARMACIST';
+      return upper;
+    };
+
+    const ROLE_LABELS = {
+      PATIENT: 'Patient',
+      PHARMACIST: 'Pharmacy Dispensary',
+      ASSISTANT: 'Care Assistant',
+      ADMIN: 'System Administrator'
+    };
+
+    const requestedRole = normalizeRole(role);
+    const userRole = normalizeRole(user.role);
+
+    if (requestedRole && requestedRole !== userRole) {
+      const actualName = ROLE_LABELS[userRole] || user.role;
+      const targetName = ROLE_LABELS[requestedRole] || role;
+      return res.status(403).json({
+        success: false,
+        error: `Access Denied: This account is registered as ${actualName}. You cannot sign in to the ${targetName} portal with these credentials. Please switch to the ${actualName} tab.`
+      });
+    }
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -329,11 +356,26 @@ async function getMe(req, res) {
 // OAuth sign in / sign up (Google, Apple, ABHA, Microsoft)
 async function oauthAuth(req, res) {
   try {
-    const { provider = 'google', email, name, avatarUrl } = req.body;
+    const { provider = 'google', email, name, avatarUrl, role } = req.body;
     if (!email) {
       return res.status(400).json({ success: false, error: 'OAuth email address is required.' });
     }
 
+    const normalizeRole = (r) => {
+      if (!r) return null;
+      const upper = String(r).trim().toUpperCase();
+      if (upper === 'PHARMACY' || upper === 'PHARMACIST') return 'PHARMACIST';
+      return upper;
+    };
+
+    const ROLE_LABELS = {
+      PATIENT: 'Patient',
+      PHARMACIST: 'Pharmacy Dispensary',
+      ASSISTANT: 'Care Assistant',
+      ADMIN: 'System Administrator'
+    };
+
+    const requestedRole = normalizeRole(role);
     const trimmedEmail = email.trim().toLowerCase();
     const displayName = (name && name.trim()) || trimmedEmail.split('@')[0];
 
@@ -343,7 +385,26 @@ async function oauthAuth(req, res) {
       include: { pharmacy: true }
     });
 
-    if (!user) {
+    if (user) {
+      const userRole = normalizeRole(user.role);
+      if (requestedRole && requestedRole !== userRole) {
+        const actualName = ROLE_LABELS[userRole] || user.role;
+        const targetName = ROLE_LABELS[requestedRole] || role;
+        return res.status(403).json({
+          success: false,
+          error: `Access Denied: This account is registered as ${actualName}. You cannot sign in to the ${targetName} portal via ${provider.toUpperCase()}. Please switch to the ${actualName} tab.`
+        });
+      }
+    } else {
+      // New user registration via OAuth is strictly restricted to Patients
+      if (requestedRole && requestedRole !== 'PATIENT') {
+        const targetName = ROLE_LABELS[requestedRole] || role;
+        return res.status(404).json({
+          success: false,
+          error: `No registered ${targetName} account found for this Google email. Please sign in with your authorized credentials or switch to the Patient portal.`
+        });
+      }
+
       // Create new verified Patient via OAuth
       const randomPassword = await bcrypt.hash(`oauth_${Date.now()}_${Math.random()}`, 10);
       user = await prisma.user.create({
@@ -478,7 +539,7 @@ async function verifyOtp(req, res) {
 // Login directly via Phone Number + OTP
 async function phoneLogin(req, res) {
   try {
-    const { phone, code } = req.body;
+    const { phone, code, role } = req.body;
     if (!phone || !code) {
       return res.status(400).json({ success: false, error: 'Phone number and verification code are required.' });
     }
@@ -491,6 +552,22 @@ async function phoneLogin(req, res) {
       return res.status(400).json({ success: false, error: 'Invalid or expired verification code.' });
     }
 
+    const normalizeRole = (r) => {
+      if (!r) return null;
+      const upper = String(r).trim().toUpperCase();
+      if (upper === 'PHARMACY' || upper === 'PHARMACIST') return 'PHARMACIST';
+      return upper;
+    };
+
+    const ROLE_LABELS = {
+      PATIENT: 'Patient',
+      PHARMACIST: 'Pharmacy Dispensary',
+      ASSISTANT: 'Care Assistant',
+      ADMIN: 'System Administrator'
+    };
+
+    const requestedRole = normalizeRole(role);
+
     let user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -501,7 +578,26 @@ async function phoneLogin(req, res) {
       include: { pharmacy: true }
     });
 
-    if (!user) {
+    if (user) {
+      const userRole = normalizeRole(user.role);
+      if (requestedRole && requestedRole !== userRole) {
+        const actualName = ROLE_LABELS[userRole] || user.role;
+        const targetName = ROLE_LABELS[requestedRole] || role;
+        return res.status(403).json({
+          success: false,
+          error: `Access Denied: This account is registered as ${actualName}. You cannot sign in to the ${targetName} portal with these credentials. Please switch to the ${actualName} tab.`
+        });
+      }
+    } else {
+      // New phone registration is strictly limited to Patients
+      if (requestedRole && requestedRole !== 'PATIENT') {
+        const targetName = ROLE_LABELS[requestedRole] || role;
+        return res.status(404).json({
+          success: false,
+          error: `No registered ${targetName} account found with this phone number. Please sign in with your authorized credentials or select the Patient portal.`
+        });
+      }
+
       const randomPassword = await bcrypt.hash(`phone_${Date.now()}_${Math.random()}`, 10);
       user = await prisma.user.create({
         data: {

@@ -38,7 +38,7 @@ function FloatingPaths({ position = 1 }) {
   );
 }
 
-export default function AuthPage({ onLoginSuccess, showBackground = false, onClose }) {
+export default function AuthPage({ onLoginSuccess, showBackground = false, onClose, initialRole }) {
   const {
     login,
     register,
@@ -46,11 +46,32 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
     loginWithPhone,
     sendOtp,
     verifyOtp,
-    initiateNeonGoogleAuth
+    initiateNeonGoogleAuth,
+    logout
   } = useAuth();
   const [mode, setMode] = useState('login'); // 'login' or 'register'
   const [loginMethod, setLoginMethod] = useState('password'); // 'password' | 'phone_otp'
   const [phoneLoginStep, setPhoneLoginStep] = useState(1); // 1 = enter phone, 2 = enter otp
+
+  // Helper to validate that authenticated account role matches the active portal tab
+  const validatePortalRole = (userRole) => {
+    const normUser = String(userRole || '').trim().toUpperCase();
+    const expected = loginPortalRole === 'PHARMACY' ? 'PHARMACIST' : loginPortalRole;
+    if (normUser !== expected) {
+      if (typeof logout === 'function') logout();
+      const roleLabels = {
+        PATIENT: 'Patient',
+        PHARMACIST: 'Pharmacy',
+        ASSISTANT: 'Care Assistant',
+        ADMIN: 'System Administrator'
+      };
+      const actualName = roleLabels[normUser] || normUser;
+      const targetName = roleLabels[expected] || loginPortalRole;
+      setErrorMessage(`Access Denied: This account is registered as ${actualName}. You cannot sign in to the ${targetName} portal with these credentials. Please switch to the ${actualName} tab.`);
+      return false;
+    }
+    return true;
+  };
 
   // Google OAuth sign-in via Neon Auth & Google Cloud Client Credentials
   const [oauthLoadingProvider, setOauthLoadingProvider] = useState(null);
@@ -80,10 +101,12 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
       const result = await oauthLogin({
         provider: 'google',
         email: targetEmail,
-        name: targetName || targetEmail.split('@')[0]
+        name: targetName || targetEmail.split('@')[0],
+        role: loginPortalRole
       });
       setOauthLoadingProvider(null);
       if (result.success) {
+        if (!validatePortalRole(result.user?.role)) return;
         if (onLoginSuccess) onLoginSuccess(result.user.role);
       } else {
         setErrorMessage(result.error || 'Google sign-in failed. Please try again.');
@@ -107,12 +130,16 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
       oauthLogin({
         provider: 'google',
         email: emailParam,
-        name: urlParams.get('name') || 'Google User'
+        name: urlParams.get('name') || 'Google User',
+        role: loginPortalRole
       }).then(res => {
-        if (res.success && onLoginSuccess) onLoginSuccess(res.user.role);
+        if (res.success) {
+          if (!validatePortalRole(res.user?.role)) return;
+          if (onLoginSuccess) onLoginSuccess(res.user.role);
+        }
       });
     }
-  }, []);
+  }, [loginPortalRole]);
 
 
   const [email, setEmail] = useState('');
@@ -124,7 +151,16 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [registerRole, setRegisterRole] = useState('PATIENT'); // 'PATIENT' | 'ASSISTANT'
-  const [loginPortalRole, setLoginPortalRole] = useState('PATIENT'); // 'PATIENT' | 'PHARMACY' | 'ASSISTANT' | 'ADMIN'
+  const [loginPortalRole, setLoginPortalRole] = useState(() => {
+    if (initialRole === 'PHARMACIST') return 'PHARMACY';
+    return initialRole || 'PATIENT';
+  });
+
+  useEffect(() => {
+    if (initialRole) {
+      setLoginPortalRole(initialRole === 'PHARMACIST' ? 'PHARMACY' : initialRole);
+    }
+  }, [initialRole]);
 
   // Multi-step Registration State
   const [signUpStep, setSignUpStep] = useState(1); // 1 = Details, 2 = OTP, 3 = Password
@@ -304,6 +340,7 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
     setLoading(false);
 
     if (result.success) {
+      if (!validatePortalRole(result.user?.role)) return;
       if (onLoginSuccess) {
         onLoginSuccess(result.user.role);
       }
@@ -347,9 +384,10 @@ export default function AuthPage({ onLoginSuccess, showBackground = false, onClo
       return;
     }
     setLoading(true);
-    const result = await loginWithPhone(phone.trim(), code);
+    const result = await loginWithPhone(phone.trim(), code, loginPortalRole);
     setLoading(false);
     if (result.success) {
+      if (!validatePortalRole(result.user?.role)) return;
       if (onLoginSuccess) onLoginSuccess(result.user.role);
     } else {
       setErrorMessage(result.error || 'Invalid verification code. Please try again.');
