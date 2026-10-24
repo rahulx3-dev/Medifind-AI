@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import ReactDOM from 'react-dom';
 
 /**
  * ConfirmationDialog — High-Stakes Consequential Action Modal
@@ -47,9 +48,9 @@ export default function ConfirmationDialog({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center p-3 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
@@ -167,4 +168,8 @@ export default function ConfirmationDialog({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }

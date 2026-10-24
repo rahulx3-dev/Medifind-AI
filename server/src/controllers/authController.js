@@ -307,8 +307,9 @@ async function getMe(req, res) {
         assistantProfile: {
           select: {
             id: true,
-            assistantType: true,
-            onboardingCompleted: true
+            isActive: true,
+            isAvailable: true,
+            capabilities: true
           }
         }
       }

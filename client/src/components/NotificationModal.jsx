@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, CheckCircle, Package, Bell, X, Copy, Check, Trash2 } from 'lucide-react';
 import { SkeletonRow } from './LoadingSkeleton';
@@ -93,9 +94,9 @@ export default function NotificationModal({
     return true;
   });
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[1100] flex items-center justify-center p-2.5 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2.5 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -265,6 +266,10 @@ export default function NotificationModal({
       </motion.div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }
 
 /**

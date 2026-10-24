@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import VoicePoweredOrb from './VoicePoweredOrb';
 
 const SPEECH_TIPS = [
@@ -147,9 +148,9 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(3, 15, 12, 0.72)', backdropFilter: 'blur(18px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
@@ -349,4 +350,8 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
       `}</style>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }

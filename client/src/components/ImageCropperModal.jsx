@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import {
   calculateRotatedDimensions,
   getCombinedRotation,
@@ -397,9 +398,9 @@ export default function ImageCropperModal({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[1300] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -718,4 +719,8 @@ export default function ImageCropperModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }

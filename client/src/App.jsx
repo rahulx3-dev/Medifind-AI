@@ -715,10 +715,7 @@ function MainApp() {
   // NON-PATIENT ROLES (PHARMACIST, ASSISTANT, ADMIN): Render Sidebar Navigation instead of Top Navbar
   if (user && user.role !== 'PATIENT') {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.985 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      <div
         className="min-h-screen flex bg-background text-on-surface"
       >
         {/* Left Slide-over Sidebar Drawer */}
@@ -980,16 +977,13 @@ function MainApp() {
             onCancel={() => setShowNonPatientLogoutConfirm(false)}
           />
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   // PATIENT ROLE: Top Navbar Layout
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.985 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+    <div
       className="min-h-screen flex flex-col bg-background text-on-surface"
     >
       {/* Top Navbar */}
@@ -1176,7 +1170,7 @@ function MainApp() {
         onNavigate={(tab) => setActiveTab(tab)}
         role={user?.role}
       />
-    </motion.div>
+    </div>
   );
 }
 

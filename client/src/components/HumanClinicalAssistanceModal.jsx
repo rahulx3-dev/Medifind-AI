@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import VoicePoweredOrb from './VoicePoweredOrb';
 
@@ -180,9 +181,9 @@ export default function HumanClinicalAssistanceModal({ isOpen, onClose, onReques
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(3, 15, 12, 0.76)', backdropFilter: 'blur(16px)' }}
       onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
       role="dialog"
@@ -460,4 +461,8 @@ export default function HumanClinicalAssistanceModal({ isOpen, onClose, onReques
       </motion.div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }

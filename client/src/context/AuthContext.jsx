@@ -23,18 +23,14 @@ export function AuthProvider({ children }) {
         const data = await res.json();
         if (data.success && data.user) {
           setUser(data.user);
-        } else {
-          // Token is invalid or expired: clear session
+        } else if (res.status === 401) {
+          // Token is genuinely invalid or expired: clear session
           localStorage.removeItem('medifind_token');
           setToken(null);
           setUser(null);
         }
       } catch (err) {
         console.error('Session validation error:', err);
-        // On connection failure, do not falsely authenticate
-        localStorage.removeItem('medifind_token');
-        setToken(null);
-        setUser(null);
       } finally {
         setLoading(false);
       }

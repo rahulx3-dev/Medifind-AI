@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -383,18 +384,19 @@ export default function Navbar({
         </div>
 
         {/* Mobile Navigation Sidebar Drawer (Slides in from LEFT only on mobile) */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <div className="fixed inset-0 z-[100] lg:hidden">
-              {/* Backdrop overlay */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={() => setMobileMenuOpen(false)}
-                className="fixed inset-0 bg-black/50 backdrop-blur-xs"
-              />
+        {typeof document !== 'undefined' && ReactDOM.createPortal(
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <div className="fixed inset-0 z-[9999] lg:hidden">
+                {/* Backdrop overlay */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+                />
 
               {/* Sidebar drawer panel */}
               <motion.aside
@@ -604,7 +606,9 @@ export default function Navbar({
               </motion.aside>
             </div>
           )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
       </header>
 
       {/* Confirmation Dialog on Logout */}
