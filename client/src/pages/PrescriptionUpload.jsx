@@ -2873,12 +2873,19 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-surface-container-low/50 p-3.5 rounded-2xl border border-surface-container">
                           {/* Left: Detected in Prescription */}
                           <div className="md:col-span-5 flex flex-col gap-1">
-                            <span className="text-[10px] uppercase font-bold text-outline tracking-wider flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs text-secondary">description</span>
-                              Detected on Slip
-                            </span>
-                            <p className="font-mono text-xs text-on-surface font-semibold bg-surface-container-lowest px-2.5 py-1.5 rounded-lg border border-surface-container truncate">
-                              "{item.rawName || item.medicineName || 'Detected item'}"
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] uppercase font-bold text-outline tracking-wider flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs text-secondary">description</span>
+                                Recognized Medicine
+                              </span>
+                              {item.medicineName && (
+                                <span className="text-[10px] font-bold text-primary bg-secondary/10 px-2 py-0.5 rounded-md">
+                                  {item.medicineName}
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-mono text-xs text-on-surface font-semibold bg-surface-container-lowest px-2.5 py-1.5 rounded-lg border border-surface-container truncate" title={item.rawName}>
+                              "{item.medicineName || item.rawName || 'Detected item'}"
                             </p>
                           </div>
 
@@ -2892,14 +2899,21 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                             const rxType = identifyPrescriptionType(item, medicinesCatalog);
                             const isGenericPrescription = Boolean(item.isGeneric || rxType.isGeneric);
                             const genericCompoundName = item.prescribedGenericName || rxType.targetGeneric || item.medicineName;
+                            const topAux = item.auxiliaryCandidates && item.auxiliaryCandidates.length > 0 ? item.auxiliaryCandidates[0] : null;
 
                             return (
                               <div className="md:col-span-5 flex items-center gap-2.5">
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                  isGenericPrescription ? 'bg-secondary/15 text-secondary' : 'bg-secondary-container/40 text-secondary'
+                                  isMapped
+                                    ? 'bg-secondary-container/40 text-secondary'
+                                    : topAux
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : isGenericPrescription
+                                    ? 'bg-secondary/15 text-secondary'
+                                    : 'bg-surface-container text-outline'
                                 }`}>
                                   <span className="material-symbols-outlined text-xl">
-                                    {isGenericPrescription ? 'science' : 'medication'}
+                                    {isMapped ? 'medication' : topAux ? 'menu_book' : (isGenericPrescription ? 'science' : 'help_outline')}
                                   </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -2929,6 +2943,21 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                           : `${item.dosageForm || 'Formulation'} · ${item.genericName || 'Standardized catalogue'}`}
                                       </p>
                                     </>
+                                  ) : topAux ? (
+                                    <div>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <h3 className="text-sm font-bold text-amber-900 truncate">
+                                          {topAux.brandName}
+                                        </h3>
+                                        <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-800 text-[10px] font-bold flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[11px]">verified</span>
+                                          National Lexicon
+                                        </span>
+                                      </div>
+                                      <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                                        {topAux.genericName} ({topAux.strength || item.dosage || '10mg'}) • {topAux.dosageForm || 'Formulation'}
+                                      </p>
+                                    </div>
                                   ) : item.pharmacistSelectionRequested ? (
                                     <div>
                                       <div className="flex items-center gap-1.5 flex-wrap">
