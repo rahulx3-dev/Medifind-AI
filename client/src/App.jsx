@@ -8,7 +8,7 @@ import NotificationModal from './components/NotificationModal';
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ToastAlert from './components/ToastAlert';
 import MediFindLogo from './components/MediFindLogo';
-import CubeLoader from './components/ui/cube-loader';
+import LoaderGrid, { AppLoadingScreen } from './components/ui/loader-grid';
 import { useBarbaInit, BarbaCurtainOverlay, BarbaContainer } from './components/ui/BarbaPageTransition';
 import { usePortalGreeting } from './utils/greetingUtils';
 import MediAssistant from './components/MediAssistant';
@@ -583,18 +583,9 @@ function MainApp() {
     }
   }, [user, scrollToAuth]);
 
-  // 1. Initial Session Loading State (Minimal 3D Cube Loader - No card, pure 3D cube)
+  // 1. Initial Session Loading State (App Logo with meaning-aligned motion & LoaderGrid on Barba #A5D6A7 bg)
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-surface via-background to-surface-container/30 text-on-surface p-4 relative overflow-hidden">
-        {/* Subtle Ambient Light Green Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#9CB080]/15 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex items-center justify-center">
-          <CubeLoader />
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   // 2. Unauthenticated Gate: AI SaaS Landing Page with 3D Hero Sculpture + All Sections + Unscrollable Auth Modal
