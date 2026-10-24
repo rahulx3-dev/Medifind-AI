@@ -25,49 +25,26 @@ export function DemoOne() {
 
 /**
  * AppLoadingScreen
- * Full-screen preloader screen on Barba background (#A5D6A7) featuring LoaderGrid shape and motion.
+ * Full-screen preloader screen on Patient Home background (#ecfdf7) featuring LoaderGrid shape and motion.
  */
-export function AppLoadingScreen({ message = 'Locating Clinical Network...' }) {
+export function AppLoadingScreen() {
   return (
     <div
       className="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center select-none overflow-hidden z-[9999]"
       style={{
-        backgroundColor: '#A5D6A7',
-        background: 'radial-gradient(circle at 50% 48%, #c6f6d5 0%, #A5D6A7 62%, #8ec592 100%)'
+        backgroundColor: '#ecfdf7',
+        background: 'radial-gradient(circle at 50% 50%, #ffffff 0%, #ecfdf7 65%, #d8f5ea 100%)'
       }}
     >
       {/* Soft ambient light diffusion */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] h-[360px] bg-white/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] h-[360px] bg-white/40 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Center Stage */}
-      <div className="relative z-10 flex flex-col items-center justify-center">
-        {/* Animated LoaderGrid Stage */}
-        <div className="relative flex items-center justify-center p-8 text-[36px] sm:text-[40px]">
-          <LoaderGrid />
-        </div>
-
-        {/* Brand Typography & Status in Dark Spruce */}
-        <div className="mt-6 flex flex-col items-center text-center space-y-2">
-          <div className="flex items-center justify-center gap-1.5 font-['Plus_Jakarta_Sans',sans-serif]">
-            <span className="text-2xl sm:text-[26px] font-black text-[#032f28] tracking-tight">
-              MediFind
-            </span>
-            <span className="text-2xl sm:text-[26px] font-black text-[#065f46] tracking-tight">
-              AI
-            </span>
-          </div>
-
-          {/* Status Message with Active Signal Pulse */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/45 backdrop-blur-md border border-white/60 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-[#047857] animate-ping shrink-0" />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#032f28]/90">
-              {message}
-            </span>
-          </div>
-        </div>
+      <div className="relative z-10 flex items-center justify-center p-8 text-[36px] sm:text-[42px]">
+        <LoaderGrid />
       </div>
 
-      {/* Scoped CSS for LoaderGrid shape & motion */}
+      {/* Scoped CSS for LoaderGrid shape & motion with light pastel bar colors */}
       <style>{`
         .beforeEl,
         .afterEl {
@@ -93,36 +70,36 @@ export function AppLoadingScreen({ message = 'Locating Clinical Network...' }) {
         @keyframes before8 {
           0% {
             width: 0.5em;
-            box-shadow: 1em -0.5em rgba(225, 20, 98, 0.75), -1em 0.5em rgba(111, 202, 220, 0.75);
+            box-shadow: 1em -0.5em rgba(244, 114, 182, 0.85), -1em 0.5em rgba(125, 211, 252, 0.85);
           }
           35% {
             width: 2.5em;
-            box-shadow: 0 -0.5em rgba(225, 20, 98, 0.75), 0 0.5em rgba(111, 202, 220, 0.75);
+            box-shadow: 0 -0.5em rgba(244, 114, 182, 0.85), 0 0.5em rgba(125, 211, 252, 0.85);
           }
           70% {
             width: 0.5em;
-            box-shadow: -1em -0.5em rgba(225, 20, 98, 0.75), 1em 0.5em rgba(111, 202, 220, 0.75);
+            box-shadow: -1em -0.5em rgba(244, 114, 182, 0.85), 1em 0.5em rgba(125, 211, 252, 0.85);
           }
           100% {
-            box-shadow: 1em -0.5em rgba(225, 20, 98, 0.75), -1em 0.5em rgba(111, 202, 220, 0.75);
+            box-shadow: 1em -0.5em rgba(244, 114, 182, 0.85), -1em 0.5em rgba(125, 211, 252, 0.85);
           }
         }
 
         @keyframes after6 {
           0% {
             height: 0.5em;
-            box-shadow: 0.5em 1em rgba(61, 184, 143, 0.75), -0.5em -1em rgba(233, 169, 32, 0.75);
+            box-shadow: 0.5em 1em rgba(110, 231, 183, 0.85), -0.5em -1em rgba(253, 224, 71, 0.85);
           }
           35% {
             height: 2.5em;
-            box-shadow: 0.5em 0 rgba(61, 184, 143, 0.75), -0.5em 0 rgba(233, 169, 32, 0.75);
+            box-shadow: 0.5em 0 rgba(110, 231, 183, 0.85), -0.5em 0 rgba(253, 224, 71, 0.85);
           }
           70% {
             height: 0.5em;
-            box-shadow: 0.5em -1em rgba(61, 184, 143, 0.75), -0.5em 1em rgba(233, 169, 32, 0.75);
+            box-shadow: 0.5em -1em rgba(110, 231, 183, 0.85), -0.5em 1em rgba(253, 224, 71, 0.85);
           }
           100% {
-            box-shadow: 0.5em 1em rgba(61, 184, 143, 0.75), -0.5em -1em rgba(233, 169, 32, 0.75);
+            box-shadow: 0.5em 1em rgba(110, 231, 183, 0.85), -0.5em -1em rgba(253, 224, 71, 0.85);
           }
         }
       `}</style>
