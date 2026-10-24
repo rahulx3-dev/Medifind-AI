@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ConfirmationDialog from './ConfirmationDialog';
+import FlowButton from './FlowButton';
 import { referencePricingData } from '../data/medicineReferencePricing';
 
 /**
@@ -527,30 +528,19 @@ export default function ReservationConfirmation({
             )}
 
             {/* Submit Action */}
-            <button
-              type="button"
+            <FlowButton
+              variant="primary"
+              size="lg"
+              fullWidth
               onClick={handleSubmit}
               disabled={submitting || items.length === 0}
-              className="w-full py-4 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              loading={submitting}
+              className="!py-3.5 !text-sm !font-bold"
             >
-              {submitting ? (
-                <>
-                  <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
-                  <span>Transmitting Hold Request...</span>
-                </>
-              ) : items.length === 0 ? (
-                <>
-                  <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
-                  <span>Add Medicines to Enable Hold</span>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-lg">task_alt</span>
-                  <span>Submit Dispensary Reservation Hold</span>
-                  <span className="material-symbols-outlined text-base">arrow_forward</span>
-                </>
-              )}
-            </button>
+              {items.length === 0
+                ? 'Add Medicines to Enable Hold'
+                : 'Submit Dispensary Reservation Hold'}
+            </FlowButton>
 
             {/* Security note */}
             <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-on-surface-variant font-medium pt-1">

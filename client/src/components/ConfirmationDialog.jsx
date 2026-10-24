@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import FlowButton from './FlowButton';
 
 /**
  * ConfirmationDialog — High-Stakes Consequential Action Modal
@@ -136,34 +137,27 @@ export default function ConfirmationDialog({
         {/* Action Button Matrix */}
         <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center gap-3 pt-2">
           {/* Destructive / Confirm action */}
-          <button
+          <FlowButton
+            variant={finalIsDestructive ? 'danger' : 'primary'}
+            size="md"
             onClick={onConfirm}
             disabled={isDisabled}
-            className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-              isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-            } ${
-              finalIsDestructive
-                ? 'bg-error text-white hover:bg-[#93000a] shadow-sm'
-                : 'bg-primary text-white hover:bg-primary-container shadow-sm'
-            }`}
+            loading={loading}
+            className="!py-2.5 !px-6 !text-sm !font-bold"
           >
-            {loading && (
-              <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
-            )}
-            <span>{loading ? 'Processing...' : finalConfirmText}</span>
-            {!loading && <span className="material-symbols-outlined text-base">arrow_forward</span>}
-          </button>
+            {finalConfirmText}
+          </FlowButton>
 
           {/* Safe Dismiss / Keep action */}
-          <button
+          <FlowButton
+            variant="secondary"
+            size="md"
             onClick={onCancel}
             disabled={loading}
-            className={`px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-sm transition-colors flex items-center justify-center gap-1.5 ${
-              loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-            }`}
+            className="!py-2.5 !px-5 !text-sm !font-semibold"
           >
-            <span>{finalCancelText}</span>
-          </button>
+            {finalCancelText}
+          </FlowButton>
         </div>
       </div>
     </div>
