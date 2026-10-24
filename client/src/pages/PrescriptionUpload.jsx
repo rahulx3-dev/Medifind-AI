@@ -1276,11 +1276,20 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       const rxOcrConfidence = data.confidence || data.ocrConfidence || 0;
 
       const rawItems = data.detectedItems || rxPrescription?.detectedMedicines || [];
-      const items = rawItems.map((item, idx) => ({
-        ...item,
-        id: item.id || `item-${idx}`,
-        quantity: typeof item.extractedQuantity === 'number' ? item.extractedQuantity : (item.quantity || 1)
-      }));
+      const items = rawItems.map((item, idx) => {
+        // If item has a matched brand or single match, ensure its name and properties are fully mapped
+        const matchedMed = item.matchedMedicine || (item.matchedMedicineId ? medicinesCatalog.find(m => m.id === item.matchedMedicineId) : null);
+        return {
+          ...item,
+          id: item.id || `item-${idx}`,
+          matchedMedicineId: item.matchedMedicineId || (matchedMed ? matchedMed.id : null),
+          matchedMedicineName: item.matchedMedicineName || (matchedMed ? matchedMed.brandName : null),
+          matchedMedicine: matchedMed || item.matchedMedicine || null,
+          dosageForm: item.dosageForm || (matchedMed ? matchedMed.dosageForm : null),
+          quantity: typeof item.extractedQuantity === 'number' ? item.extractedQuantity : (item.quantity || 1),
+          isConfirmed: Boolean(item.isConfirmed || item.matchedMedicineId || matchedMed)
+        };
+      });
 
       setPrescription(rxPrescription);
       setScreening(rxScreening);

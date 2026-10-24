@@ -275,14 +275,15 @@ function normalizeHandwrittenTokens(text) {
   // Strip leading Rx prefixes
   s = s.replace(/^\s*Rx[\s.:\-_/]+/i, '').trim();
 
-  // Strip leading dosage form prefixes (Tab, Cap, Inj, Syr)
-  s = s.replace(/^\s*(?:Tab(?:let)?s?|Ta[by]\b|Cap(?:sule)?s?|Inj(?:ection)?|Syr(?:up)?)\b[\s.:\-_/]*/i, '').trim();
-
-  // Strip leading numbering
+  // Strip leading numbering or letter bullets (e.g. "1.", "2)", "9.", "a;", "b)", "A.", "Sl. No. 1")
   s = s
     .replace(/^\s*(?:Sl\.?\s*No\.?\s*\d*\s*)/i, '')
-    .replace(/^\s*\d+\s*[,.)]?\s+/, '')
+    .replace(/^\s*(?:\d{1,2}|[a-zA-Z])\s*[,.;:)\]}\-]\s*/, '')
+    .replace(/^\s*\d+\s+/, '')
     .trim();
+
+  // Strip leading dosage form prefixes (Tab, Cap, Inj, Syr)
+  s = s.replace(/^\s*(?:Tab(?:let)?s?|Ta[by]\b|Cap(?:sule)?s?|Inj(?:ection)?|Syr(?:up)?)\b[\s.:\-_/]*/i, '').trim();
 
   // Common handwriting currency / letter slips for 650 (e.g. €50, E50, £50)
   s = s.replace(/[€£E]50\b/g, '650');
@@ -845,27 +846,33 @@ function processPrescriptionText(rawText, medicinesCatalog) {
             }))
           : matches.slice(0, 5);
 
+        // If there is a single decisive brand match in catalog (e.g. Pantoprazole 40mg -> Pan 40)
+        // or a primary top brand match when only 1 brand matches the strength, pre-select it
+        const singleExactBrand = matchingBrands.length === 1 ? matchingBrands[0] : null;
+
         detectedItems.push({
           rawName: rawRow,
           medicineName,
           strength: strength || null,
-          matchedMedicineId: null,
-          matchedMedicineName: null,
-          matchedMedicine: null,
+          matchedMedicineId: singleExactBrand ? singleExactBrand.id : null,
+          matchedMedicineName: singleExactBrand ? singleExactBrand.brandName : null,
+          matchedMedicine: singleExactBrand || null,
           isGeneric: true,
           prescribedGenericName: rxType.targetGeneric || medicineName,
           allMatches: candidateMatches,
-          confidence: top ? top.confidence : 0.85,
-          needsMapping: true,
+          confidence: singleExactBrand ? 0.95 : (top ? top.confidence : 0.85),
+          needsMapping: !singleExactBrand,
           isNonCatalogue: false,
-          status: 'AMBIGUOUS',
+          status: singleExactBrand ? 'AUTO_MATCHED' : 'AMBIGUOUS',
           extractedQuantity: extractedQty,
           quantity: extractedQty || 1,
           dosage,
           frequency: freq,
           duration: dur,
-          evidenceSummary: `Prescribed as generic active ingredient "${medicineName}". Suitable matching brand options available.`,
-          isConfirmed: false
+          evidenceSummary: singleExactBrand
+            ? `Prescribed as generic "${medicineName}". Automatically matched to catalog brand "${singleExactBrand.brandName}".`
+            : `Prescribed as generic active ingredient "${medicineName}". Suitable matching brand options available.`,
+          isConfirmed: Boolean(singleExactBrand)
         });
       } else if (isConfident && !hasCloseCompetitor) {
         // 2. High confidence, decisive single match — AUTO-MATCHED

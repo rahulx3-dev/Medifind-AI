@@ -79021,5 +79021,92 @@
       "sourceUrl": "https://cdsco.gov.in",
       "verificationDate": "2026-10-20"
     }
+  },
+  {
+    "lexiconId": "LEX-IND-V2-02206",
+    "sourceId": 900001,
+    "sourceName": "Electral Powder 21.8g",
+    "brandName": "Electral",
+    "genericName": "Oral Rehydration Salts (ORS)",
+    "activeIngredients": [
+      {
+        "ingredient": "Sodium Chloride",
+        "strength": "2.6g",
+        "rawComposition": "Sodium Chloride (2.6g)",
+        "strengthSource": "composition",
+        "strengthReviewRequired": false
+      },
+      {
+        "ingredient": "Potassium Chloride",
+        "strength": "1.5g",
+        "rawComposition": "Potassium Chloride (1.5g)",
+        "strengthSource": "composition",
+        "strengthReviewRequired": false
+      },
+      {
+        "ingredient": "Sodium Citrate",
+        "strength": "2.9g",
+        "rawComposition": "Sodium Citrate (2.9g)",
+        "strengthSource": "composition",
+        "strengthReviewRequired": false
+      },
+      {
+        "ingredient": "Dextrose Anhydrous",
+        "strength": "13.5g",
+        "rawComposition": "Dextrose Anhydrous (13.5g)",
+        "strengthSource": "composition",
+        "strengthReviewRequired": false
+      }
+    ],
+    "isCombination": true,
+    "strength": "21.8g",
+    "strengthVerified": true,
+    "strengthReviewRequired": false,
+    "dosageForm": "Powder",
+    "manufacturer": "FDC Ltd",
+    "packSizeLabel": "sachet of 21.8 gm Powder",
+    "priceInr": 22.5,
+    "regulatoryStatus": "STANDARD_ALLOPATHIC",
+    "isEligibleForMatching": true,
+    "regulatoryDetails": {
+      "status": "STANDARD_ALLOPATHIC",
+      "reason": null,
+      "reference": "WHO / CDSCO Approved Allopathic List / National Formulary of India",
+      "sourceUrl": "https://cdsco.gov.in",
+      "verificationDate": "2026-10-24"
+    }
+  },
+  {
+    "lexiconId": "LEX-IND-V2-02207",
+    "sourceId": 900002,
+    "sourceName": "ORS Powder IP 20.5g Sachet",
+    "brandName": "ORS Sachet",
+    "genericName": "Oral Rehydration Salts IP (ORS)",
+    "activeIngredients": [
+      {
+        "ingredient": "Oral Rehydration Salts",
+        "strength": "20.5g",
+        "rawComposition": "Oral Rehydration Salts (20.5g)",
+        "strengthSource": "composition",
+        "strengthReviewRequired": false
+      }
+    ],
+    "isCombination": false,
+    "strength": "20.5g",
+    "strengthVerified": true,
+    "strengthReviewRequired": false,
+    "dosageForm": "Powder",
+    "manufacturer": "Cipla Ltd",
+    "packSizeLabel": "sachet of 20.5 gm Powder",
+    "priceInr": 20,
+    "regulatoryStatus": "STANDARD_ALLOPATHIC",
+    "isEligibleForMatching": true,
+    "regulatoryDetails": {
+      "status": "STANDARD_ALLOPATHIC",
+      "reason": null,
+      "reference": "IP / CDSCO Approved Allopathic List / National Formulary of India",
+      "sourceUrl": "https://cdsco.gov.in",
+      "verificationDate": "2026-10-24"
+    }
   }
 ]
