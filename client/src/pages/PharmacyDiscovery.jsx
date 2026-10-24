@@ -63,9 +63,32 @@ export default function PharmacyDiscovery({
   const [selectedMapIndex, setSelectedMapIndex] = useState(0);
 
   // Reservation Flow: null | { stage: 'confirm' | 'success', pharmacy, items, order }
-  const [reservationFlow, setReservationFlow] = useState(null);
+  // Persisted in sessionStorage so navigating away and returning to 'pharmacy' stays in checkout if no order was placed yet
+  const [reservationFlow, setReservationFlow] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('medifind_pending_reservation_flow');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.stage === 'confirm' && parsed.pharmacy && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return null;
+  });
   const [reservationSubmitting, setReservationSubmitting] = useState(false);
   const [reservationError, setReservationError] = useState(null);
+
+  // Sync reservationFlow to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      if (reservationFlow && reservationFlow.stage === 'confirm') {
+        sessionStorage.setItem('medifind_pending_reservation_flow', JSON.stringify(reservationFlow));
+      } else {
+        sessionStorage.removeItem('medifind_pending_reservation_flow');
+      }
+    } catch (_) {}
+  }, [reservationFlow]);
 
   // Mini-search medicine selector state (if no active request items)
   const [medSelectorOpen, setMedSelectorOpen] = useState(false);
