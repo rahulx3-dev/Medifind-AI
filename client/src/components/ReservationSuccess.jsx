@@ -463,14 +463,15 @@ export default function ReservationSuccess({
                 </FlowButton>
               )}
 
-              <button
-                type="button"
+              <FlowButton
+                fullWidth
+                size="md"
+                variant={isConfirmed && !isCheckoutComplete ? 'secondary' : 'primary'}
                 onClick={onProceedToOrders}
-                className={`w-full py-3 rounded-full font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 ${isConfirmed && !isCheckoutComplete ? 'bg-surface-container hover:bg-surface-container-high text-primary' : 'bg-primary hover:bg-primary-container text-white'}`}
+                className="!py-3 !text-xs !font-bold"
               >
-                <span>View Full Order Journey</span>
-                <span className="material-symbols-outlined text-base">arrow_forward</span>
-              </button>
+                View Full Order Journey
+              </FlowButton>
 
               <div className="flex items-center gap-2">
                 {onNavigateToCatalogue && (
