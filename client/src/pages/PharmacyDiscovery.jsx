@@ -368,7 +368,38 @@ export default function PharmacyDiscovery({
       return;
     }
 
-    const normalizedItems = items.map(i => {
+    // Filter out items that are NOT available at this pharmacy based on real inventory match
+    const availableItems = items.filter(i => {
+      const medId = i.medicineId || i.id;
+      const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
+      const matchAvail = (pharmacy.availability || []).find(a => 
+        (a.medicineId && (a.medicineId === medId)) || 
+        (nameLower && (a.brandName || '').toLowerCase().includes(nameLower))
+      );
+      if (matchAvail) {
+        return matchAvail.isAvailable === true;
+      }
+      const matchInv = (pharmacy.inventory || []).find(inv => 
+        (inv.medicineId && (inv.medicineId === medId)) || 
+        (nameLower && ((inv.medicine?.brandName || inv.brandName || '').toLowerCase().includes(nameLower)))
+      );
+      if (matchInv) {
+        return (matchInv.stock != null ? matchInv.stock > 0 : true);
+      }
+      // If item was directly passed with explicit availability flag
+      if (i.isAvailable !== undefined) {
+        return Boolean(i.isAvailable);
+      }
+      return false;
+    });
+
+    // If no requested medicines are available at this dispensary, notify patient
+    if (availableItems.length === 0) {
+      alert(`None of the requested medicines are currently in stock at ${pharmacy.name}. Please select a participating dispensary that has available stock.`);
+      return;
+    }
+
+    const normalizedItems = availableItems.map(i => {
       const medId = i.medicineId || i.id;
       const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
       const matchAvail = (pharmacy.availability || []).find(a => 
@@ -388,14 +419,14 @@ export default function PharmacyDiscovery({
       );
 
       let resolvedPrice = null;
-      if (ref && ref.unitPrice != null) {
-        resolvedPrice = ref.unitPrice;
-      } else if (matchAvail?.unitPrice != null) {
+      if (matchAvail?.unitPrice != null) {
         resolvedPrice = matchAvail.unitPrice;
-      } else if (i.unitPrice != null) {
-        resolvedPrice = i.unitPrice;
       } else if (matchInv?.price != null) {
         resolvedPrice = matchInv.price;
+      } else if (ref && ref.unitPrice != null) {
+        resolvedPrice = ref.unitPrice;
+      } else if (i.unitPrice != null) {
+        resolvedPrice = i.unitPrice;
       } else if (i.price != null) {
         resolvedPrice = i.price;
       }

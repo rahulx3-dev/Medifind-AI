@@ -183,19 +183,32 @@ export default function ReservationConfirmation({
         </nav>
       </section>
 
-      {/* Editorial Header */}
-      <header className="flex flex-col gap-1 max-w-3xl">
-        <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold w-fit">
-          <span className="material-symbols-outlined text-sm">lock_clock</span>
-          <span>Clinical Dispensing Hold Request</span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-primary tracking-tight mt-1">
-          Confirm Medicine Hold &amp; Dispensary Reservation
-        </h1>
-        <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-          Review selected pharmacy, medicine allocation, and chosen collection method. Your request will be queued for dispensing pharmacist sign-off.
-        </p>
-      </header>
+      {/* Editorial Header with Back Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <header className="flex flex-col gap-1 max-w-2xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold w-fit">
+            <span className="material-symbols-outlined text-sm">lock_clock</span>
+            <span>Clinical Dispensing Hold Request</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-primary tracking-tight mt-1">
+            Confirm Medicine Hold &amp; Dispensary Reservation
+          </h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+            Review selected pharmacy, medicine allocation, and chosen collection method. Your request will be queued for dispensing pharmacist sign-off.
+          </p>
+        </header>
+
+        {onBackToDiscovery && (
+          <button
+            type="button"
+            onClick={onBackToDiscovery}
+            className="self-start sm:self-center inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs shadow-xs border border-outline-variant/30 transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            <span>Back to Pharmacies</span>
+          </button>
+        )}
+      </div>
 
       {/* Main 2-Column Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
