@@ -12,14 +12,31 @@ import { Button } from '@/components/ui/ai-error-handler-utils/button';
 /**
  * Global helper to trigger in-app toast alerts from anywhere
  */
-export function triggerToast({
-  title = '',
-  message = '',
-  variant = 'success',
-  duration = 4500,
-  onRetry = null,
-  action = null
-}) {
+export function triggerToast(options, variantOrDuration = 'success') {
+  let title = '';
+  let message = '';
+  let variant = 'success';
+  let duration = 4500;
+  let onRetry = null;
+  let action = null;
+
+  if (typeof options === 'string') {
+    title = options;
+    message = options;
+    if (typeof variantOrDuration === 'string') {
+      variant = variantOrDuration;
+    } else if (typeof variantOrDuration === 'number') {
+      duration = variantOrDuration;
+    }
+  } else if (options && typeof options === 'object') {
+    title = options.title || options.message || '';
+    message = options.message || options.title || '';
+    variant = options.variant || 'success';
+    duration = options.duration !== undefined ? options.duration : 4500;
+    onRetry = options.onRetry || null;
+    action = options.action || null;
+  }
+
   const event = new CustomEvent('medifind_show_toast', {
     detail: {
       id: `toast-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,

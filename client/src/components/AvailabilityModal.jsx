@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import confetti from 'canvas-confetti';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 
@@ -239,9 +240,9 @@ export default function AvailabilityModal({
   // Compute unique pharmacies selected in split allocations
   const uniqueSelectedPharmaciesCount = new Set(Object.values(splitAllocations)).size;
 
-  return (
+  const modalContent = (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(3,47,40,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}
       onClick={handleClose}
     >
       <div
@@ -859,4 +860,8 @@ export default function AvailabilityModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }

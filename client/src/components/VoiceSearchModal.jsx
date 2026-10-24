@@ -150,36 +150,27 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      style={{ background: 'rgba(3, 15, 12, 0.72)', backdropFilter: 'blur(18px)' }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-on-surface/50 backdrop-blur-md"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-label="Voice Search"
     >
       <div
-        className="relative w-full max-w-sm mx-auto flex flex-col items-center gap-0 rounded-3xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(46,104,93,0.12) 100%)',
-          border: '1px solid rgba(161,207,197,0.2)',
-          boxShadow: '0 32px 64px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)',
-        }}
+        className="relative w-full max-w-sm mx-auto flex flex-col items-center gap-0 rounded-3xl overflow-hidden bg-surface-container-lowest border border-outline-variant/30 shadow-[0_24px_50px_-12px_rgba(3,47,40,0.25)]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="w-full flex items-center justify-between px-5 pt-5 pb-2">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]" style={{ color: '#a6cfc5' }}>mic</span>
-            <span className="text-xs font-bold tracking-wider uppercase" style={{ color: '#a6cfc5' }}>
+            <span className="material-symbols-outlined text-[18px] text-secondary">mic</span>
+            <span className="text-xs font-bold tracking-wider uppercase text-primary">
               Voice Medicine Search
             </span>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface cursor-pointer"
             aria-label="Close voice search"
           >
             <span className="material-symbols-outlined text-[18px]">close</span>
@@ -236,15 +227,15 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
               </p>
             </div>
           ) : status === 'done' && transcript ? (
-            <div className="w-full rounded-2xl px-4 py-3 text-center" style={{ background: 'rgba(46,104,93,0.25)', border: '1px solid rgba(46,104,93,0.4)' }}>
-              <p className="text-sm font-bold" style={{ color: '#b0ecdd' }}>{transcript}</p>
+            <div className="w-full rounded-2xl px-4 py-3 text-center bg-[#ecfdf7] border border-[#b0ecdd]">
+              <p className="text-sm font-bold text-[#032f28]">{transcript}</p>
             </div>
           ) : (listening && interimText) ? (
-            <p className="text-sm text-center" style={{ color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' }}>
+            <p className="text-sm text-center text-[#2e685d] italic">
               "{interimText}…"
             </p>
           ) : (
-            <p className="text-xs text-center transition-all" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            <p className="text-xs text-center text-on-surface-variant transition-all font-medium">
               {SPEECH_TIPS[tipIndex]}
             </p>
           )}
@@ -255,21 +246,15 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
           {listening && (
             <>
               <span
-                className="w-2 h-2 rounded-full"
-                style={{
-                  background: voiceDetected ? '#10b981' : '#a6cfc5',
-                  boxShadow: voiceDetected ? '0 0 8px #10b981' : 'none',
-                  animation: 'voiceDot 0.8s ease-in-out infinite',
-                  transition: 'all 0.15s',
-                }}
+                className="w-2 h-2 rounded-full bg-emerald-600 shadow-[0_0_8px_#059669] animate-pulse"
               />
-              <span className="text-xs font-semibold" style={{ color: voiceDetected ? '#10b981' : 'rgba(166,207,197,0.7)' }}>
+              <span className="text-xs font-bold text-[#032f28]">
                 {voiceDetected ? 'Voice detected…' : 'Listening…'}
               </span>
             </>
           )}
           {status === 'done' && (
-            <span className="text-xs font-semibold" style={{ color: '#b0ecdd' }}>
+            <span className="text-xs font-bold text-secondary">
               ✓ Captured
             </span>
           )}
@@ -281,20 +266,14 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
             <div className="flex gap-2.5">
               <button
                 onClick={handleRetry}
-                className="flex-1 h-11 rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 transition-all"
-                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.13)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                className="flex-1 h-11 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all bg-surface-container hover:bg-surface-container-high text-primary border border-outline-variant/30 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">refresh</span>
                 Retry
               </button>
               <button
                 onClick={handleUseResult}
-                className="flex-[2] h-11 rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 transition-all"
-                style={{ background: 'linear-gradient(135deg, #2e685d, #032f28)', color: '#fff', boxShadow: '0 4px 16px rgba(46,104,93,0.4)' }}
-                onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                className="flex-[2] h-11 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all bg-primary hover:bg-primary-container text-white shadow-md cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">search</span>
                 Search this
@@ -304,11 +283,11 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
             <button
               onClick={listening ? stopListening : startListening}
               disabled={permissionDenied || unsupportedBrowser}
-              className="w-full h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
-              style={listening
-                ? { background: 'rgba(186,26,26,0.2)', color: '#ff8875', border: '1px solid rgba(186,26,26,0.35)' }
-                : { background: 'linear-gradient(135deg, #2e685d, #1e453e)', color: '#fff', boxShadow: '0 4px 20px rgba(46,104,93,0.45)', opacity: (permissionDenied || unsupportedBrowser) ? '0.5' : '1' }
-              }
+              className={`w-full h-12 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
+                listening
+                  ? 'bg-rose-50 text-rose-700 border border-rose-300'
+                  : 'bg-primary hover:bg-primary-container text-white'
+              }`}
             >
               <span className="material-symbols-outlined text-[20px]">
                 {listening ? 'stop_circle' : 'mic'}
@@ -325,14 +304,14 @@ export default function VoiceSearchModal({ isOpen, onClose, onResult, onFallback
               onClose();
               if (onFallbackToText) onFallbackToText();
             }}
-            className="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer text-[#a6cfc5] hover:text-white hover:bg-white/10 border border-white/10"
+            className="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer text-secondary hover:bg-surface-container border border-outline-variant/40"
           >
             <span className="material-symbols-outlined text-sm">edit_note</span>
             <span>Use Normal Text Search Instead</span>
           </button>
 
           {/* Language hint */}
-          <p className="text-center text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+          <p className="text-center text-[10px] text-on-surface-variant">
             Supports English (India) • Speak medicine name, symptom, or category
           </p>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AvailabilityModal from '../components/AvailabilityModal';
@@ -841,8 +842,8 @@ export default function MedicineSearch({
       </section>
 
       {/* Clinical Filter Feature Modal (Opened via Filter button inside search box) */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      {showFilterModal && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-primary/40 backdrop-blur-xs z-[9999] flex items-center justify-center p-4">
           <div className="bg-surface-container-lowest rounded-3xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-outline-variant/30 space-y-5 animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-surface-container pb-3">
@@ -962,7 +963,8 @@ export default function MedicineSearch({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Offline Alerts */}
@@ -1518,8 +1520,8 @@ export default function MedicineSearch({
       />
 
       {/* Dedicated Reservation Cart Card / Slide-Over Modal */}
-      {cartDrawerOpen && (
-        <div className="fixed inset-0 z-[120] flex justify-end">
+      {cartDrawerOpen && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex justify-end">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
@@ -1767,7 +1769,8 @@ export default function MedicineSearch({
               </div>
             )}
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
