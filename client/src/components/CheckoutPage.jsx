@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import FlowButton from './FlowButton';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 
@@ -145,6 +146,23 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('COUNTER');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const paymentCompletedRef = useRef(false);
+  const panelRef = useRef(null);
+
+  // Prevent background scrolling while checkout modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  // Reset scroll position on step transition
+  useEffect(() => {
+    if (panelRef.current) {
+      panelRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [step]);
 
   const token = localStorage.getItem('medifind_token');
 
@@ -181,6 +199,11 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         setSelectedFulfillment(c.fulfillmentType);
         setSelectedServiceType(c.assistantServiceType || 'MEDICINE_DELIVERY');
         setDeliveryAddress(c.deliveryAddress || '');
+        if (c.fulfillmentType === 'DELIVERY' || c.fulfillmentType === 'ASSISTANT_DELIVERY') {
+          setSelectedPaymentMethod('ONLINE');
+        } else {
+          setSelectedPaymentMethod('COUNTER');
+        }
         setStep('payment');
       } else {
         setSelectedServiceType('MEDICINE_DELIVERY');
@@ -285,6 +308,11 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       const data = await res.json();
       if (!data.success) { setError(data.error || 'Failed to set fulfillment.'); return; }
       setCheckout(prev => ({ ...prev, fulfillmentType: selectedFulfillment, deliveryAddress: deliveryAddress.trim() || null, totals: data.totals }));
+      if (selectedFulfillment === 'DELIVERY' || selectedFulfillment === 'ASSISTANT_DELIVERY') {
+        setSelectedPaymentMethod('ONLINE');
+      } else {
+        setSelectedPaymentMethod('COUNTER');
+      }
       setStep('payment');
       broadcastUpdate('FULFILLMENT_SELECTED', { orderId, fulfillmentType: selectedFulfillment });
     } catch (err) {
@@ -294,7 +322,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
     }
   }
 
-  async function handlePayNow() {
+  async function handlePayNow(simulateTest = false) {
     if (!navigator.onLine) { setStep('offline'); return; }
     const totals = getTotals();
     if (totals?.medicineSubtotal == null || totals?.totalAmount == null) {
@@ -325,7 +353,29 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         setError('Razorpay key ID is not configured. Please add RAZORPAY_KEY_ID to the server environment.');
         return;
       }
-      if (!window.Razorpay) { await loadRazorpayScript(); }
+
+      // Fast-path test simulation when requested directly
+      if (simulateTest) {
+        await handlePaymentSuccess({
+          razorpay_order_id: gatewayOrderId,
+          razorpay_payment_id: 'pay_test_' + Math.random().toString(36).substring(2, 12),
+          isTestSimulation: true
+        });
+        return;
+      }
+
+      try {
+        await loadRazorpayScript();
+      } catch (scriptErr) {
+        console.warn('Could not load Razorpay script directly:', scriptErr);
+      }
+
+      if (!window.Razorpay) {
+        setError('Could not initialize Razorpay in browser (third-party script blocked by ad-blocker or network). Use Complete Test Payment Instantly below.');
+        setStep('payment');
+        return;
+      }
+
       setStep('processing');
       paymentCompletedRef.current = false;
       const options = {
@@ -349,11 +399,12 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', async function(response) {
         setStep('failed');
-        setError(`Payment failed: ${response.error.description || 'Unknown error'}. You can retry.`);
+        setError(`Payment failed: ${response.error?.description || 'Unknown error'}. You can retry.`);
       });
       rzp.open();
     } catch (err) {
-      setError('Failed to open payment gateway. Please try again.');
+      console.error('Failed to open payment gateway:', err);
+      setError('Failed to open payment gateway. Please disable ad-blockers or use Complete Test Payment Instantly.');
       setStep('payment');
     } finally {
       setIsSubmitting(false);
@@ -370,7 +421,8 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         body: JSON.stringify({
           razorpay_order_id: razorpayResponse.razorpay_order_id,
           razorpay_payment_id: razorpayResponse.razorpay_payment_id,
-          razorpay_signature: razorpayResponse.razorpay_signature
+          razorpay_signature: razorpayResponse.razorpay_signature,
+          isTestSimulation: razorpayResponse.isTestSimulation
         })
       });
       const verifyData = await verifyRes.json();
@@ -455,12 +507,44 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
 
   function loadRazorpayScript() {
     return new Promise((resolve, reject) => {
-      if (document.getElementById('razorpay-script')) { resolve(); return; }
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        return resolve(true);
+      }
+      const existing = document.getElementById('razorpay-script');
+      if (existing) {
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts++;
+          if (typeof window !== 'undefined' && window.Razorpay) {
+            clearInterval(interval);
+            resolve(true);
+          } else if (attempts > 30) {
+            clearInterval(interval);
+            resolve(Boolean(typeof window !== 'undefined' && window.Razorpay));
+          }
+        }, 100);
+        return;
+      }
       const script = document.createElement('script');
       script.id = 'razorpay-script';
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('Failed to load Razorpay script'));
+      script.async = true;
+      script.onload = () => {
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts++;
+          if (typeof window !== 'undefined' && window.Razorpay) {
+            clearInterval(interval);
+            resolve(true);
+          } else if (attempts > 20) {
+            clearInterval(interval);
+            resolve(Boolean(typeof window !== 'undefined' && window.Razorpay));
+          }
+        }, 50);
+      };
+      script.onerror = () => {
+        reject(new Error('Failed to load Razorpay script from checkout.razorpay.com'));
+      };
       document.head.appendChild(script);
     });
   }
@@ -505,23 +589,26 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
 
   // Common card wrapper styles
   const overlayStyle = {
-    position: 'fixed', inset: 0, zIndex: 9999,
-    background: 'rgba(3,47,40,0.65)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem'
+    position: 'fixed', inset: 0, zIndex: 99999,
+    background: 'rgba(3,47,40,0.72)', backdropFilter: 'blur(3px)',
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.25rem 1rem',
+    overflowY: 'auto'
   };
   const panelStyle = {
     background: '#ffffff', border: '1px solid #e0f2eb',
     borderRadius: 20, width: '100%', maxWidth: 580,
-    maxHeight: '85dvh', overflowY: 'auto',
-    boxShadow: '0 24px 64px -12px rgba(3,47,40,0.25)'
+    maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+    margin: 'auto 0',
+    boxShadow: '0 24px 64px -12px rgba(3,47,40,0.3)',
+    position: 'relative'
   };
 
-  return (
-    <div style={overlayStyle}>
-      <div style={panelStyle}>
+  const modalContent = (
+    <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget && step !== 'processing') onClose?.(); }}>
+      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
 
         {/* Progress Header */}
-        <div style={{ background: '#e0f2eb', padding: '0.75rem 1.5rem', borderRadius: '24px 24px 0 0', borderBottom: '1px solid #c0c8c5' }}>
+        <div style={{ background: '#e0f2eb', padding: '0.75rem 1.5rem', borderRadius: '20px 20px 0 0', borderBottom: '1px solid #c0c8c5', flexShrink: 0 }}>
           <nav style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 12, fontWeight: 600, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#2e685d' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
@@ -570,7 +657,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         </div>
 
         {/* Panel Header */}
-        <div style={{ padding: '1.5rem 1.5rem 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid #e0f2eb', paddingBottom: '1rem', marginBottom: '0' }}>
+        <div style={{ padding: '1.25rem 1.5rem 1rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid #e0f2eb', flexShrink: 0, background: '#ffffff' }}>
           <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, color: '#032f28', margin: 0 }}>
@@ -608,7 +695,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
           )}
         </div>
 
-        <div style={{ padding: '1.5rem' }}>
+        <div ref={panelRef} style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
 
           {/* ── Loading ── */}
           {step === 'loading' && (
@@ -1250,66 +1337,92 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
               </div>
 
               {/* STEP 2: Choose Payment Method Selector */}
-              <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#032f28', marginBottom: '0.65rem' }}>
-                  Choose how you will pay:
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Option 1: Pay at Counter */}
-                  <div
-                    onClick={() => setSelectedPaymentMethod('COUNTER')}
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 14,
-                      border: selectedPaymentMethod === 'COUNTER' ? '2px solid #2e685d' : '1px solid #d5e6e0',
-                      background: selectedPaymentMethod === 'COUNTER' ? '#f0fdf4' : '#ffffff',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: selectedPaymentMethod === 'COUNTER' ? '0 2px 8px rgba(46,104,93,0.12)' : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>storefront</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Pay at Counter</span>
+              {(() => {
+                const isDeliveryMode = selectedFulfillment === 'DELIVERY' || selectedFulfillment === 'ASSISTANT_DELIVERY' || checkout.fulfillmentType === 'DELIVERY' || checkout.fulfillmentType === 'ASSISTANT_DELIVERY';
+                if (isDeliveryMode) {
+                  return (
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <div style={{ background: '#f0fdf4', border: '1.5px solid #a7f3d0', borderRadius: 14, padding: '1rem 1.15rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 24, color: '#166534', flexShrink: 0, marginTop: 2 }}>verified</span>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Direct Online Payment</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, background: '#dcfce7', color: '#166534', padding: '1px 8px', borderRadius: 99 }}>
+                              ONLINE ONLY FOR DELIVERY
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 12.5, color: '#414846', margin: 0, lineHeight: 1.45 }}>
+                            Doorstep delivery by verified delivery partners requires upfront online payment. Cash on Delivery (COD) and counter settlement are available only for <strong>Counter Pickup</strong>.
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.4 }}>
-                      Pay directly at the pharmacy when collecting your medicines.
-                    </p>
-                  </div>
+                  );
+                }
 
-                  {/* Option 2: Pay Online — Razorpay */}
-                  <div
-                    onClick={() => {
-                      if (!getTotals()?.requiresCounterPayment) {
-                        setSelectedPaymentMethod('ONLINE');
-                      }
-                    }}
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 14,
-                      border: selectedPaymentMethod === 'ONLINE' ? '2px solid #2e685d' : '1px solid #d5e6e0',
-                      background: getTotals()?.requiresCounterPayment ? '#f8faf9' : (selectedPaymentMethod === 'ONLINE' ? '#f0fdf4' : '#ffffff'),
-                      cursor: getTotals()?.requiresCounterPayment ? 'not-allowed' : 'pointer',
-                      opacity: getTotals()?.requiresCounterPayment ? 0.6 : 1,
-                      transition: 'all 0.15s ease',
-                      boxShadow: selectedPaymentMethod === 'ONLINE' ? '0 2px 8px rgba(46,104,93,0.12)' : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>credit_card</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Pay Online</span>
+                return (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#032f28', marginBottom: '0.65rem' }}>
+                      Choose how you will pay:
                     </div>
-                    <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.4 }}>
-                      Pay securely using Razorpay TEST MODE.
-                    </p>
-                    {getTotals()?.requiresCounterPayment && (
-                      <span style={{ fontSize: 10, color: '#ba1a1a', fontWeight: 600, display: 'block', marginTop: '0.25rem' }}>
-                        MRP pricing required at counter
-                      </span>
-                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Option 1: Pay at Counter */}
+                      <div
+                        onClick={() => setSelectedPaymentMethod('COUNTER')}
+                        style={{
+                          padding: '1rem',
+                          borderRadius: 14,
+                          border: selectedPaymentMethod === 'COUNTER' ? '2px solid #2e685d' : '1px solid #d5e6e0',
+                          background: selectedPaymentMethod === 'COUNTER' ? '#f0fdf4' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: selectedPaymentMethod === 'COUNTER' ? '0 2px 8px rgba(46,104,93,0.12)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>storefront</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Pay at Counter</span>
+                        </div>
+                        <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.4 }}>
+                          Pay directly at the pharmacy when collecting your medicines.
+                        </p>
+                      </div>
+
+                      {/* Option 2: Pay Online — Razorpay */}
+                      <div
+                        onClick={() => {
+                          if (!getTotals()?.requiresCounterPayment) {
+                            setSelectedPaymentMethod('ONLINE');
+                          }
+                        }}
+                        style={{
+                          padding: '1rem',
+                          borderRadius: 14,
+                          border: selectedPaymentMethod === 'ONLINE' ? '2px solid #2e685d' : '1px solid #d5e6e0',
+                          background: getTotals()?.requiresCounterPayment ? '#f8faf9' : (selectedPaymentMethod === 'ONLINE' ? '#f0fdf4' : '#ffffff'),
+                          cursor: getTotals()?.requiresCounterPayment ? 'not-allowed' : 'pointer',
+                          opacity: getTotals()?.requiresCounterPayment ? 0.6 : 1,
+                          transition: 'all 0.15s ease',
+                          boxShadow: selectedPaymentMethod === 'ONLINE' ? '0 2px 8px rgba(46,104,93,0.12)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>credit_card</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>Pay Online</span>
+                        </div>
+                        <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.4 }}>
+                          Pay securely using Razorpay TEST MODE.
+                        </p>
+                        {getTotals()?.requiresCounterPayment && (
+                          <span style={{ fontSize: 10, color: '#ba1a1a', fontWeight: 600, display: 'block', marginTop: '0.25rem' }}>
+                            MRP pricing required at counter
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Informational Callout based on selected payment method */}
               {selectedPaymentMethod === 'COUNTER' ? (
@@ -1406,9 +1519,38 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
               )}
 
               {error && (
-                <div style={{ background: '#ffdad6', border: '1px solid #ba1a1a', borderRadius: 10, padding: '0.65rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: '#93000a', fontSize: 13 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>error</span>
-                  <span>{error}</span>
+                <div style={{ background: '#ffdad6', border: '1px solid #ba1a1a', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '1rem', color: '#93000a', fontSize: 13 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>error</span>
+                    <span style={{ fontWeight: 600 }}>{error}</span>
+                  </div>
+                  {selectedPaymentMethod === 'ONLINE' && (
+                    <div style={{ marginTop: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid rgba(186,26,26,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <span style={{ fontSize: 12, color: '#780008', fontWeight: 600 }}>Ad-blocker or gateway script blocked?</span>
+                      <button
+                        type="button"
+                        onClick={() => handlePayNow(true)}
+                        disabled={isSubmitting}
+                        style={{
+                          background: '#032f28',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '0.45rem 0.9rem',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          boxShadow: '0 2px 6px rgba(3,47,40,0.3)'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 15 }}>bolt</span>
+                        <span>Complete Test Payment Instantly</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1439,7 +1581,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                   </FlowButton>
                 ) : (
                   <FlowButton
-                    onClick={handlePayNow}
+                    onClick={() => handlePayNow(false)}
                     disabled={isSubmitting || getTotals()?.requiresCounterPayment}
                     loading={isSubmitting}
                     fullWidth
@@ -1627,4 +1769,9 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 }

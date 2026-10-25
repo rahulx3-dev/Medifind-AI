@@ -882,7 +882,18 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                   ) : isConfirmed && !isCheckoutComplete && (
                     <FlowButton
                       size="lg"
-                      variant="primary"
+                      style={{
+                        background: '#10b981',
+                        color: '#ffffff',
+                        border: '1.5px solid #34d399',
+                        '--fb-color': '#ffffff',
+                        '--fb-color-hover': '#00201b',
+                        '--fb-circle-bg': '#a7f3d0',
+                        '--fb-border': '#34d399',
+                        fontWeight: 800,
+                        fontSize: 14,
+                        boxShadow: '0 4px 18px rgba(16, 185, 129, 0.45)'
+                      }}
                       onClick={() => handleOpenCheckout(detailOrder.id)}
                     >
                       Choose Mode &amp; Proceed to Pay

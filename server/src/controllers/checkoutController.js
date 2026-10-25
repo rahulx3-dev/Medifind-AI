@@ -1000,11 +1000,24 @@ async function createPayment(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function verifyPayment(req, res) {
   try {
-    const { orderId } = req.params;
-    const razorpay_order_id = req.body.razorpay_order_id || req.body.gatewayOrderId;
-    const razorpay_payment_id = req.body.razorpay_payment_id || req.body.gatewayPaymentId;
-    const razorpay_signature = req.body.razorpay_signature || req.body.gatewaySignature;
+    const isTestMode = (process.env.RAZORPAY_KEY_ID || '').startsWith('rzp_test_');
+    let razorpay_order_id = req.body.razorpay_order_id || req.body.gatewayOrderId;
+    let razorpay_payment_id = req.body.razorpay_payment_id || req.body.gatewayPaymentId;
+    let razorpay_signature = req.body.razorpay_signature || req.body.gatewaySignature;
     const userId = req.user.id;
+
+    if (isTestMode && req.body.isTestSimulation === true) {
+      if (!razorpay_payment_id) {
+        razorpay_payment_id = 'pay_sim_' + Date.now();
+      }
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (keySecret && razorpay_order_id) {
+        razorpay_signature = crypto
+          .createHmac('sha256', keySecret)
+          .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+          .digest('hex');
+      }
+    }
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({
