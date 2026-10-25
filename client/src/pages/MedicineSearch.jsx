@@ -1462,77 +1462,7 @@ export default function MedicineSearch({
             )}
           </section>
 
-          {/* Section 3: Browse by type */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-primary">Browse by type</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setFilterTag(filterTag === 'rx' ? 'all' : 'rx')}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 group cursor-pointer ${
-                  filterTag === 'rx'
-                    ? 'bg-primary text-white border-primary shadow-sm'
-                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface hover:shadow-xs hover:border-secondary/40'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                  filterTag === 'rx' ? 'bg-white/20' : 'bg-surface-container-low text-secondary'
-                }`}>
-                  <span className="material-symbols-outlined text-xl">prescriptions</span>
-                </div>
-                <div>
-                  <strong className="text-xs sm:text-sm font-bold block">Prescription (Rx)</strong>
-                  <span className={`text-[11px] ${filterTag === 'rx' ? 'text-white/80' : 'text-on-surface-variant'}`}>
-                    Needs a doctor's prescription
-                  </span>
-                </div>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => setFilterTag(filterTag === 'otc' ? 'all' : 'otc')}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 group cursor-pointer ${
-                  filterTag === 'otc'
-                    ? 'bg-primary text-white border-primary shadow-sm'
-                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface hover:shadow-xs hover:border-secondary/40'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                  filterTag === 'otc' ? 'bg-white/20' : 'bg-surface-container-low text-secondary'
-                }`}>
-                  <span className="material-symbols-outlined text-xl">medication</span>
-                </div>
-                <div>
-                  <strong className="text-xs sm:text-sm font-bold block">Over the counter</strong>
-                  <span className={`text-[11px] ${filterTag === 'otc' ? 'text-white/80' : 'text-on-surface-variant'}`}>
-                    No prescription needed
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setFilterTag(filterTag === 'emergency' ? 'all' : 'emergency')}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 group cursor-pointer ${
-                  filterTag === 'emergency'
-                    ? 'bg-error text-white border-error shadow-sm'
-                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface hover:shadow-xs hover:border-error/40'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                  filterTag === 'emergency' ? 'bg-white/20' : 'bg-error-container/40 text-error'
-                }`}>
-                  <span className="material-symbols-outlined text-xl">e911_emergency</span>
-                </div>
-                <div>
-                  <strong className="text-xs sm:text-sm font-bold block">Emergency critical</strong>
-                  <span className={`text-[11px] ${filterTag === 'emergency' ? 'text-white/80' : 'text-on-surface-variant'}`}>
-                    Inhalers, injections, relief
-                  </span>
-                </div>
-              </button>
-            </div>
-          </section>
 
           {/* Minimalist Trust & Safety Assurance */}
           <section className="pt-4 border-t border-outline-variant/20">
