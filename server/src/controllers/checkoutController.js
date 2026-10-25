@@ -223,6 +223,51 @@ async function getCheckoutSummary(req, res) {
       subtotal: item.subtotal
     }));
 
+    // If there is an existing PENDING online payment with gatewayOrderId, check if Razorpay captured it
+    if (order.payment && order.payment.status === 'PENDING' && order.payment.gatewayOrderId) {
+      try {
+        const { razorpay } = paymentConfig.getRazorpayInstance();
+        if (razorpay) {
+          const rzpOrder = await razorpay.orders.fetch(order.payment.gatewayOrderId);
+          if (rzpOrder && (rzpOrder.status === 'paid' || (rzpOrder.amount_paid && rzpOrder.amount_paid >= rzpOrder.amount))) {
+            const payments = await razorpay.orders.fetchPayments(order.payment.gatewayOrderId);
+            const captured = (payments?.items || []).find(p => p.status === 'captured') || payments?.items?.[0];
+            const paidTime = captured?.created_at ? new Date(captured.created_at * 1000) : new Date();
+
+            const updatedPayment = await prisma.payment.update({
+              where: { orderId: order.id },
+              data: {
+                status: 'PAID',
+                gatewayPaymentId: captured?.id || `pay_captured_${Date.now()}`,
+                paidAt: paidTime
+              }
+            });
+
+            if (order.fulfillmentType === 'ASSISTANT_DELIVERY' && order.selectedAssistantId) {
+              const existingTask = await prisma.assistantTask.findUnique({ where: { orderId: order.id } });
+              if (!existingTask) {
+                await prisma.assistantTask.create({
+                  data: {
+                    orderId: order.id,
+                    status: 'ASSIGNED',
+                    assistantId: order.selectedAssistantId,
+                    deliveryAddress: order.deliveryAddress || null,
+                    serviceType: order.assistantServiceType || null,
+                    handoverPin: order.verificationPin || null
+                  }
+                });
+              }
+            }
+
+            order.payment = updatedPayment;
+            invalidateOrdersCache();
+          }
+        }
+      } catch (checkErr) {
+        // Fall back to stored state if gateway fetch times out
+      }
+    }
+
     // Payment status (safe fields only)
     let paymentInfo = null;
     if (order.payment) {
@@ -851,12 +896,13 @@ async function createPayment(req, res) {
       }
     }
 
-    // Idempotency: If a PENDING online payment already has a gatewayOrderId, reuse it
+    // Idempotency: If a PENDING online payment already has a gatewayOrderId, check if already settled or reuse it
     if (order.payment) {
       if (order.payment.status === 'PAID') {
-        return res.status(400).json({
-          success: false,
-          error: 'This order has already been paid.',
+        return res.json({
+          success: true,
+          alreadyPaid: true,
+          message: 'This order has already been paid.',
           payment: {
             status: order.payment.status,
             amount: order.payment.amount,
@@ -865,6 +911,54 @@ async function createPayment(req, res) {
         });
       }
       if (order.payment.status === 'PENDING' && order.payment.method === 'ONLINE' && order.payment.gatewayOrderId) {
+        // First check if Razorpay already received and captured payment for this order
+        try {
+          const { razorpay } = paymentConfig.getRazorpayInstance();
+          if (razorpay) {
+            const rzpOrder = await razorpay.orders.fetch(order.payment.gatewayOrderId);
+            if (rzpOrder && (rzpOrder.status === 'paid' || (rzpOrder.amount_paid && rzpOrder.amount_paid >= rzpOrder.amount))) {
+              const payments = await razorpay.orders.fetchPayments(order.payment.gatewayOrderId);
+              const captured = (payments?.items || []).find(p => p.status === 'captured') || payments?.items?.[0];
+              const paidTime = captured?.created_at ? new Date(captured.created_at * 1000) : new Date();
+
+              const updatedPayment = await prisma.payment.update({
+                where: { orderId: order.id },
+                data: {
+                  status: 'PAID',
+                  gatewayPaymentId: captured?.id || `pay_captured_${Date.now()}`,
+                  paidAt: paidTime
+                }
+              });
+
+              if (order.fulfillmentType === 'ASSISTANT_DELIVERY' && order.selectedAssistantId) {
+                const existingTask = await prisma.assistantTask.findUnique({ where: { orderId: order.id } });
+                if (!existingTask) {
+                  await prisma.assistantTask.create({
+                    data: {
+                      orderId: order.id,
+                      status: 'ASSIGNED',
+                      assistantId: order.selectedAssistantId,
+                      deliveryAddress: order.deliveryAddress || null,
+                      serviceType: order.assistantServiceType || null,
+                      handoverPin: order.verificationPin || null
+                    }
+                  });
+                }
+              }
+
+              invalidateOrdersCache();
+              return res.json({
+                success: true,
+                alreadyPaid: true,
+                message: 'Payment was already captured successfully on Razorpay.',
+                payment: updatedPayment
+              });
+            }
+          }
+        } catch (checkErr) {
+          // If check fails or offline, fall back to returning pending order
+        }
+
         // Return existing pending payment — idempotent
         return res.json({
           success: true,

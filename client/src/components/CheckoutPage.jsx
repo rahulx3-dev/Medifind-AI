@@ -347,6 +347,15 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         setStep('payment');
         return;
       }
+
+      if (createData.alreadyPaid || createData.payment?.status === 'PAID') {
+        paymentCompletedRef.current = true;
+        setPaymentData(createData.payment);
+        setStep('success');
+        broadcastUpdate('PAYMENT_COMPLETED', { orderId, payment: createData.payment });
+        return;
+      }
+
       const { gatewayOrderId, amount, currency } = createData.payment;
       const razorpayKeyId = createData.razorpayKeyId;
       if (!razorpayKeyId) {
