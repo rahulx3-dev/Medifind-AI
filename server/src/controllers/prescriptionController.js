@@ -14,7 +14,8 @@ const {
   matchMedicineAgainstCatalog,
   extractMedicineNameFromRow,
   matchMedicineNameAgainstCatalog,
-  extractPrescribedQuantity
+  extractPrescribedQuantity,
+  calculateSimilarity
 } = ocrEngine;
 const { screenPrescriptionDocument } = require('../utils/documentScreeningEngine');
 const {
@@ -23,7 +24,12 @@ const {
   extractClientIp,
   supportsPrescriptionAuditLogging
 } = require('../utils/prescriptionAuditLogger');
-const { extractActiveIngredients, findMatchingBrands } = require('../utils/genericMedicineMatcher');
+const {
+  extractActiveIngredients,
+  findMatchingBrands,
+  identifyPrescriptionType,
+  calculateStringSimilarity
+} = require('../utils/genericMedicineMatcher');
 const { sendIdempotentNotification } = require('../utils/notificationDispatcher');
 
 // Global transaction timeout configuration for remote cloud database (Neon) resilience
@@ -1190,21 +1196,37 @@ async function uploadPrescription(req, res) {
           const effectiveSingleHighConf = isFromTrocr ? false : isSingleHighConf;
 
           // Accurately classify if doctor prescribed a generic active ingredient
-          const rxType = identifyPrescriptionType(cleanName, catalog);
-          const isGenericPrescription = Boolean(
-            rxType.isGeneric ||
-            (top && top.genericName && (
+          let isGenericPrescription = false;
+          let prescribedGeneric = null;
+          let prescribedDisplayName = top ? top.medicineName : (topAux ? topAux.brandName : cleanName);
+
+          try {
+            const rxType = (typeof identifyPrescriptionType === 'function')
+              ? identifyPrescriptionType(cleanName, catalog)
+              : { isGeneric: false, targetGeneric: null };
+
+            const isFuzzyGeneric = top && top.genericName && (
               cleanLower.includes(top.genericName.toLowerCase()) ||
               top.genericName.toLowerCase().includes(cleanLower) ||
-              calculateSimilarity(cleanLower, top.genericName.toLowerCase()) >= 0.75
-            ))
-          );
-          const prescribedGeneric = isGenericPrescription
-            ? ((top ? top.genericName : null) || rxType.targetGeneric || cleanName)
-            : null;
-          const prescribedDisplayName = isGenericPrescription
-            ? `${prescribedGeneric}${cleanStrength ? ' ' + cleanStrength : ''}`
-            : (top ? top.medicineName : (topAux ? topAux.brandName : cleanName));
+              (typeof calculateSimilarity === 'function' && calculateSimilarity(cleanLower, top.genericName.toLowerCase()) >= 0.75) ||
+              (typeof calculateStringSimilarity === 'function' && calculateStringSimilarity(cleanLower, top.genericName.toLowerCase()) >= 0.75)
+            );
+
+            isGenericPrescription = Boolean(rxType.isGeneric || isFuzzyGeneric);
+            prescribedGeneric = isGenericPrescription
+              ? ((top ? top.genericName : null) || rxType.targetGeneric || cleanName)
+              : null;
+
+            if (isGenericPrescription && prescribedGeneric) {
+              if (cleanStrength && !prescribedGeneric.toLowerCase().includes(cleanStrength.toLowerCase())) {
+                prescribedDisplayName = `${prescribedGeneric} ${cleanStrength}`;
+              } else {
+                prescribedDisplayName = prescribedGeneric;
+              }
+            }
+          } catch (rxErr) {
+            console.warn('Prescription classification fallback for line:', cleanName, rxErr && rxErr.message);
+          }
 
           return {
             rawName: line.rawLine,
@@ -1424,9 +1446,13 @@ async function uploadPrescription(req, res) {
         });
       } catch (_) {}
     }
-    // Never log raw OCR text or patient sensitive information
-    console.error('uploadPrescription error:', err.message || 'Processing failure');
-    return res.status(500).json({ success: false, error: 'Failed to process prescription.' });
+    console.error('uploadPrescription error:', err.message || 'Processing failure', err.stack);
+    return res.status(500).json({
+      success: false,
+      error: (process.env.NODE_ENV !== 'production' && err.message)
+        ? `Prescription processing failed: ${err.message}`
+        : 'Failed to process prescription.'
+    });
   }
 }
 
