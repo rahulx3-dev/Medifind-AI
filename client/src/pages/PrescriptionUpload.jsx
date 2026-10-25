@@ -1276,9 +1276,20 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       clearTimeout(abortTimeout);
       clearInterval(progressTimer);
 
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to process prescription.');
+      let data = null;
+      const text = await res.text();
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (parseErr) {
+        console.error('[Upload] Non-JSON response received:', res.status, text);
+        if (res.status === 504 || res.status === 502) {
+          throw new Error('Prescription analysis timed out. Please retry.');
+        }
+        throw new Error(text || `Server returned status ${res.status}.`);
+      }
+
+      if (!res.ok || !data || !data.success) {
+        throw new Error(data?.error || `Failed to process prescription (HTTP ${res.status}).`);
       }
 
       // Smooth completion glide: gracefully transition from current progress to 100%
