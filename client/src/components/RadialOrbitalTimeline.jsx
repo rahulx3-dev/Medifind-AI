@@ -117,8 +117,9 @@ export default function RadialOrbitalTimeline({
   const ORDER_ORDER = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP', 'COMPLETED'];
   const ASSISTANT_ORDER = ['AVAILABLE', 'ACCEPTED', 'COLLECTING', 'IN_TRANSIT', 'DELIVERED', 'CONFIRMED'];
 
+  const normalizedAssistantStatus = assistantTaskStatus === 'ASSIGNED' ? 'AVAILABLE' : (assistantTaskStatus || 'AVAILABLE');
   const activeIndex = isDelivery
-    ? ASSISTANT_ORDER.indexOf(assistantTaskStatus || 'AVAILABLE')
+    ? ASSISTANT_ORDER.indexOf(normalizedAssistantStatus)
     : ORDER_ORDER.indexOf(orderStatus || 'PENDING');
 
   const timelineData = rawStages.map((stage, idx) => {

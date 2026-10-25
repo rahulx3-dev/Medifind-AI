@@ -266,7 +266,7 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
   // Subscribe to instant order status change events for immediate optimistic UI reaction
   useEffect(() => {
     const unsub = subscribeToUpdates((event) => {
-      if (['ORDER_STATUS_UPDATED', 'PAYMENT_COMPLETED', 'FULFILLMENT_SELECTED', 'ORDER_CREATED'].includes(event?.type)) {
+      if (['ORDER_STATUS_UPDATED', 'PAYMENT_COMPLETED', 'FULFILLMENT_SELECTED', 'ORDER_CREATED', 'ASSISTANT_TASK_ACCEPTED', 'ASSISTANT_TASK_PROGRESSED'].includes(event?.type)) {
         const { orderId, newStatus } = event.payload || {};
         if (orderId && newStatus) {
           setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -277,6 +277,10 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
             return prev;
           });
         }
+        if (selectedOrderIdRef.current) {
+          fetchOrderDetails(selectedOrderIdRef.current, true);
+        }
+        fetchOrders(null, true);
       }
     });
     return unsub;
@@ -447,6 +451,55 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
     // 4 PIN Digits — strictly from server verificationPin, never fallback to fabricated PIN
     const pinStr = (!isTerminal && detailOrder.verificationPin) ? detailOrder.verificationPin : '';
     const pinDigits = pinStr ? pinStr.padEnd(4, '0').slice(0, 4).split('') : ['—', '—', '—', '—'];
+
+    const isAssistantDelivery = detailOrder.fulfillmentType === 'ASSISTANT_DELIVERY' || Boolean(detailOrder.assistantTask);
+    const assistantTask = detailOrder.assistantTask;
+    const assistantStatus = assistantTask?.status;
+    const assistantName = assistantTask?.assistant?.name || 'Delivery Partner';
+
+    let heroBadge = isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Action Required by You' : isPending ? 'Review In Progress' : 'Live Clinical Status';
+    let heroTitle = isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Ready for Pickup' : isPending ? 'Awaiting Pharmacy Confirmation' : (isConfirmed && !isPaid && !isCounterPay) ? 'Reservation Approved: Choose Mode & Pay' : isCompleted ? 'Dispensation Completed' : 'Medicines Staged & Packing';
+    let heroDesc = isCancelled
+      ? 'This order reservation has been cancelled. No medicines are reserved or staged for pickup.'
+      : isRejected
+      ? 'This reservation request could not be fulfilled by the dispensary and has been marked rejected.'
+      : isReady
+      ? 'Your prescription medicines have been verified, packaged, and quarantined at the dispensary counter. You can collect your order now.'
+      : isPending
+      ? 'The licensed pharmacist is reviewing your prescription and confirming stock allocation.'
+      : (isConfirmed && !isPaid && !isCounterPay)
+      ? 'The pharmacy has verified and earmarked your medicines! Please select your fulfillment mode (Counter Pickup or Assistant Delivery) and payment method to proceed.'
+      : isCompleted
+      ? 'Medicines have been handed over and authenticated via secure PIN verification.'
+      : 'Your order is confirmed and currently being batch packaged in a temperature-controlled dispensary bay.';
+
+    if (isAssistantDelivery && isCheckoutComplete && !isTerminal) {
+      if (isCompleted || assistantStatus === 'CONFIRMED') {
+        heroBadge = 'Delivery Completed • Verified';
+        heroTitle = 'Order Delivered & Verified';
+        heroDesc = 'Your medicines have been safely delivered to your doorstep and confirmed via 4-digit PIN authentication.';
+      } else if (assistantStatus === 'DELIVERED') {
+        heroBadge = 'Partner at Doorstep • PIN Verification';
+        heroTitle = 'Partner Arrived at Your Doorstep';
+        heroDesc = `Your delivery partner (${assistantName}) has arrived at your address. Please provide your 4-digit Handover PIN to receive your medication package.`;
+      } else if (assistantStatus === 'IN_TRANSIT') {
+        heroBadge = 'Medicines Collected • Out for Delivery';
+        heroTitle = 'Medicines Collected • Out for Delivery';
+        heroDesc = `Your delivery partner (${assistantName}) collected your verified medicines from ${detailOrder.pharmacy?.name || 'the pharmacy'} and is currently en route to your doorstep.`;
+      } else if (assistantStatus === 'COLLECTING') {
+        heroBadge = 'At Dispensary • Collecting Package';
+        heroTitle = 'Collecting Medicines at Pharmacy';
+        heroDesc = `Your delivery partner (${assistantName}) is at ${detailOrder.pharmacy?.name || 'the dispensary counter'} inspecting and securing your temperature-controlled medication package.`;
+      } else if (assistantStatus === 'ACCEPTED') {
+        heroBadge = 'Task Accepted • En Route to Pharmacy';
+        heroTitle = 'Partner Heading to Pharmacy';
+        heroDesc = `Your delivery partner (${assistantName}) has accepted the dispatch request and is heading to the dispensary to pick up your order.`;
+      } else if (assistantStatus === 'ASSIGNED' || !assistantStatus) {
+        heroBadge = 'Delivery Partner Assigned';
+        heroTitle = 'Delivery Partner Assigned';
+        heroDesc = `Your order has been assigned to ${assistantName}. Awaiting partner acceptance to start collection.`;
+      }
+    }
 
     // Journey Steps: 1: Confirmation, 2: Checkout / Payment, 3: Preparing, 4: Ready, 5: Completed
     let currentStepIndex = 1;
@@ -809,27 +862,15 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                   width: 'fit-content'
                 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: isTerminal ? '#ffb4a8' : '#2e685d' }}></span>
-                  <span>{isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Action Required by You' : isPending ? 'Review In Progress' : 'Live Clinical Status'}</span>
+                  <span>{heroBadge}</span>
                 </div>
 
                 <h2 style={{ fontSize: 32, fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
-                  {isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Ready for Pickup' : isPending ? 'Awaiting Pharmacy Confirmation' : (isConfirmed && !isPaid && !isCounterPay) ? 'Reservation Approved: Choose Mode & Pay' : isCompleted ? 'Dispensation Completed' : 'Medicines Staged & Packing'}
+                  {heroTitle}
                 </h2>
 
                 <p style={{ fontSize: 15, color: '#c1ebe1', margin: 0, lineHeight: 1.5, maxWidth: 540 }}>
-                  {isCancelled
-                    ? 'This order reservation has been cancelled. No medicines are reserved or staged for pickup.'
-                    : isRejected
-                    ? 'This reservation request could not be fulfilled by the dispensary and has been marked rejected.'
-                    : isReady
-                    ? 'Your prescription medicines have been verified, packaged, and quarantined at the dispensary counter. You can collect your order now.'
-                    : isPending
-                    ? 'The licensed pharmacist is reviewing your prescription and confirming stock allocation.'
-                    : (isConfirmed && !isPaid && !isCounterPay)
-                    ? 'The pharmacy has verified and earmarked your medicines! Please select your fulfillment mode (Counter Pickup or Assistant Delivery) and payment method to proceed.'
-                    : isCompleted
-                    ? 'Medicines have been handed over and authenticated via secure PIN verification.'
-                    : 'Your order is confirmed and currently being batch packaged in a temperature-controlled dispensary bay.'}
+                  {heroDesc}
                 </p>
 
                 {isTerminal ? (
@@ -837,6 +878,13 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                     <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#ffb4a8', marginTop: 1 }}>block</span>
                     <p style={{ fontSize: 12, color: '#ffdad6', margin: 0, lineHeight: 1.4 }}>
                       {isCancelled ? 'This reservation was cancelled. The pickup token and dispensation bay hold have been voided.' : 'This reservation was rejected by the dispensary. The pickup token has been voided.'}
+                    </p>
+                  </div>
+                ) : isAssistantDelivery ? (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', padding: '0.85rem 1rem', borderRadius: 14, maxWidth: 540 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#c1ebe1', marginTop: 1 }}>verified_user</span>
+                    <p style={{ fontSize: 12, color: '#c1ebe1', margin: 0, lineHeight: 1.4 }}>
+                      Share this <strong style={{ color: '#ffffff' }}>4-digit Handover PIN</strong> with your delivery partner <strong style={{ color: '#ffffff' }}>({assistantName})</strong> when they arrive at your doorstep to verify custody and complete delivery.
                     </p>
                   </div>
                 ) : (
@@ -1234,13 +1282,49 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
 
             {/* Horizontal Multi-step Stepper (5 Steps) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              {[
+              {(isAssistantDelivery && isCheckoutComplete ? [
+                {
+                  step: '01',
+                  title: 'Order Confirmed & Paid',
+                  desc: `₹${(detailOrder.totalAmount || 0).toFixed(2)} confirmed paid online`,
+                  isDone: true,
+                  isActive: false
+                },
+                {
+                  step: '02',
+                  title: 'Partner Assigned',
+                  desc: assistantName ? `${assistantName} assigned` : 'Dispatched to delivery partner',
+                  isDone: ['ACCEPTED', 'COLLECTING', 'IN_TRANSIT', 'DELIVERED', 'CONFIRMED'].includes(assistantStatus) || isCompleted,
+                  isActive: assistantStatus === 'ASSIGNED' || (!assistantStatus && isCheckoutComplete)
+                },
+                {
+                  step: '03',
+                  title: 'Collecting at Pharmacy',
+                  desc: `Verifying at ${detailOrder.pharmacy?.name || 'dispensary counter'}`,
+                  isDone: ['IN_TRANSIT', 'DELIVERED', 'CONFIRMED'].includes(assistantStatus) || isCompleted,
+                  isActive: ['ACCEPTED', 'COLLECTING'].includes(assistantStatus)
+                },
+                {
+                  step: '04',
+                  title: 'Out for Delivery',
+                  desc: 'In transit to your doorstep',
+                  isDone: ['DELIVERED', 'CONFIRMED'].includes(assistantStatus) || isCompleted,
+                  isActive: assistantStatus === 'IN_TRANSIT'
+                },
+                {
+                  step: '05',
+                  title: 'Doorstep PIN Handover',
+                  desc: 'Verified via 4-digit PIN',
+                  isDone: assistantStatus === 'CONFIRMED' || isCompleted,
+                  isActive: assistantStatus === 'DELIVERED'
+                }
+              ] : [
                 { step: '01', title: 'Pharmacy Confirmation', desc: 'Prescription verified by apothecary', isDone: currentStepIndex > 1, isActive: currentStepIndex === 1 },
                 { step: '02', title: 'Payment', desc: `₹${(detailOrder.totalAmount || 0).toFixed(2)} confirmed paid`, isDone: currentStepIndex > 2, isActive: currentStepIndex === 2 },
                 { step: '03', title: 'Preparing', desc: 'Medicines checked & batch packaged', isDone: currentStepIndex > 3, isActive: currentStepIndex === 3 },
                 { step: '04', title: 'Ready for Pickup', desc: 'Locked in temperature-controlled counter', isDone: currentStepIndex > 4, isActive: currentStepIndex === 4 },
                 { step: '05', title: 'Completed', desc: 'Handover confirmed & receipt issued', isDone: currentStepIndex >= 5, isActive: false }
-              ].map((st, i) => (
+              ]).map((st, i) => (
                 <div
                   key={i}
                   style={{

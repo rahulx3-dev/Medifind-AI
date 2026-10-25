@@ -1111,6 +1111,7 @@ async function progressTaskStatus(req, res) {
 
     // Strict sequential state transitions
     const VALID_TRANSITIONS = {
+      'ASSIGNED': ['ACCEPTED'],
       'ACCEPTED': ['COLLECTING'],
       'COLLECTING': ['IN_TRANSIT'],
       'IN_TRANSIT': ['DELIVERED'],
@@ -1135,7 +1136,9 @@ async function progressTaskStatus(req, res) {
     }
 
     const updateData = { status };
-    if (status === 'COLLECTING') {
+    if (status === 'ACCEPTED') {
+      updateData.acceptedAt = new Date();
+    } else if (status === 'COLLECTING') {
       updateData.collectedAt = new Date();
     } else if (status === 'DELIVERED' || status === 'CONFIRMED') {
       updateData.deliveredAt = new Date();

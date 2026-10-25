@@ -132,21 +132,21 @@ function ServiceTypeBadge({ serviceType, size = 'sm' }) {
 function getAssistantStepLabels(serviceType) {
   if (serviceType === 'MEDICINE_DELIVERY') {
     return {
-      step2: '2. Collecting',
-      step3: '3. In Transit',
+      step2: '2. En Route to Pharmacy',
+      step3: '3. Out for Delivery',
       step4: '4. Handover PIN',
-      btnCollecting: 'Arrived at Pharmacy • Begin Collection',
-      btnInTransit: 'Prescription Collected • In Transit to Patient',
+      btnCollecting: 'Arrived at Pharmacy • Collect Medicine',
+      btnInTransit: 'Medicine Collected from Pharmacy • Out for Delivery',
       btnDelivered: 'Arrived at Doorstep • Request Patient PIN'
     };
   }
   if (serviceType === 'MEDICINE_COLLECTION') {
     return {
-      step2: '2. Collecting',
+      step2: '2. En Route to Pharmacy',
       step3: '3. Ready for Handover',
       step4: '4. Handover PIN',
       btnCollecting: 'Arrived at Pharmacy • Collect Medicine',
-      btnInTransit: 'Medicine Collected • Ready for Handover',
+      btnInTransit: 'Medicine Collected from Pharmacy • Ready for Handover',
       btnDelivered: 'Ready at Handover Point • Request Patient PIN'
     };
   }
@@ -653,6 +653,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
     return true;
   });
   const [actionLoading, setActionLoading] = useState(false);
+  const [acceptingTaskId, setAcceptingTaskId] = useState(null);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [handoverPinMap, setHandoverPinMap] = useState({});
@@ -1275,6 +1276,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
 
   const handleAcceptTask = async (taskId) => {
     const token = localStorage.getItem('medifind_token');
+    setAcceptingTaskId(taskId);
+    setActionLoading(true);
     try {
       const res = await fetch(`/api/assistant/tasks/${taskId}/accept`, {
         method: 'PUT',
@@ -1285,8 +1288,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast('Task accepted! It is now in your Active Service Tasks queue.', 'success');
-        fetchTasks();
+        showToast('Task accepted! En route to pharmacy to collect medication package.', 'success');
+        await fetchTasks(true);
         setTab('active');
         broadcastUpdate('ASSISTANT_TASK_ACCEPTED', { taskId });
       } else {
@@ -1295,6 +1298,9 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
     } catch (err) {
       console.error('Error accepting task:', err);
       showToast('Error communicating with server.', 'error');
+    } finally {
+      setAcceptingTaskId(null);
+      setActionLoading(false);
     }
   };
 
@@ -3299,52 +3305,108 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
             )}
 
             {/* ── Active Delivery Journey Alert (For Delivery Assistants) ── */}
-            {!isHealthcareRole && primaryActiveTask && (
-              <div style={{
-                background: '#032f28',
-                borderRadius: 20,
-                padding: '1.25rem 1.5rem',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '1rem',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#1e453e', color: '#c1ebe1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 24 }}>electric_moped</span>
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ background: '#2e685d', color: '#ffffff', fontSize: 11, fontWeight: 700, padding: '0.15rem 0.6rem', borderRadius: 99, textTransform: 'uppercase' }}>
-                        Active Custody
-                      </span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: '#c1ebe1' }}>
-                        Task #{primaryActiveTask.id.slice(0, 8).toUpperCase()}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#8ab2a9' }}>
-                        Order #{primaryActiveTask.orderId?.slice(0, 8).toUpperCase()}
-                      </span>
-                    </div>
-                    <p style={{ margin: '0.25rem 0 0 0', fontSize: 13, color: '#d5e6e0' }}>
-                      Status: <strong style={{ color: '#ffffff' }}>{primaryActiveTask.status.replace(/_/g, ' ')}</strong> • Service destination: {primaryActiveTask.deliveryAddress || 'See task details'}. Handover requires customer 4-digit PIN.
-                    </p>
-                  </div>
-                </div>
+            {!isHealthcareRole && primaryActiveTask && (() => {
+              const taskStatus = primaryActiveTask.status;
+              const isAssigned = taskStatus === 'ASSIGNED';
+              const isAccepted = taskStatus === 'ACCEPTED';
+              const isCollecting = taskStatus === 'COLLECTING';
+              const isInTransit = taskStatus === 'IN_TRANSIT';
+              const isDelivered = taskStatus === 'DELIVERED';
 
-                <FlowButton
-                  onClick={() => setTab('active')}
-                  variant="secondary"
-                  size="md"
-                  style={{ background: '#b0ecdd', color: '#00201b', '--fb-circle-bg': '#032f28', '--fb-color': '#00201b', '--fb-border': 'rgba(3,47,40,0.25)' }}
-                >
-                  Manage Handover
-                </FlowButton>
-              </div>
-            )}
+              let badgeText = 'Active Custody';
+              let badgeBg = '#2e685d';
+              let iconName = 'electric_moped';
+              let statusDesc = '';
+              let buttonLabel = 'Manage Handover';
+              let buttonAction = () => setTab('active');
+
+              if (isAssigned) {
+                badgeText = 'New Dispatch Request • Awaiting Acceptance';
+                badgeBg = '#d97706';
+                iconName = 'assignment_late';
+                statusDesc = `Incoming order request. Destination: ${primaryActiveTask.deliveryAddress || 'Patient Address'}. Accept task to begin pickup journey.`;
+                buttonLabel = 'Accept Task';
+                buttonAction = () => handleAcceptTask(primaryActiveTask.id);
+              } else if (isAccepted) {
+                badgeText = 'Task Accepted • En Route to Pharmacy';
+                badgeBg = '#0d9488';
+                iconName = 'storefront';
+                statusDesc = `Head to the dispensary to collect and verify patient's medication package.`;
+                buttonLabel = 'Arrived at Pharmacy • Collect Medicine';
+                buttonAction = () => handleProgressTask(primaryActiveTask.id, 'COLLECTING');
+              } else if (isCollecting) {
+                badgeText = 'At Pharmacy • Verifying Package';
+                badgeBg = '#0284c7';
+                iconName = 'medication';
+                statusDesc = `Package verification at pharmacy counter in progress. Confirm collection when received.`;
+                buttonLabel = 'Medicine Collected • Out for Delivery';
+                buttonAction = () => handleProgressTask(primaryActiveTask.id, 'IN_TRANSIT');
+              } else if (isInTransit) {
+                badgeText = 'Active Custody • Out for Delivery';
+                badgeBg = '#16a34a';
+                iconName = 'electric_moped';
+                statusDesc = `In transit to ${primaryActiveTask.deliveryAddress || 'customer address'}. Cold chain active.`;
+                buttonLabel = 'Arrived at Doorstep • Request PIN';
+                buttonAction = () => handleProgressTask(primaryActiveTask.id, 'DELIVERED');
+              } else if (isDelivered) {
+                badgeText = 'At Customer Doorstep • PIN Verification';
+                badgeBg = '#7c3aed';
+                iconName = 'dialpad';
+                statusDesc = `Arrived at customer location. Enter customer's 4-digit verification PIN to complete delivery.`;
+                buttonLabel = 'Enter 4-Digit Handover PIN';
+                buttonAction = () => setTab('active');
+              }
+
+              return (
+                <div style={{
+                  background: 'linear-gradient(135deg, #02251f 0%, #032f28 60%, #073f36 100%)',
+                  borderRadius: 20,
+                  padding: '1.25rem 1.5rem',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 24px rgba(3,47,40,0.2)',
+                  border: '1px solid rgba(176,236,221,0.25)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(176,236,221,0.15)', color: '#c1ebe1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{iconName}</span>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ background: badgeBg, color: '#ffffff', fontSize: 11, fontWeight: 700, padding: '0.2rem 0.65rem', borderRadius: 99, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {badgeText}
+                        </span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#c1ebe1' }}>
+                          Task #{primaryActiveTask.id.slice(0, 8).toUpperCase()}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#8ab2a9' }}>
+                          Order #{primaryActiveTask.orderId?.slice(0, 8).toUpperCase()}
+                        </span>
+                      </div>
+                      <p style={{ margin: '0.35rem 0 0 0', fontSize: 13, color: '#d5e6e0' }}>
+                        {statusDesc}
+                      </p>
+                    </div>
+                  </div>
+
+                  <FlowButton
+                    onClick={buttonAction}
+                    loading={actionLoading && isAssigned && acceptingTaskId === primaryActiveTask.id}
+                    variant="secondary"
+                    size="md"
+                    style={{ background: '#b0ecdd', color: '#00201b', '--fb-circle-bg': '#032f28', '--fb-color': '#00201b', '--fb-border': 'rgba(3,47,40,0.25)', fontWeight: 700 }}
+                  >
+                    {buttonLabel}
+                  </FlowButton>
+                </div>
+              );
+            })()}
 
             {/* Metric Summary Grid (For Delivery Assistant) */}
             {!isHealthcareRole && (
@@ -3639,24 +3701,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                           {/* Accept CTA */}
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                             <FlowButton
-                              onClick={() => {
-                                const serviceCfg = SERVICE_TYPE_CONFIG[task.serviceType] || {
-                                  label: 'Medicine Access Assistant',
-                                  instruction: 'Assist the patient with non-clinical medicine access.'
-                                };
-                                setConfirmDialog({
-                                  isOpen: true,
-                                  title: `Accept Service Task: ${serviceCfg.label}`,
-                                  message: `You are accepting service assignment #${task.id.slice(0, 8).toUpperCase()}. You will collect reserved medicines from ${task.pharmacy?.name || 'the pharmacy'} and deliver to the recipient.`,
-                                  impactPoints: [
-                                    serviceCfg.instruction,
-                                    'Recipient identity and custody will be verified via secure 4-digit PIN at handover point.'
-                                  ],
-                                  confirmLabel: 'Accept & Begin Service',
-                                  variant: 'primary',
-                                  onConfirm: () => handleAcceptTask(task.id)
-                                });
-                              }}
+                              onClick={() => handleAcceptTask(task.id)}
+                              loading={actionLoading && acceptingTaskId === task.id}
                               variant="primary"
                               size="md"
                             >
@@ -3820,9 +3866,10 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                             fullWidth
                             size="md"
                             variant="primary"
-                            onClick={() => handleProgressTask(task.id, 'ACCEPTED')}
+                            loading={actionLoading && acceptingTaskId === task.id}
+                            onClick={() => handleAcceptTask(task.id)}
                           >
-                            Accept Patient Booking Request
+                            Accept Task
                           </FlowButton>
                         )}
 
