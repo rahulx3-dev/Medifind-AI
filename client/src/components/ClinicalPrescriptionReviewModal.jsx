@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 import AuthenticatedPrescriptionImage from './AuthenticatedPrescriptionImage';
-import { findMatchingBrands } from '../utils/genericMedicineMatcher';
+import { findMatchingBrands, findMatchingCandidates } from '../utils/genericMedicineMatcher';
 
 export default function ClinicalPrescriptionReviewModal({
   order,
@@ -674,17 +674,19 @@ export default function ClinicalPrescriptionReviewModal({
 
                             {/* Candidate Formulations Selection */}
                             {(() => {
-                              const candidateBrands = findMatchingBrands(it, catalog);
-                              if (candidateBrands.length === 0) return null;
+                              const candidateRes = findMatchingCandidates(it, catalog);
+                              const candidates = candidateRes.allCandidates;
+                              if (candidates.length === 0) return null;
 
                               return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                                   <div style={{ fontSize: 11, fontWeight: 700, color: '#2e685d' }}>
-                                    Compatible Trade Brands for "{it.prescribedName}":
+                                    Matching Generic & Brand Formulations for "{it.prescribedName}":
                                   </div>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '0.5rem' }}>
-                                    {candidateBrands.map(b => {
+                                    {candidates.map(b => {
                                       const isChosen = editFormData.medicineId === b.id;
+                                      const isGen = Boolean(b.isGenericProduct);
                                       return (
                                         <div
                                           key={b.id}
@@ -697,8 +699,8 @@ export default function ClinicalPrescriptionReviewModal({
                                             }));
                                           }}
                                           style={{
-                                            background: isChosen ? '#b0ecdd' : '#ffffff',
-                                            border: isChosen ? '1.5px solid #2e685d' : '1px solid #c0c8c5',
+                                            background: isChosen ? '#b0ecdd' : isGen ? '#f0fdf4' : '#ffffff',
+                                            border: isChosen ? '1.5px solid #2e685d' : isGen ? '1px solid #86efac' : '1px solid #c0c8c5',
                                             borderRadius: 10,
                                             padding: '0.5rem 0.75rem',
                                             cursor: 'pointer',
@@ -709,9 +711,11 @@ export default function ClinicalPrescriptionReviewModal({
                                         >
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <span style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>{b.brandName}</span>
-                                            <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#2e685d' }}>{b.strength}</span>
+                                            <span style={{ fontSize: 9, fontWeight: 700, background: isGen ? '#dcfce7' : '#e6f4ea', color: isGen ? '#166534' : '#2e685d', padding: '1px 6px', borderRadius: 99 }}>
+                                              {isGen ? 'Generic' : 'Brand'}
+                                            </span>
                                           </div>
-                                          <div style={{ fontSize: 10, color: '#717976' }}>{b.dosageForm} • {b.manufacturer}</div>
+                                          <div style={{ fontSize: 10, color: '#717976' }}>{b.strength} • {b.dosageForm} • {b.manufacturer}</div>
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
                                             <span style={{ fontSize: 11, fontWeight: 700, color: '#032f28' }}>₹{b.price != null ? b.price : '—'}</span>
                                             <span style={{ fontSize: 10, fontWeight: 700, color: isChosen ? '#032f28' : '#2e685d' }}>
@@ -847,8 +851,8 @@ export default function ClinicalPrescriptionReviewModal({
                                 <button
                                   onClick={() => {
                                     setEditingItemId(it.id);
-                                    const compatible = findMatchingBrands(it, catalog);
-                                    const defaultMed = compatible.length > 0 ? compatible[0] : null;
+                                    const candidateRes = findMatchingCandidates(it, catalog);
+                                    const defaultMed = candidateRes.genericCandidate || (candidateRes.brandCandidates.length > 0 ? candidateRes.brandCandidates[0] : null);
                                     setEditFormData({
                                       medicineId: defaultMed ? defaultMed.id : (it.medicineId || it.matchedMedicineId),
                                       prescribedName: defaultMed ? defaultMed.brandName : it.prescribedName,

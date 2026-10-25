@@ -44,7 +44,7 @@ const os = require('os');
 //       It is never loaded unless PRESCRIPTION_OCR_ENGINE=tesseract is set.
 //       The normal patient-facing production path uses PaddleOCR exclusively.
 const { Jimp } = require('jimp');
-const { identifyPrescriptionType, findMatchingBrands } = require('./genericMedicineMatcher');
+const { identifyPrescriptionType, findMatchingBrands, findMatchingGenericProduct, findMatchingCandidates, isGenericProduct } = require('./genericMedicineMatcher');
 
 // ─── Developer-Only Tesseract Guard ──────────────────────────────────────────
 // PRESCRIPTION_OCR_ENGINE=tesseract activates the legacy engine ONLY for
@@ -828,8 +828,8 @@ function processPrescriptionText(rawText, medicinesCatalog) {
       const second = matches[1];
       const isConfident = top.confidence >= 0.75;
 
-      const topIsDirectBrand = top.evidence && top.evidence.brandSim >= 0.95;
-      const secondIsDirectBrand = second && second.evidence && second.evidence.brandSim >= 0.80;
+      const topIsDirectBrand = top.evidence && top.evidence.brandSim >= 0.95 && !isGenericProduct(top.medicine);
+      const secondIsDirectBrand = second && second.evidence && second.evidence.brandSim >= 0.80 && !isGenericProduct(second.medicine);
       const isAliasBeatenByPrimaryBrand = topIsDirectBrand && !secondIsDirectBrand;
       const hasCloseCompetitor = !isAliasBeatenByPrimaryBrand && Boolean(second && second.confidence >= 0.65 && (top.confidence - second.confidence < 0.10));
 
@@ -837,42 +837,65 @@ function processPrescriptionText(rawText, medicinesCatalog) {
       const isGenericPrescription = rxType.isGeneric && !topIsDirectBrand;
 
       if (isGenericPrescription) {
-        const matchingBrands = findMatchingBrands({ medicineName, rawName: rawRow, strength }, medicinesCatalog);
-        const candidateMatches = matchingBrands.length > 0
-          ? matchingBrands.map(b => ({
-              medicine: b,
-              confidence: b.isExactStrength ? 0.95 : 0.85,
-              evidence: { combinedScore: b.isExactStrength ? 0.95 : 0.85 }
+        const formMatch = rawRow.match(/\b(tab(?:let)?s?|cap(?:sule)?s?|syr(?:up)?s?|susp(?:ension)?|drops?|inj(?:ection)?s?|powder|sachets?|gel|cream|ointment|inhaler)\b/i);
+        const dosageForm = formMatch ? formMatch[0] : null;
+
+        const candidateDiscovery = findMatchingCandidates(
+          { medicineName, rawName: rawRow, strength, dosageForm },
+          medicinesCatalog
+        );
+
+        const genericCandidate = candidateDiscovery.genericCandidate;
+        const brandCandidates = candidateDiscovery.brandCandidates;
+        const allCandidates = candidateDiscovery.allCandidates;
+
+        const candidateMatches = allCandidates.length > 0
+          ? allCandidates.map(c => ({
+              medicine: c,
+              confidence: c.isExactStrength ? 0.95 : 0.85,
+              evidence: {
+                combinedScore: c.isExactStrength ? 0.95 : 0.85,
+                candidateType: c.candidateType || (c.isGenericProduct ? 'GENERIC' : 'BRAND'),
+                isGenericProduct: Boolean(c.isGenericProduct)
+              }
             }))
           : matches.slice(0, 5);
 
-        // If there is a single decisive brand match in catalog (e.g. Pantoprazole 40mg -> Pan 40)
-        // or a primary top brand match when only 1 brand matches the strength, pre-select it
-        const singleExactBrand = matchingBrands.length === 1 ? matchingBrands[0] : null;
-
+        // When a generic medicine name is detected, preserve patient choice:
+        // Do NOT automatically lock into a brand! Both generic product (if present)
+        // and brand alternatives are presented.
+        // The item requires patient confirmation / selection.
         detectedItems.push({
           rawName: rawRow,
           medicineName,
           strength: strength || null,
-          matchedMedicineId: singleExactBrand ? singleExactBrand.id : null,
-          matchedMedicineName: singleExactBrand ? singleExactBrand.brandName : null,
-          matchedMedicine: singleExactBrand || null,
+          dosageForm: dosageForm || null,
+          matchedMedicineId: null, // Patient selects from generic product or brand alternatives
+          matchedMedicineName: null,
+          matchedMedicine: null,
+          genericCandidate: genericCandidate || null,
+          brandCandidates: brandCandidates || [],
+          hasGenericInCatalogue: candidateDiscovery.hasGenericInCatalogue,
           isGeneric: true,
           prescribedGenericName: rxType.targetGeneric || medicineName,
           allMatches: candidateMatches,
-          confidence: singleExactBrand ? 0.95 : (top ? top.confidence : 0.85),
-          needsMapping: !singleExactBrand,
-          isNonCatalogue: false,
-          status: singleExactBrand ? 'AUTO_MATCHED' : 'AMBIGUOUS',
+          confidence: (genericCandidate || brandCandidates.length > 0) ? 0.90 : (top ? top.confidence : 0.85),
+          needsMapping: true,
+          isNonCatalogue: allCandidates.length === 0,
+          status: 'AMBIGUOUS',
           extractedQuantity: extractedQty,
           quantity: extractedQty || 1,
           dosage,
           frequency: freq,
           duration: dur,
-          evidenceSummary: singleExactBrand
-            ? `Prescribed as generic "${medicineName}". Automatically matched to catalog brand "${singleExactBrand.brandName}".`
-            : `Prescribed as generic active ingredient "${medicineName}". Suitable matching brand options available.`,
-          isConfirmed: Boolean(singleExactBrand)
+          evidenceSummary: genericCandidate && brandCandidates.length > 0
+            ? `Prescribed as generic "${medicineName}". Matching generic product and ${brandCandidates.length} brand option(s) available. Choose preferred option or ask pharmacist.`
+            : genericCandidate
+              ? `Prescribed as generic "${medicineName}". Matching generic catalogue product available. Patient confirmation required.`
+              : brandCandidates.length > 0
+                ? `Prescribed as generic "${medicineName}". ${brandCandidates.length} brand option(s) available (generic formulation not in catalogue). Patient confirmation required.`
+                : `Prescribed as generic active ingredient "${medicineName}". No matching formulation found in catalogue. Pharmacist review recommended.`,
+          isConfirmed: false
         });
       } else if (isConfident && !hasCloseCompetitor) {
         // 2. High confidence, decisive single match — AUTO-MATCHED

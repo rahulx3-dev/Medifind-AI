@@ -16,7 +16,7 @@
 
 // ─── 1. Clinical Stopwords and Suffixes ──────────────────────────────────────
 const SALT_SUFFIXES = [
-  'hydrochloride', 'hcl', 'sodium', 'potassium', 'clavulanate',
+  'hydrochloride', 'hcl', 'sodium', 'potassium',
   'maleate', 'fumarate', 'tartrate', 'succinate', 'phosphate',
   'sulfate', 'sulphate', 'mesylate', 'besylate', 'monohydrate',
   'trihydrate', 'dihydrate', 'calcium', 'hydrate', 'citrate',
@@ -67,9 +67,9 @@ function extractActiveIngredients(genericOrName) {
       return true;
     });
 
-    // Remove salt suffixes from the end of the ingredient
-    const filteredTokens = tokens.filter((tok, idx) => {
-      if (idx > 0 && SALT_SUFFIXES.includes(tok)) return false;
+    // Remove salt modifiers (e.g. "potassium clavulanate" -> "clavulanate", "amoxicillin trihydrate" -> "amoxicillin")
+    const filteredTokens = tokens.filter(tok => {
+      if (tokens.length > 1 && SALT_SUFFIXES.includes(tok)) return false;
       return true;
     });
 
@@ -189,9 +189,12 @@ function identifyPrescriptionType(itemOrText, catalog) {
     : (itemOrText.medicineName || itemOrText.rawName || '');
   const clean = cleanText(raw);
 
-  // 1. Direct Brand Match: Check if the text explicitly names a trade brand in the catalogue
+  // 1. Direct Brand Match: Check if the text explicitly names a proprietary trade brand in the catalogue
+  // Skip generic product records (e.g. "Cetirizine 10", "Paracetamol 500") so generic prescriptions aren't misclassified as brands
   const cleanTokens = clean.split(/\s+/);
   for (const med of catalog) {
+    if (isGenericProduct(med)) continue;
+
     const brandClean = cleanText(med.brandName);
     const brandTokens = brandClean.split(/\s+/).filter(t => t.length >= 3 && !/^\d+/.test(t));
     if (brandTokens.length === 0) continue;
@@ -237,7 +240,204 @@ function identifyPrescriptionType(itemOrText, catalog) {
   return { isGeneric: false, isBrand: false, targetGeneric: '', matchedBrand: null };
 }
 
-// ─── 4. Universal Matching Brands Resolver ──────────────────────────────────
+// ─── 4. Universal Matching Generic and Brand Resolvers ────────────────────────
+
+/**
+ * Determines whether a catalogue medicine record represents a generic product
+ * (e.g. Paracetamol 500mg, Cetirizine 10, Rabeprazole 20, Atropine Injection)
+ * as opposed to a proprietary trade brand formulation (e.g. Dolo 650, Crocin 650, Pan 40).
+ */
+function isGenericProduct(med) {
+  if (!med) return false;
+  if (med.isGenericProduct === true || med.isGeneric === true) return true;
+  if (med.productType && String(med.productType).toUpperCase() === 'GENERIC') return true;
+
+  const brandClean = cleanText(med.brandName || '');
+  if (!brandClean) return false;
+  if (/^generic\b/i.test(brandClean)) return true;
+
+  const brandIngredients = extractActiveIngredients(brandClean);
+  const genericIngredients = extractActiveIngredients(med.genericName || '');
+
+  if (brandIngredients.length > 0 && genericIngredients.length > 0) {
+    const brandFirst = brandClean.split(/\s+/)[0];
+    // Exact root match: the first token of the brand matches an active ingredient,
+    // e.g. "Paracetamol 500", "Cetirizine 10", "Atropine Injection"
+    // NOT partial abbreviations like "Pan" for "Pantoprazole"
+    const isFirstMatching = genericIngredients.some(g =>
+      g === brandFirst || (brandFirst.length >= g.length && brandFirst.startsWith(g))
+    );
+    if (isFirstMatching) return true;
+
+    if (brandIngredients.length === genericIngredients.length) {
+      const allMatch = brandIngredients.every((bIng, idx) => {
+        const gIng = genericIngredients[idx];
+        return bIng === gIng || (bIng.length >= gIng.length && bIng.startsWith(gIng));
+      });
+      if (allMatch) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Resolves stock and availability status for a candidate medicine at a specific pharmacy.
+ */
+function evaluatePharmacyStock(medicineId, pharmacyInventory) {
+  if (!pharmacyInventory) {
+    return {
+      inStock: null,
+      stock: null,
+      price: null,
+      availabilityStatus: 'UNCONFIRMED_AVAILABILITY'
+    };
+  }
+
+  const items = Array.isArray(pharmacyInventory)
+    ? pharmacyInventory
+    : (pharmacyInventory.inventory || []);
+
+  const invItem = items.find(inv =>
+    String(inv.medicineId) === String(medicineId) ||
+    String(inv.id) === String(medicineId)
+  );
+
+  if (!invItem) {
+    return {
+      inStock: false,
+      stock: 0,
+      price: null,
+      availabilityStatus: 'OUT_OF_STOCK'
+    };
+  }
+
+  const stockNum = typeof invItem.stock === 'number' ? invItem.stock : 0;
+  const isAvailable = (invItem.status !== 'OUT_OF_STOCK') && (invItem.stock != null ? stockNum > 0 : true);
+
+  return {
+    inStock: isAvailable,
+    stock: stockNum,
+    price: invItem.price != null ? invItem.price : null,
+    availabilityStatus: isAvailable ? 'AVAILABLE' : 'OUT_OF_STOCK'
+  };
+}
+
+/**
+ * Discovers a matching generic product from the authoritative catalogue.
+ * A candidate is eligible only if:
+ * 1. It is a generic product (isGenericProduct(med) === true).
+ * 2. Active ingredients match prescription (single vs combo strictly preserved).
+ * 3. Prescribed strength matches catalogue strength.
+ * 4. Prescribed dosage form / route matches catalogue dosage form.
+ * 5. If pharmacyInventory is provided: evaluated against actual dispensary stock.
+ */
+function findMatchingGenericProduct(item, catalog, options = {}) {
+  if (!item || !catalog || !Array.isArray(catalog) || catalog.length === 0) {
+    return null;
+  }
+
+  const raw = typeof item === 'string'
+    ? item
+    : (item.medicineName || item.rawName || item.matchedMedicineName || '');
+  const clean = cleanText(raw);
+
+  const prescribedStrength = item.strength || (raw.match(/\d+\s*(?:mg|mcg|gm?|ml|%)\b/i)?.[0] || '');
+  const prescribedForm = item.dosageForm || (raw.match(/\b(?:tab|tablet|cap|capsule|syr|syrup|inj|injection|powder|sachet|gel)\b/i)?.[0] || '');
+
+  let prescribedIngredients = extractActiveIngredients(clean);
+  const itemGeneric = item.genericName || item.matchedMedicine?.genericName;
+  if (itemGeneric && typeof itemGeneric === 'string') {
+    const hintIngredients = extractActiveIngredients(itemGeneric);
+    if (hintIngredients.length > 0) {
+      prescribedIngredients = hintIngredients;
+    }
+  }
+
+  const isPrescribedCombo = prescribedIngredients.length > 1 ||
+    clean.includes('+') || clean.includes('/') || /\b(?:dsr|duo|-d|-tz)\b/i.test(clean);
+
+  for (const med of catalog) {
+    // Must be a generic product record
+    if (!isGenericProduct(med)) {
+      continue;
+    }
+
+    const catGeneric = (med.genericName || '').trim();
+    const catIngredients = extractActiveIngredients(catGeneric);
+    const catIsCombo = catIngredients.length > 1 || catGeneric.includes('+');
+
+    // Rule 1: Single vs Combination Protection
+    if (!isPrescribedCombo && catIsCombo) continue;
+    if (isPrescribedCombo && !catIsCombo) continue;
+
+    // Rule 2: Active Ingredient Match
+    let ingredientMatch = false;
+    if (prescribedIngredients.length > 0) {
+      if (!isPrescribedCombo) {
+        const p0 = prescribedIngredients[0];
+        ingredientMatch = catIngredients.some(c =>
+          c === p0 || c.startsWith(p0) || p0.startsWith(c) || cleanText(catGeneric) === p0
+        );
+      } else {
+        ingredientMatch = prescribedIngredients.every(p =>
+          catIngredients.some(c => c === p || c.startsWith(p) || p.startsWith(c) || c.includes(p))
+        );
+      }
+    } else {
+      const brandBase = cleanText(med.brandName).replace(/\s*\d+.*$/, '').trim();
+      ingredientMatch = clean.includes(brandBase) || cleanText(med.brandName) === clean;
+    }
+
+    if (!ingredientMatch) continue;
+
+    // Rule 3: Clinical Strength Compatibility
+    const strengthMatch = areStrengthsCompatible(prescribedStrength, med.strength);
+    if (!strengthMatch && !options.includeAllStrengths) {
+      continue;
+    }
+
+    // Rule 4: Clinical Dosage Form Compatibility
+    const formMatch = areFormsCompatible(prescribedForm, med.dosageForm);
+    if (!formMatch && !options.includeAllForms) {
+      continue;
+    }
+
+    // Pharmacy Stock Evaluation
+    const stockInfo = evaluatePharmacyStock(med.id, options.pharmacyInventory);
+    if (options.onlyAvailable && !stockInfo.inStock) {
+      continue;
+    }
+
+    const matchReason = isPrescribedCombo
+      ? `Matching generic combination product (${catGeneric}) • ${med.strength} ${med.dosageForm}`
+      : `Matching generic product containing ${catGeneric} • ${med.strength} ${med.dosageForm}`;
+
+    return {
+      id: med.id,
+      brandName: med.brandName,
+      genericName: med.genericName,
+      strength: med.strength,
+      dosageForm: med.dosageForm,
+      category: med.category || 'Generic Formulation',
+      manufacturer: med.manufacturer || 'Certified Generic Manufacturer',
+      price: stockInfo.price != null ? stockInfo.price : (med.price != null ? med.price : null),
+      requiresPrescription: med.requiresPrescription !== false,
+      isEmergency: Boolean(med.isEmergency),
+      description: med.description || '',
+      isGenericProduct: true,
+      candidateType: 'GENERIC',
+      clinicalMatchReason: matchReason,
+      isExactStrength: areStrengthsCompatible(prescribedStrength, med.strength) && Boolean(prescribedStrength),
+      isExactForm: areFormsCompatible(prescribedForm, med.dosageForm) && Boolean(prescribedForm),
+      inStock: stockInfo.inStock,
+      stock: stockInfo.stock,
+      availabilityStatus: stockInfo.availabilityStatus
+    };
+  }
+
+  return null;
+}
 
 /**
  * Resolves suitable matching brand options from the catalogue for any prescribed medicine item.
@@ -277,6 +477,14 @@ function findMatchingBrands(item, catalog, options = {}) {
   const matchingBrands = [];
 
   for (const med of catalog) {
+    // If brandOnly is set, skip generic products
+    if (options.brandOnly && isGenericProduct(med)) {
+      continue;
+    }
+    if (options.excludeMedicineIds && options.excludeMedicineIds.includes(med.id)) {
+      continue;
+    }
+
     const catGeneric = (med.genericName || '').trim();
     const catBrand = (med.brandName || '').trim();
     const catIngredients = extractActiveIngredients(catGeneric);
@@ -327,6 +535,13 @@ function findMatchingBrands(item, catalog, options = {}) {
       continue;
     }
 
+    // Pharmacy Stock Evaluation
+    const stockInfo = evaluatePharmacyStock(med.id, options.pharmacyInventory);
+    if (options.onlyAvailable && !stockInfo.inStock) {
+      continue;
+    }
+
+    const isGenProd = isGenericProduct(med);
     // Clinical match rationale
     const matchReason = isPrescribedCombo
       ? `Matches combination active ingredients (${catGeneric}) • ${med.strength} ${med.dosageForm}`
@@ -340,28 +555,72 @@ function findMatchingBrands(item, catalog, options = {}) {
       dosageForm: med.dosageForm,
       category: med.category || 'Clinical Formulation',
       manufacturer: med.manufacturer || 'Verified Manufacturer',
-      price: med.price != null ? med.price : null,
+      price: stockInfo.price != null ? stockInfo.price : (med.price != null ? med.price : null),
       requiresPrescription: med.requiresPrescription !== false,
       isEmergency: Boolean(med.isEmergency),
       description: med.description || '',
+      isGenericProduct: isGenProd,
+      candidateType: isGenProd ? 'GENERIC' : 'BRAND',
       clinicalMatchReason: matchReason,
       isExactStrength: areStrengthsCompatible(prescribedStrength, med.strength) && Boolean(prescribedStrength),
-      isExactForm: areFormsCompatible(prescribedForm, med.dosageForm) && Boolean(prescribedForm)
+      isExactForm: areFormsCompatible(prescribedForm, med.dosageForm) && Boolean(prescribedForm),
+      inStock: stockInfo.inStock,
+      stock: stockInfo.stock,
+      availabilityStatus: stockInfo.availabilityStatus
     });
   }
 
   // Sort candidates:
   // 1. Current selected item (if any) first
-  // 2. Exact strength match first
-  // 3. Alphabetical by brandName
+  // 2. In-stock items first
+  // 3. Exact strength match first
+  // 4. Alphabetical by brandName
   const currentId = item.matchedMedicineId;
   return matchingBrands.sort((a, b) => {
     if (currentId && a.id === currentId) return -1;
     if (currentId && b.id === currentId) return 1;
+    if (a.inStock === true && b.inStock === false) return -1;
+    if (a.inStock === false && b.inStock === true) return 1;
     if (a.isExactStrength && !b.isExactStrength) return -1;
     if (!a.isExactStrength && b.isExactStrength) return 1;
     return a.brandName.localeCompare(b.brandName);
   });
+}
+
+/**
+ * Unified discovery helper: returns both the eligible matching generic product
+ * and appropriate brand-name alternatives for a prescribed medicine.
+ */
+function findMatchingCandidates(item, catalog, options = {}) {
+  const genericCandidate = findMatchingGenericProduct(item, catalog, options);
+  const brandCandidates = findMatchingBrands(item, catalog, {
+    ...options,
+    brandOnly: true,
+    excludeMedicineIds: genericCandidate ? [genericCandidate.id] : []
+  });
+
+  const rxType = identifyPrescriptionType(item, catalog);
+  const isGeneric = Boolean(rxType.isGeneric || options.isGeneric);
+
+  const allCandidates = [];
+  if (genericCandidate) {
+    allCandidates.push(genericCandidate);
+  }
+  allCandidates.push(...brandCandidates);
+
+  return {
+    isGenericPrescription: isGeneric,
+    prescribedGenericName: rxType.targetGeneric || (typeof item === 'string' ? item : item.medicineName || item.rawName),
+    prescribedStrength: item?.strength || (typeof item === 'string' ? (item.match(/\d+\s*(?:mg|mcg|gm?|ml|%)\b/i)?.[0] || '') : ''),
+    prescribedForm: item?.dosageForm || '',
+    genericCandidate,
+    brandCandidates,
+    allCandidates,
+    hasGenericInCatalogue: Boolean(findMatchingGenericProduct(item, catalog, { ...options, pharmacyInventory: null, onlyAvailable: false })),
+    hasGenericStocked: Boolean(genericCandidate && genericCandidate.inStock === true),
+    hasBrandsStocked: brandCandidates.some(b => b.inStock === true),
+    totalCandidatesCount: allCandidates.length
+  };
 }
 
 module.exports = {
@@ -372,5 +631,9 @@ module.exports = {
   normalizeDosageForm,
   areFormsCompatible,
   identifyPrescriptionType,
-  findMatchingBrands
+  isGenericProduct,
+  evaluatePharmacyStock,
+  findMatchingGenericProduct,
+  findMatchingBrands,
+  findMatchingCandidates
 };

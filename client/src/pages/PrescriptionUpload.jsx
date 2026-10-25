@@ -6,7 +6,7 @@ import { ProgressiveFluxLoader } from '../components/ui/progressive-flux-loader'
 import ScanGridButton from '../components/ui/scan-grid-button';
 import { triggerToast } from '../components/ToastAlert';
 import ImageCropperModal from '../components/ImageCropperModal';
-import { findMatchingBrands, identifyPrescriptionType } from '../utils/genericMedicineMatcher';
+import { findMatchingBrands, identifyPrescriptionType, findMatchingGenericProduct, findMatchingCandidates, evaluatePharmacyStock } from '../utils/genericMedicineMatcher';
 import { useAuth } from '../context/AuthContext';
 import AuthenticatedPrescriptionImage from '../components/AuthenticatedPrescriptionImage';
 import RollingNumber from '../components/ui/RollingNumber';
@@ -581,6 +581,9 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
   const [ocrProgress, setOcrProgress] = useState(72);
   const { user } = useAuth();
   const [previousPrescriptions, setPreviousPrescriptions] = useState([]);
+  const [pharmacies, setPharmacies] = useState([]);
+  const [selectedDispensaryId, setSelectedDispensaryId] = useState(null);
+  const [dispensaryInventory, setDispensaryInventory] = useState(null);
 
   // Fetch patient's saved prescription history from existing backend endpoint
   const fetchPreviousPrescriptions = useCallback(() => {
@@ -1083,6 +1086,20 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       .then(d => { if (d.success) setMedicinesCatalog(d.medicines || []); })
       .catch(() => {});
 
+    // Fetch participating pharmacies for live stock verification
+    fetch(`${API}/pharmacies/search`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.pharmacies) && d.pharmacies.length > 0) {
+          setPharmacies(d.pharmacies);
+          const firstParticipating = d.pharmacies.find(p => p.isParticipating) || d.pharmacies[0];
+          if (firstParticipating) {
+            setSelectedDispensaryId(firstParticipating.id);
+          }
+        }
+      })
+      .catch(() => {});
+
     // Fetch patient's saved prescription records for clinical history
     fetchPreviousPrescriptions();
 
@@ -1094,6 +1111,19 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       loadPrescriptionById(targetRxId);
     }
   }, [user?.id, fetchPreviousPrescriptions, loadPrescriptionById]);
+
+  // Live inventory loader for the selected dispensary
+  useEffect(() => {
+    if (!selectedDispensaryId) return;
+    fetch(`${API}/pharmacies/${selectedDispensaryId}/inventory`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.inventory)) {
+          setDispensaryInventory(d.inventory);
+        }
+      })
+      .catch(() => {});
+  }, [selectedDispensaryId]);
 
   // ── Camera Management ────────────────────────────────────────────────────────
   const startCamera = async () => {
@@ -3000,86 +3030,229 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                           })()}
                         </div>
 
-                        {/* Available Brand Formulations Quick-Select */}
+                        {/* Generic Medicine Matching: Generic Product & Brand Formulations Selection */}
                         {(() => {
                           const rxType = identifyPrescriptionType(item, medicinesCatalog);
                           const isGenericPrescription = Boolean(item.isGeneric || rxType.isGeneric);
                           const genericCompoundName = item.prescribedGenericName || rxType.targetGeneric || item.medicineName;
-                          const matchingBrands = findMatchingBrands(item, medicinesCatalog);
 
-                          if (isGenericPrescription && matchingBrands.length > 0) {
+                          const candidateResult = findMatchingCandidates(item, medicinesCatalog, {
+                            pharmacyInventory: dispensaryInventory
+                          });
+                          const genericCandidate = candidateResult.genericCandidate;
+                          const brandCandidates = candidateResult.brandCandidates;
+                          const hasGenericInCatalogue = candidateResult.hasGenericInCatalogue;
+                          const selectedDispensary = (pharmacies || []).find(p => p.id === selectedDispensaryId);
+
+                          if (isGenericPrescription && (genericCandidate || brandCandidates.length > 0 || hasGenericInCatalogue)) {
                             return (
-                              <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl bg-secondary/5 border border-secondary/25 shadow-xs">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                              <div className="flex flex-col gap-3 p-3.5 rounded-2xl bg-secondary/5 border border-secondary/25 shadow-xs">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                                   <div className="flex items-center gap-1.5">
                                     <span className="material-symbols-outlined text-sm text-secondary">science</span>
                                     <span className="text-xs font-bold text-primary">
                                       Doctor Prescribed Active Ingredient: <span className="text-secondary">{genericCompoundName}</span>
                                     </span>
                                   </div>
-                                  <span className="text-[10px] text-outline font-semibold">
-                                    {matchingBrands.length} verified trade brand{matchingBrands.length > 1 ? 's' : ''} available
-                                  </span>
+                                  {pharmacies.length > 0 && (
+                                    <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                                      <span className="material-symbols-outlined text-xs text-outline">local_pharmacy</span>
+                                      <span className="text-[10px] text-outline font-medium">Dispensary:</span>
+                                      <select
+                                        value={selectedDispensaryId || ''}
+                                        onChange={e => setSelectedDispensaryId(e.target.value)}
+                                        className="text-[10px] font-semibold text-primary bg-white border border-outline-variant/40 rounded-lg px-2 py-0.5 focus:outline-none focus:border-secondary cursor-pointer"
+                                      >
+                                        {pharmacies.map(p => (
+                                          <option key={p.id} value={p.id}>
+                                            {p.name} {p.isParticipating ? '• Verified Partner' : ''}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                                 <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                                  Your prescription specifies this medicine by its generic compound. MediFind AI matched genuine bioequivalent formulations from certified pharmacies below. Choose a brand or request pharmacist selection:
+                                  Your prescription specifies this medicine by its generic compound. You can choose from the matching generic formulation, certified brand-name alternatives, or request the attending pharmacist to confirm.
                                 </p>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                                  {matchingBrands.slice(0, 4).map(b => {
-                                    const isCurrent = !item.pharmacistSelectionRequested && item.matchedMedicineId === b.id;
-                                    return (
-                                      <div
-                                        key={b.id}
-                                        className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
-                                          isCurrent
-                                            ? 'bg-secondary/15 border-secondary shadow-xs scale-[1.01]'
-                                            : 'bg-white hover:bg-surface-container border-outline-variant/30 hover:border-secondary/40'
-                                        }`}
-                                      >
-                                        <div className="flex flex-col min-w-0">
-                                          <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className="text-xs font-bold text-primary truncate">{b.brandName}</span>
-                                            {b.strength && (
-                                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-secondary/10 text-secondary font-semibold">
-                                                {b.strength}
-                                              </span>
-                                            )}
-                                          </div>
-                                          <span className="text-[10px] text-on-surface-variant truncate">
-                                            {b.dosageForm} • {b.manufacturer}
-                                          </span>
-                                          <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[10px] font-bold text-primary">
-                                              ₹{b.price != null ? b.price : '—'}
-                                            </span>
-                                            <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
-                                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
-                                              In Stock
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSelectMatchedMedicine(item.id, b.id)}
-                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                                {/* 1. Matching Generic Product Card (if available in catalogue) */}
+                                {genericCandidate ? (
+                                  <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-xs text-emerald-600">verified</span>
+                                        Matching Generic Product
+                                      </span>
+                                      <span className="text-[9px] text-outline font-mono">
+                                        Standard INN Generic
+                                      </span>
+                                    </div>
+                                    {(() => {
+                                      const isCurrent = !item.pharmacistSelectionRequested && item.matchedMedicineId === genericCandidate.id;
+                                      return (
+                                        <div
+                                          className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                                             isCurrent
-                                              ? 'bg-secondary text-white shadow-xs'
-                                              : 'bg-surface-container hover:bg-secondary hover:text-white text-primary'
+                                              ? 'bg-emerald-500/15 border-emerald-600 shadow-xs scale-[1.005]'
+                                              : 'bg-white hover:bg-emerald-50/40 border-emerald-300/60'
                                           }`}
                                         >
-                                          <span className="material-symbols-outlined text-xs">
-                                            {isCurrent ? 'check_circle' : 'add'}
-                                          </span>
-                                          <span>{isCurrent ? 'Selected' : 'Select'}</span>
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                          <div className="flex flex-col min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="text-xs font-bold text-primary">{genericCandidate.brandName}</span>
+                                              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-emerald-600/10 text-emerald-800 font-mono">
+                                                Generic Formulation
+                                              </span>
+                                              {genericCandidate.strength && (
+                                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-secondary/10 text-secondary font-semibold">
+                                                  {genericCandidate.strength}
+                                                </span>
+                                              )}
+                                              {genericCandidate.dosageForm && (
+                                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-surface-container text-on-surface-variant">
+                                                  {genericCandidate.dosageForm}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <span className="text-[10px] text-on-surface-variant mt-0.5">
+                                              Active: {genericCandidate.genericName} • {genericCandidate.manufacturer}
+                                            </span>
+                                            <div className="flex items-center gap-2.5 mt-1">
+                                              <span className="text-xs font-bold text-primary">
+                                                ₹{genericCandidate.price != null ? genericCandidate.price : (medicinesCatalog.find(m => m.id === genericCandidate.id)?.price || '—')}
+                                              </span>
+                                              {genericCandidate.inStock === true ? (
+                                                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
+                                                  In Stock ({genericCandidate.stock} available)
+                                                </span>
+                                              ) : genericCandidate.inStock === false ? (
+                                                <span className="text-[10px] text-rose-700 font-semibold flex items-center gap-1 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 inline-block"></span>
+                                                  Out of Stock at {selectedDispensary?.name ? selectedDispensary.name.split(' ')[0] : 'Pharmacy'}
+                                                </span>
+                                              ) : (
+                                                <span className="text-[10px] text-outline font-medium flex items-center gap-1">
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-outline/50 inline-block"></span>
+                                                  Availability Pending
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
 
-                                {/* Pharmacist Brand Clarification Option */}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSelectMatchedMedicine(item.id, genericCandidate.id)}
+                                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer self-start sm:self-center ${
+                                              isCurrent
+                                                ? 'bg-emerald-700 text-white shadow-xs'
+                                                : 'bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-900 border border-emerald-300'
+                                            }`}
+                                          >
+                                            <span className="material-symbols-outlined text-xs">
+                                              {isCurrent ? 'check_circle' : 'add'}
+                                            </span>
+                                            <span>{isCurrent ? 'Selected Generic' : 'Select Generic'}</span>
+                                          </button>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                ) : hasGenericInCatalogue ? (
+                                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-xs text-amber-900">
+                                    <span className="material-symbols-outlined text-sm text-amber-600 shrink-0">info</span>
+                                    <span>Generic product exists in catalogue but prescribed specification ({item.strength || 'strength'}{item.dosageForm ? ` • ${item.dosageForm}` : ''}) differs or is currently unavailable.</span>
+                                  </div>
+                                ) : (
+                                  <div className="p-2.5 rounded-xl bg-surface-container/60 border border-outline-variant/30 flex items-center gap-2 text-xs text-on-surface-variant">
+                                    <span className="material-symbols-outlined text-sm text-outline shrink-0">info</span>
+                                    <span>No single-ingredient generic product in current catalogue. Bioequivalent brand alternatives are available below.</span>
+                                  </div>
+                                )}
+
+                                {/* 2. Brand-Name Alternatives (if any in catalogue) */}
+                                {brandCandidates.length > 0 && (
+                                  <div className="flex flex-col gap-1.5 pt-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] font-bold text-secondary flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-xs text-secondary">local_pharmacy</span>
+                                        Brand-Name Alternatives ({brandCandidates.length} available)
+                                      </span>
+                                      <span className="text-[9px] text-outline font-semibold">
+                                        Clinical Bioequivalent
+                                      </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {brandCandidates.slice(0, 4).map(b => {
+                                        const isCurrent = !item.pharmacistSelectionRequested && item.matchedMedicineId === b.id;
+                                        return (
+                                          <div
+                                            key={b.id}
+                                            className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
+                                              isCurrent
+                                                ? 'bg-secondary/15 border-secondary shadow-xs scale-[1.01]'
+                                                : 'bg-white hover:bg-surface-container border-outline-variant/30 hover:border-secondary/40'
+                                            }`}
+                                          >
+                                            <div className="flex flex-col min-w-0">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="text-xs font-bold text-primary truncate">{b.brandName}</span>
+                                                {b.strength && (
+                                                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-secondary/10 text-secondary font-semibold">
+                                                    {b.strength}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <span className="text-[10px] text-on-surface-variant truncate">
+                                                {b.dosageForm} • {b.manufacturer}
+                                              </span>
+                                              <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[10px] font-bold text-primary">
+                                                  ₹{b.price != null ? b.price : (medicinesCatalog.find(m => m.id === b.id)?.price || '—')}
+                                                </span>
+                                                {b.inStock === true ? (
+                                                  <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
+                                                    In Stock ({b.stock})
+                                                  </span>
+                                                ) : b.inStock === false ? (
+                                                  <span className="text-[9px] text-rose-700 font-medium flex items-center gap-0.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>
+                                                    Out of Stock
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-[9px] text-outline font-medium flex items-center gap-0.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-outline/50 inline-block"></span>
+                                                    In Catalogue
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSelectMatchedMedicine(item.id, b.id)}
+                                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                                                isCurrent
+                                                  ? 'bg-secondary text-white shadow-xs'
+                                                  : 'bg-surface-container hover:bg-secondary hover:text-white text-primary'
+                                              }`}
+                                            >
+                                              <span className="material-symbols-outlined text-xs">
+                                                {isCurrent ? 'check_circle' : 'add'}
+                                              </span>
+                                              <span>{isCurrent ? 'Selected Brand' : 'Select Brand'}</span>
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 3. Pharmacist Brand Clarification Option */}
                                 {item.pharmacistSelectionRequested ? (
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
                                     <div className="flex items-start gap-2.5">
@@ -3096,7 +3269,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                           </span>
                                         </div>
                                         <p className="text-[11px] text-amber-800 mt-1 leading-relaxed">
-                                          The attending licensed pharmacist at the fulfillment pharmacy will evaluate your prescription and confirm the optimal bioequivalent trade brand for <strong>{genericCompoundName}</strong> ({item.strength || item.dosage || 'Standard'} • Qty: {item.quantity || 1}).
+                                          The attending licensed pharmacist at {selectedDispensary?.name || 'the fulfillment pharmacy'} will evaluate your prescription and confirm the optimal bioequivalent trade brand for <strong>{genericCompoundName}</strong> ({item.strength || item.dosage || 'Standard'} • Qty: {item.quantity || 1}).
                                         </p>
                                       </div>
                                     </div>
@@ -3108,7 +3281,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                         className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                                       >
                                         <span className="material-symbols-outlined text-xs">close</span>
-                                        <span>Choose Brand Myself</span>
+                                        <span>Choose Myself</span>
                                       </button>
                                     </div>
                                   </div>
@@ -3124,11 +3297,11 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                       <span>
                                         {requestingPharmacistSelectionId === item.id
                                           ? 'Sending Request...'
-                                          : 'Not sure which brand? Ask Attending Pharmacist to Select'}
+                                          : 'Not sure which product? Ask Attending Pharmacist to Select'}
                                       </span>
                                     </button>
 
-                                    {matchingBrands.length > 4 && (
+                                    {brandCandidates.length > 4 && (
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -3137,7 +3310,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                         }}
                                         className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
                                       >
-                                        +{matchingBrands.length - 4} more brand options...
+                                        +{brandCandidates.length - 4} more options...
                                       </button>
                                     )}
                                   </div>
@@ -3146,17 +3319,17 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                             );
                           }
 
-                          if (isGenericPrescription && matchingBrands.length === 0) {
+                          if (isGenericPrescription && !genericCandidate && brandCandidates.length === 0 && !hasGenericInCatalogue) {
                             return (
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30">
                                 <div className="flex items-start gap-2">
                                   <span className="material-symbols-outlined text-amber-700 text-base mt-0.5">warning</span>
                                   <div>
                                     <span className="text-xs font-bold text-amber-900">
-                                      No Catalogue Brands for Generic "{genericCompoundName}"
+                                      No Catalogue Records for Generic "{genericCompoundName}"
                                     </span>
                                     <p className="text-[11px] text-amber-800">
-                                      This generic formulation is not yet in our catalog. Request pharmacist sourcing assistance or remove.
+                                      Neither generic nor brand formulations of this drug exist in the current catalogue. Request pharmacist assistance or remove.
                                     </p>
                                   </div>
                                 </div>
@@ -3962,46 +4135,72 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
               </div>
             </div>
 
-            {/* Suggested Trade Brand Formulations for this specific drug */}
+            {/* Suggested Generic and Trade Brand Formulations for this specific drug */}
             {(() => {
-              const suggestedBrands = findMatchingBrands(mappingModalItem, medicinesCatalog);
-              if (suggestedBrands.length === 0) return null;
+              const candidateRes = findMatchingCandidates(mappingModalItem, medicinesCatalog, {
+                pharmacyInventory: dispensaryInventory
+              });
+              const allCandidates = candidateRes.allCandidates;
+              if (allCandidates.length === 0) return null;
               return (
                 <div className="flex flex-col gap-2.5 p-4 rounded-2xl bg-secondary-container/20 border border-secondary/30">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-base text-secondary">verified</span>
-                      Suggested Trade Brands for "{mappingModalItem.medicineName || mappingModalItem.rawName}":
+                      Matching Formulations for "{mappingModalItem.medicineName || mappingModalItem.rawName}":
                     </span>
                     <span className="text-[11px] text-outline font-semibold">
-                      {suggestedBrands.length} Brand Options in Catalogue
+                      {allCandidates.length} Options in Catalogue ({candidateRes.genericCandidate ? '1 Generic, ' : ''}{candidateRes.brandCandidates.length} Brands)
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                    {suggestedBrands.map(med => {
+                    {allCandidates.map(med => {
                       const isSelected = mappingModalItem.matchedMedicineId === med.id;
+                      const isGen = Boolean(med.isGenericProduct);
                       return (
                         <div
                           key={med.id}
                           className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                             isSelected
                               ? 'bg-secondary/15 border-secondary shadow-xs'
-                              : 'bg-white hover:bg-surface-container border-outline-variant/30'
+                              : isGen
+                                ? 'bg-emerald-50/50 hover:bg-emerald-50 border-emerald-300/50'
+                                : 'bg-white hover:bg-surface-container border-outline-variant/30'
                           }`}
                         >
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-xs font-bold text-primary truncate">{med.brandName}</span>
-                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-secondary/10 text-secondary font-mono">
-                                {med.strength}
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                                isGen ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'bg-secondary/10 text-secondary'
+                              }`}>
+                                {isGen ? 'Generic Product' : 'Trade Brand'}
                               </span>
+                              {med.strength && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-secondary/10 text-secondary font-mono">
+                                  {med.strength}
+                                </span>
+                              )}
                             </div>
                             <span className="text-[10px] text-on-surface-variant truncate">
                               {med.genericName} • {med.dosageForm}
                             </span>
-                            <span className="text-[10px] text-outline">
-                              ₹{med.price || '—'}
-                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] font-bold text-primary">
+                                ₹{med.price != null ? med.price : (medicinesCatalog.find(m => m.id === med.id)?.price || '—')}
+                              </span>
+                              {med.inStock === true ? (
+                                <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
+                                  In Stock
+                                </span>
+                              ) : med.inStock === false ? (
+                                <span className="text-[9px] text-rose-700 font-medium flex items-center gap-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>
+                                  Out of Stock
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
 
                           <button
@@ -4010,16 +4209,18 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                               handleSelectMatchedMedicine(mappingModalItem.id, med.id);
                               setMappingModalItem(null);
                             }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all flex items-center gap-1 ${
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all flex items-center gap-1 cursor-pointer ${
                               isSelected
                                 ? 'bg-secondary text-white'
-                                : 'bg-primary hover:bg-primary-container text-white'
+                                : isGen
+                                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                                  : 'bg-primary hover:bg-primary-container text-white'
                             }`}
                           >
                             <span className="material-symbols-outlined text-xs">
                               {isSelected ? 'check' : 'add'}
                             </span>
-                            <span>{isSelected ? 'Confirmed' : 'Select'}</span>
+                            <span>{isSelected ? 'Confirmed' : isGen ? 'Select Generic' : 'Select Brand'}</span>
                           </button>
                         </div>
                       );
