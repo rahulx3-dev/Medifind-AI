@@ -112,20 +112,11 @@ function isCallPharmacyIntent(t) {
   return (l.includes('call')||l.includes('phone')||l.includes('ring')||l.includes('dial')||l.includes('contact'))
     && (l.includes('pharmacy')||l.includes('chemist')||l.includes('medical'));
 }
-function isReserveIntent(t) {
+function isDirectReservationCommand(t) {
   const l = t.toLowerCase();
-  return (l.includes('reserve')||l.includes('book')||l.includes('reservation')||l.includes('hold'))
-    && (l.includes('pharmacy')||l.includes('medicine')||l.includes('at'));
-}
-function isCartCheckIntent(t) {
-  const l = t.toLowerCase();
-  return l.includes('cart')||l.includes('my medicines')||l.includes('show cart')||l.includes('view cart')||l.includes('my list');
-}
-function isCheckoutIntent(t) {
-  const l = t.toLowerCase();
-  return (l.includes('checkout')||l.includes('check out')||l.includes('proceed')||
-          l.includes('confirm order')||l.includes('place order')||l.includes('go to pharmacy'))
-    && !l.includes('track');
+  const hasAction = ['reserve', 'book', 'hold', 'checkout', 'check out', 'buy', 'order'].some(k => l.includes(k));
+  const hasTarget = ['nearest', 'any', 'pharmacy', 'chemist', 'dispensary', 'that medicine', 'this medicine', 'store'].some(k => l.includes(k));
+  return hasAction && (hasTarget || l.includes('in ') || l.includes('at '));
 }
 
 function detectIntent(text) {
@@ -133,11 +124,12 @@ function detectIntent(text) {
   const lower = text.toLowerCase().trim();
   if (/^(hi|hello|hey|namaste|good morning|good evening|good afternoon|hola)\b/.test(lower))
     return { id: 'greeting', action: 'greeting' };
+  if (isDirectReservationCommand(text)) return { id: 'direct_reservation', action: 'direct_reservation', rawText: text };
   if (isAddToCartIntent(text))    return { id: 'add_to_cart',   action: 'add_to_cart' };
   if (isCallPharmacyIntent(text)) return { id: 'call_pharmacy', action: 'call_pharmacy' };
-  if (isReserveIntent(text))      return { id: 'reserve',       action: 'reserve' };
+  if (isReserveIntent(text))      return { id: 'direct_reservation', action: 'direct_reservation', rawText: text };
   if (isCartCheckIntent(text))    return { id: 'view_cart',     action: 'view_cart' };
-  if (isCheckoutIntent(text))     return { id: 'checkout',      action: 'checkout' };
+  if (isCheckoutIntent(text))     return { id: 'checkout',      action: 'checkout', rawText: text };
   let best = null, bestScore = 0;
   for (const intent of INTENTS) {
     let score = 0;
@@ -530,6 +522,150 @@ export default function MediAssistant({
     }
   }, [onAddToRequest, onNavigate, onProceedToPharmacies, selectedMedicines, fetchNearbyPharmacies, searchMedicineCatalog, ALLOWED_TABS]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleDirectReservation = useCallback(async (text) => {
+    setIsTyping(true);
+    const lower = text.toLowerCase();
+
+    // 1. Identify medicines: named in voice/text or currently in cart
+    const mentionedMeds = extractMedicinesFromText(text);
+    let targetItems = [];
+
+    if (mentionedMeds.length > 0) {
+      for (const medName of mentionedMeds) {
+        const results = await searchMedicineCatalog(medName);
+        if (results.length > 0) {
+          const med = results[0];
+          targetItems.push({
+            medicineId: med.id,
+            brandName: med.brandName,
+            genericName: med.genericName,
+            strength: med.strength,
+            quantity: 1,
+            price: med.price != null ? Number(med.price) : 0,
+            unitPrice: med.unitPrice != null ? Number(med.unitPrice) : (med.price != null ? Number(med.price) : 0),
+            dosageForm: med.dosageForm
+          });
+          if (onAddToRequest) {
+            onAddToRequest(med, 1);
+          }
+        }
+      }
+    }
+
+    // If no explicit medicine named in text, use items currently in the cart
+    if (targetItems.length === 0 && selectedMedicines && selectedMedicines.length > 0) {
+      targetItems = selectedMedicines.map(m => ({
+        medicineId: m.medicineId || m.id,
+        brandName: m.brandName || 'Medicine',
+        genericName: m.genericName || '',
+        strength: m.strength || '',
+        quantity: m.quantity || 1,
+        price: m.price != null ? Number(m.price) : 0,
+        unitPrice: m.unitPrice != null ? Number(m.unitPrice) : (m.price != null ? Number(m.price) : 0),
+        dosageForm: m.dosageForm
+      }));
+    }
+
+    // Fallback: if user asked to reserve "that medicine" but cart is empty, fetch top verified medicine
+    if (targetItems.length === 0) {
+      const defaultCatalog = await searchMedicineCatalog('');
+      if (defaultCatalog.length > 0) {
+        const topMed = defaultCatalog[0];
+        targetItems.push({
+          medicineId: topMed.id,
+          brandName: topMed.brandName,
+          genericName: topMed.genericName,
+          strength: topMed.strength,
+          quantity: 1,
+          price: topMed.price != null ? Number(topMed.price) : 0,
+          unitPrice: topMed.unitPrice != null ? Number(topMed.unitPrice) : (topMed.price != null ? Number(topMed.price) : 0),
+          dosageForm: topMed.dosageForm
+        });
+        if (onAddToRequest) {
+          onAddToRequest(topMed, 1);
+        }
+      }
+    }
+
+    if (targetItems.length === 0) {
+      setIsTyping(false);
+      addMediMessage(
+        'Please specify which medicine you would like to reserve (e.g., "Reserve Paracetamol in nearest pharmacy") or browse the catalogue first.',
+        true,
+        [{ label: 'Browse Medicines', icon: 'medication', type: 'navigate_tab', tab: 'medicines', primary: true }]
+      );
+      return;
+    }
+
+    // 2. Fetch pharmacies and automatically select target dispensary
+    const pharmacies = await fetchNearbyPharmacies();
+    if (!pharmacies || pharmacies.length === 0) {
+      setIsTyping(false);
+      addMediMessage('Could not find nearby pharmacies right now. Please try again or check emergency options.');
+      return;
+    }
+
+    const sorted = [...pharmacies].sort((a, b) => {
+      const distA = a.distance != null ? Number(a.distance) : 999;
+      const distB = b.distance != null ? Number(b.distance) : 999;
+      return distA - distB;
+    });
+
+    let selectedPharmacy = sorted[0]; // Nearest dispensary by default
+    if (lower.includes('any')) {
+      selectedPharmacy = sorted.find(p => p.isOpen) || sorted[0];
+    } else {
+      const named = sorted.find(p => {
+        const pName = (p.name || p.businessName || '').toLowerCase();
+        return pName && lower.includes(pName);
+      });
+      if (named) selectedPharmacy = named;
+    }
+
+    // 3. Normalize items and write reservation state to sessionStorage
+    const normalizedItems = targetItems.map(i => ({
+      medicineId: i.medicineId,
+      brandName: i.brandName || 'Medicine',
+      genericName: i.genericName || '',
+      strength: i.strength || '',
+      quantity: i.quantity || 1,
+      price: i.price != null ? Number(i.price) : 0,
+      unitPrice: i.unitPrice != null ? Number(i.unitPrice) : (i.price != null ? Number(i.price) : 0),
+      pricingUnit: i.pricingUnit || 'per unit'
+    }));
+
+    const reservationPayload = {
+      stage: 'confirm',
+      pharmacy: selectedPharmacy,
+      items: normalizedItems
+    };
+
+    try {
+      sessionStorage.setItem('medifind_pending_reservation_flow', JSON.stringify(reservationPayload));
+    } catch (_) {}
+
+    window.dispatchEvent(new CustomEvent('medifind_open_reservation', {
+      detail: reservationPayload
+    }));
+
+    const pharmName = selectedPharmacy.name || selectedPharmacy.businessName || 'Nearest Pharmacy';
+    const distText = selectedPharmacy.distance != null ? ` (${selectedPharmacy.distance.toFixed(1)} km away)` : '';
+    const medSummary = normalizedItems.map(m => m.brandName).join(', ');
+
+    setIsTyping(false);
+    addMediMessage(
+      `Selected ${pharmName}${distText}.\n\nOpening checkout directly for ${medSummary}...`,
+      false
+    );
+
+    // Direct automated checkout navigation
+    setTimeout(() => {
+      onProceedToPharmacies?.();
+      onNavigate?.('pharmacies');
+      setIsOpen(false);
+    }, 1100);
+  }, [selectedMedicines, fetchNearbyPharmacies, searchMedicineCatalog, onAddToRequest, onNavigate, onProceedToPharmacies]);
+
   const processUserInput = useCallback(async (text) => {
     if (!text || !text.trim()) return;
     const clean = text.trim();
@@ -540,6 +676,11 @@ export default function MediAssistant({
     if (!intent) { addMediMessage(FALLBACK_RESPONSES[Math.floor(Math.random()*FALLBACK_RESPONSES.length)]); return; }
     if (intent.action === 'greeting') { addMediMessage(GREETINGS[Math.floor(Math.random()*GREETINGS.length)]); return; }
     if (intent.action === 'help')     { addMediMessage(HELP_RESPONSE); return; }
+
+    if (intent.action === 'direct_reservation' || intent.action === 'reserve') {
+      handleDirectReservation(clean);
+      return;
+    }
 
     if (intent.action === 'add_to_cart') {
       const meds = extractMedicinesFromText(clean);
@@ -561,16 +702,11 @@ export default function MediAssistant({
 
     if (intent.action === 'checkout') {
       const cart = selectedMedicines || [];
-      if (cart.length === 0) {
-        addMediMessage('Your cart is empty! Add some medicines first.', true,
-          [{ label:'Browse Medicines', icon:'medication', type:'navigate_tab', tab:'medicines', primary:true }]);
+      if (cart.length > 0) {
+        handleDirectReservation(clean);
       } else {
-        addMediMessage(`You have ${cart.length} item${cart.length>1?'s':''} in your cart. Proceed to Pharmacy Discovery?`, true,
-          [
-            { label:'Proceed to Pharmacies', icon:'local_pharmacy', type:'proceed_to_pharmacies', primary:true },
-            { label:'View Cart First',        icon:'shopping_cart',  type:'show_cart' },
-          ]
-        );
+        addMediMessage('Your cart is empty! Add some medicines first or say "Reserve Paracetamol in nearest pharmacy".', true,
+          [{ label:'Browse Medicines', icon:'medication', type:'navigate_tab', tab:'medicines', primary:true }]);
       }
       return;
     }
@@ -600,31 +736,12 @@ export default function MediAssistant({
       return;
     }
 
-    if (intent.action === 'reserve') {
-      const cart = selectedMedicines || [];
-      if (cart.length === 0) {
-        addMediMessage('To reserve medicines, add them to your cart first, then say "reserve at pharmacy"!', true,
-          [{ label:'Browse Medicines', icon:'medication', type:'navigate_tab', tab:'medicines', primary:true }]);
-      } else {
-        const cartNames = cart.slice(0,3).map(m=>m.brandName).join(', ');
-        const more = cart.length > 3 ? ` +${cart.length-3} more` : '';
-        addMediMessage(`I will help you reserve: ${cartNames}${more}\n\nTaking you to Pharmacy Discovery to find stock and complete your reservation.`, true,
-          [
-            { label:'Find & Reserve', icon:'bookmark_add',   type:'proceed_to_pharmacies', primary:true },
-            { label:'View Cart',      icon:'shopping_cart',  type:'show_cart' },
-            { label:'Call Pharmacy',  icon:'call',           type:'call_pharmacy_list' },
-          ]
-        );
-      }
-      return;
-    }
-
     if (intent.action === 'navigate') {
       if (!ALLOWED_TABS.includes(intent.tab)) { addMediMessage('Sorry, that section is not available for your account role.'); return; }
       addMediMessage(intent.reply || ('Navigating to ' + intent.label + '...'));
       setTimeout(() => { onNavigate?.(intent.tab); setIsOpen(false); }, 1400);
     }
-  }, [handleActionClick, selectedMedicines, fetchNearbyPharmacies, ALLOWED_TABS, onNavigate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleActionClick, selectedMedicines, fetchNearbyPharmacies, ALLOWED_TABS, onNavigate, handleDirectReservation]);
 
   const { start: startSpeech, stop: stopSpeech } = useSpeechRecognition({
     onResult:  (text) => { setIsListening(false); setOrbActive(false); processUserInput(text); },

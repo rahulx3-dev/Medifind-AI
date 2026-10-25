@@ -90,6 +90,17 @@ export default function PharmacyDiscovery({
     } catch (_) {}
   }, [reservationFlow]);
 
+  // Listen for direct reservation events (e.g. from Medi AI assistant)
+  useEffect(() => {
+    const handleDirectReservationEvent = (e) => {
+      if (e?.detail && e.detail.stage === 'confirm' && e.detail.pharmacy) {
+        setReservationFlow(e.detail);
+      }
+    };
+    window.addEventListener('medifind_open_reservation', handleDirectReservationEvent);
+    return () => window.removeEventListener('medifind_open_reservation', handleDirectReservationEvent);
+  }, []);
+
   // Mini-search medicine selector state (if no active request items)
   const [medSelectorOpen, setMedSelectorOpen] = useState(false);
   const [miniSearchQuery, setMiniSearchQuery] = useState('');

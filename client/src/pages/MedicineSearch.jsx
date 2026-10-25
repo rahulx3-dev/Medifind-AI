@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AvailabilityModal from '../components/AvailabilityModal';
@@ -80,6 +81,44 @@ const HEALTH_CONCERNS = [
   { id: 'skin', label: 'Dermatology & Skin', icon: 'sanitizer', keywords: ['dermatology', 'topical', 'antifungal', 'candid', 'betnovate', 'clotrimazole', 'skin'] },
 ];
 
+export const THERAPEUTIC_GROUPS = [
+  {
+    id: 'pain',
+    label: 'Pain & Analgesics',
+    icon: 'healing',
+    badge: 'Fast Relief',
+    match: m => /analgesic|nsaid|antipyretic|pain|antispasmodic/i.test(m?.category || '') || /dolo|crocin|combiflam|paracetamol|brufen|tramadol|meftal|zerodol|saridon|voveran/i.test(m?.brandName || '')
+  },
+  {
+    id: 'antibiotics',
+    label: 'Antibiotics & Anti-infectives',
+    icon: 'vaccines',
+    badge: 'Clinical Rx',
+    match: m => /antibiotic|antimicrobial|antibacterial|antiprotozoal/i.test(m?.category || '') || /augmentin|azithral|ciplox|taxim|monocef|flagyl|avelox|amoxyclav|zifi|doxy/i.test(m?.brandName || '')
+  },
+  {
+    id: 'gastro',
+    label: 'Gastrointestinal Care',
+    icon: 'medication_liquid',
+    badge: 'Digestive Health',
+    match: m => /proton pump|ppi|antacid|laxative|probiotic|antiemetic|h2 receptor|mucosal|gastro/i.test(m?.category || '') || /pan|pantocid|omez|rantac|emeset|digene|cremaffin|econorm|sucrafil|razo/i.test(m?.brandName || '')
+  },
+  {
+    id: 'cardiac_chronic',
+    label: 'Cardiac, BP & Chronic Care',
+    icon: 'cardiology',
+    badge: 'Daily Maintenance',
+    match: m => /antihypertensive|calcium channel|antidiabetic|antiplatelet|lipid|beta blocker|thyroid|cardio|statin/i.test(m?.category || '') || /telma|amlong|glycomet|januvia|ecosprin|atorva|betaloc|eltroxin|forxiga|nebicard/i.test(m?.brandName || '')
+  },
+  {
+    id: 'respiratory_emergency',
+    label: 'Respiratory & Emergency Care',
+    icon: 'emergency',
+    badge: 'Critical & Emergency',
+    match: m => /bronchodilator|emergency|corticosteroid|antihistamine|diuretic|inhaler|allergy/i.test(m?.category || '') || /asthalin|sorbitrate|adrenaline|deriphyllin|budecort|allegra|cetcip|omnacortil|lasix|atropine/i.test(m?.brandName || '')
+  }
+];
+
 export default function MedicineSearch({
   onOrderCreated,
   selectedMedicines = [],
@@ -129,6 +168,7 @@ export default function MedicineSearch({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState('ALL');
   const [filterTag, setFilterTag] = useState('all'); // 'all' | 'rx' | 'otc' | 'instock'
   const [dosageFormFilter, setDosageFormFilter] = useState('ALL'); // 'ALL' | 'Tablet' | 'Capsule' | 'Inhaler' | 'Syrup' | 'Injection'
   const [sortBy, setSortBy] = useState('name-asc'); // 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
@@ -352,6 +392,7 @@ export default function MedicineSearch({
 
   const handleResetAllFilters = () => {
     setSelectedCategory('ALL');
+    setSelectedCategoryTab('ALL');
     setFilterTag('all');
     setDosageFormFilter('ALL');
     setSortBy('name-asc');
@@ -590,11 +631,11 @@ export default function MedicineSearch({
     return (
       <article
         key={`card-${med.id}-${idx}`}
-        className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs hover:shadow-md transition-all border border-[#e2e8f0] hover:border-[#1b7058]/40 flex flex-col justify-between group h-full"
+        className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-3 shadow-2xs hover:shadow-md transition-all border border-[#e2e8f0] hover:border-[#1b7058]/40 flex flex-col justify-between group h-full"
       >
         <div>
           {/* Product Visual Imagery Well */}
-          <div className="relative w-full h-20 sm:h-36 rounded-lg sm:rounded-xl bg-[#f8fafc] border border-[#edf2f7] flex items-center justify-center mb-2 sm:mb-3 overflow-hidden p-1.5 sm:p-3 group-hover:bg-white group-hover:border-[#1b7058]/30 transition-all shadow-2xs">
+          <div className="relative w-full h-20 sm:h-28 rounded-lg sm:rounded-xl bg-[#f8fafc] border border-[#edf2f7] flex items-center justify-center mb-2 sm:mb-2.5 overflow-hidden p-1.5 sm:p-2 group-hover:bg-white group-hover:border-[#1b7058]/30 transition-all shadow-2xs">
             {imgUrl ? (
               <img
                 src={imgUrl}
@@ -609,66 +650,66 @@ export default function MedicineSearch({
             ) : null}
             <div
               style={{ display: imgUrl ? 'none' : 'flex' }}
-              className="w-8 h-8 sm:w-14 sm:h-14 rounded-full bg-secondary-container/40 items-center justify-center text-secondary group-hover:scale-105 transition-transform"
+              className="w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-secondary-container/40 items-center justify-center text-secondary group-hover:scale-105 transition-transform"
             >
-              <span className="material-symbols-outlined text-lg sm:text-3xl">medication</span>
+              <span className="material-symbols-outlined text-lg sm:text-2xl">medication</span>
             </div>
             {isRx && (
-              <span className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-extrabold bg-[#0a3d34]/90 text-white backdrop-blur-xs shadow-2xs">
+              <span className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-extrabold bg-[#0a3d34]/90 text-white backdrop-blur-xs shadow-2xs">
                 Rx
               </span>
             )}
           </div>
 
           {/* Clean Visual Hierarchy: Name and Quantity */}
-          <div className="space-y-0.5 sm:space-y-1">
-            <h3 className="text-xs sm:text-base font-bold text-primary leading-tight line-clamp-1">
+          <div className="space-y-0.5">
+            <h3 className="text-xs sm:text-sm font-bold text-primary leading-tight line-clamp-1">
               {med.brandName}
             </h3>
-            <p className="text-[10px] sm:text-xs text-on-surface-variant font-medium">
+            <p className="text-[10px] sm:text-[11px] text-on-surface-variant font-medium">
               {packQuantity}
             </p>
           </div>
         </div>
 
         {/* Footer: Verified Price & Add / Stepper Button */}
-        <div className="mt-2.5 pt-2 sm:mt-4 sm:pt-3 border-t border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="mt-2 pt-2 sm:mt-2.5 sm:pt-2 border-t border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div className="flex flex-col">
-            <span className="text-[9px] sm:text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
+            <span className="text-[8px] sm:text-[9px] text-on-surface-variant uppercase tracking-wider font-semibold">
               {allowIndividual ? 'Strip MRP' : 'Price'}
             </span>
-            <span className="text-sm sm:text-base font-bold text-primary">
+            <span className="text-xs sm:text-sm font-bold text-primary">
               ₹{packPrice.toFixed(2)}
             </span>
             {allowIndividual && (
-              <span className="text-[9px] sm:text-[10px] text-secondary font-medium">
+              <span className="text-[8px] sm:text-[9px] text-secondary font-medium">
                 ₹{unitPrice.toFixed(2)} / tab
               </span>
             )}
           </div>
 
           {reqItem ? (
-            <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-1.5 bg-surface-container px-2 py-1 rounded-full w-full sm:w-auto">
+            <div className="flex items-center justify-between sm:justify-start gap-1 bg-surface-container px-1.5 py-0.5 rounded-full w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity - 1)}
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container-high flex items-center justify-center transition-colors cursor-pointer"
+                className="w-5 h-5 rounded-full bg-surface-container-lowest text-primary hover:bg-surface-container-high flex items-center justify-center transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined text-xs">remove</span>
               </button>
-              <span className="text-[10px] sm:text-xs font-bold text-primary px-1">
+              <span className="text-[10px] font-bold text-primary px-1">
                 {reqItem.quantity} {reqItem.saleUnit === 'TABLET' ? 'tab' : 'strip'}
               </span>
               <button
                 type="button"
                 onClick={() => onUpdateRequestQuantity && onUpdateRequestQuantity(med.id, reqItem.quantity + 1)}
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary text-white hover:bg-primary-container flex items-center justify-center transition-colors cursor-pointer"
+                className="w-5 h-5 rounded-full bg-primary text-white hover:bg-primary-container flex items-center justify-center transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined text-xs">add</span>
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="flex items-center gap-1 w-full sm:w-auto">
               {allowIndividual && (
                 <button
                   type="button"
@@ -687,7 +728,7 @@ export default function MedicineSearch({
                       triggerToast(`Added 1 tablet of ${med.brandName} (₹${unitPrice.toFixed(2)})`, 'success');
                     }
                   }}
-                  className="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-full bg-surface-container border border-primary/20 text-primary text-[10px] sm:text-[11px] font-bold hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 flex-1 sm:flex-none text-center"
+                  className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full bg-surface-container border border-primary/20 text-primary text-[9px] sm:text-[10px] font-bold hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 flex-1 sm:flex-none text-center"
                 >
                   +1 Tab
                 </button>
@@ -709,9 +750,9 @@ export default function MedicineSearch({
                     triggerToast(`Added ${med.brandName} (${allowIndividual ? 'Strip of ' + unitsPerPack : '1 Pack'}) to request.`, 'success');
                   }
                 }}
-                className="inline-flex items-center justify-center gap-1 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-primary hover:bg-primary-container text-white text-[10px] sm:text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95 flex-1 sm:flex-none text-center"
+                className="inline-flex items-center justify-center gap-0.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-primary hover:bg-primary-container text-white text-[9px] sm:text-[10px] font-bold shadow-xs transition-all cursor-pointer active:scale-95 flex-1 sm:flex-none text-center"
               >
-                <span className="material-symbols-outlined text-xs sm:text-sm">add</span>
+                <span className="material-symbols-outlined text-xs">add</span>
                 <span>{allowIndividual ? 'Strip' : 'Add'}</span>
               </button>
             </div>
@@ -1257,13 +1298,13 @@ export default function MedicineSearch({
             </div>
           </section>
 
-          {/* Section 2: Frequently Requested / Full Verified Catalogue */}
-          <section id="catalog-grid-anchor" className="space-y-3">
+          {/* Section 2: Frequently Requested / Categorized Catalogue */}
+          <section id="catalog-grid-anchor" className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-primary tracking-tight">Frequently requested</h2>
                 <p className="text-xs text-on-surface-variant flex items-center gap-1">
-                  Showing <RollingNumber value={displayedMedicines.length} /> verified therapeutic items available for reservation
+                  Showing <RollingNumber value={displayedMedicines.length} /> verified therapeutic items across categories
                 </p>
               </div>
 
@@ -1283,6 +1324,46 @@ export default function MedicineSearch({
               </div>
             </div>
 
+            {/* Category Navigation Pills */}
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar flex-nowrap">
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryTab('ALL')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  selectedCategoryTab === 'ALL'
+                    ? 'bg-[#0a3d34] text-white shadow-xs'
+                    : 'bg-surface-container-low hover:bg-surface-container text-on-surface-variant'
+                }`}
+              >
+                All Categories
+              </button>
+              {THERAPEUTIC_GROUPS.map((grp) => {
+                const count = displayedMedicines.filter(grp.match).length;
+                return (
+                  <button
+                    key={grp.id}
+                    type="button"
+                    onClick={() => setSelectedCategoryTab(grp.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer inline-flex items-center gap-1.5 ${
+                      selectedCategoryTab === grp.id
+                        ? 'bg-[#0a3d34] text-white shadow-xs'
+                        : 'bg-surface-container-low hover:bg-surface-container text-on-surface-variant'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[15px]">{grp.icon}</span>
+                    <span>{grp.label}</span>
+                    {count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                        selectedCategoryTab === grp.id ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
             {loading ? (
               <LoadingSkeleton type="cards" count={8} />
             ) : displayedMedicines.length === 0 ? (
@@ -1297,9 +1378,86 @@ export default function MedicineSearch({
                 actionText="Reset All Filters"
                 onAction={handleResetAllFilters}
               />
+            ) : selectedCategoryTab === 'ALL' && !searchQuery.trim() ? (
+              /* Categorized Sections with Variety — prevents flat 50 dump */
+              <div className="space-y-6">
+                {THERAPEUTIC_GROUPS.map((grp) => {
+                  const grpMeds = displayedMedicines.filter(grp.match);
+                  if (grpMeds.length === 0) return null;
+                  const varietyShowcase = grpMeds.slice(0, 5);
+                  return (
+                    <div
+                      key={grp.id}
+                      className="space-y-3 p-3.5 sm:p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-[#0a3d34]/10 text-[#0a3d34] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-lg">{grp.icon}</span>
+                          </div>
+                          <div>
+                            <h3 className="text-xs sm:text-sm font-bold text-primary flex items-center gap-2">
+                              <span>{grp.label}</span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary">
+                                {grp.badge}
+                              </span>
+                            </h3>
+                            <p className="text-[11px] text-on-surface-variant font-medium">
+                              {grpMeds.length} verified formulations in this category
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategoryTab(grp.id)}
+                          className="text-xs font-bold text-secondary hover:text-primary transition-colors cursor-pointer inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container"
+                        >
+                          <span>View All ({grpMeds.length})</span>
+                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        </button>
+                      </div>
+
+                      {/* Compact grid with ref image card size */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-2.5 sm:gap-3.5">
+                        {varietyShowcase.map((med, idx) => renderMedicineCard(med, idx))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 sm:gap-5">
-                {displayedMedicines.map((med, idx) => renderMedicineCard(med, idx))}
+              /* Specific Category or Search Filter Results */
+              <div className="space-y-3">
+                {selectedCategoryTab !== 'ALL' && (
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm text-secondary">
+                        {THERAPEUTIC_GROUPS.find(g => g.id === selectedCategoryTab)?.icon || 'category'}
+                      </span>
+                      <span>
+                        Showing all {
+                          (THERAPEUTIC_GROUPS.find(g => g.id === selectedCategoryTab)
+                            ? displayedMedicines.filter(THERAPEUTIC_GROUPS.find(g => g.id === selectedCategoryTab).match)
+                            : displayedMedicines
+                          ).length
+                        } items in {THERAPEUTIC_GROUPS.find(g => g.id === selectedCategoryTab)?.label}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategoryTab('ALL')}
+                      className="text-xs text-secondary hover:text-primary font-bold cursor-pointer"
+                    >
+                      Show All Categories
+                    </button>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-2.5 sm:gap-3.5">
+                  {(selectedCategoryTab !== 'ALL'
+                    ? displayedMedicines.filter(THERAPEUTIC_GROUPS.find(g => g.id === selectedCategoryTab)?.match || (() => true))
+                    : displayedMedicines
+                  ).map((med, idx) => renderMedicineCard(med, idx))}
+                </div>
               </div>
             )}
           </section>
@@ -1520,18 +1678,28 @@ export default function MedicineSearch({
       />
 
       {/* Dedicated Reservation Cart Card / Slide-Over Modal */}
-      {cartDrawerOpen && typeof document !== 'undefined' && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[9999] flex justify-end">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
-            onClick={() => setCartDrawerOpen(false)}
-          />
+      {typeof document !== 'undefined' && ReactDOM.createPortal(
+        <AnimatePresence>
+          {cartDrawerOpen && (
+            <div className="fixed inset-0 z-[9999] flex justify-end overflow-hidden">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.28, ease: 'easeInOut' }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+                onClick={() => setCartDrawerOpen(false)}
+              />
 
-          {/* Cart Card Panel */}
-          <aside
-            className="relative z-10 w-full max-w-md bg-surface-container-lowest h-full shadow-2xl flex flex-col justify-between border-l border-outline-variant/30 animate-in slide-in-from-right duration-200"
-          >
+              {/* Cart Card Panel */}
+              <motion.aside
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 28, stiffness: 260, mass: 0.85 }}
+                className="relative z-10 w-full max-w-md bg-surface-container-lowest h-full shadow-2xl flex flex-col justify-between border-l border-outline-variant/30"
+              >
             {/* Cart Header */}
             <div className="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low/50">
               <div className="flex items-center gap-2.5">
@@ -1768,10 +1936,12 @@ export default function MedicineSearch({
                 </div>
               </div>
             )}
-          </aside>
-        </div>,
-        document.body
+          </motion.aside>
+        </div>
       )}
+    </AnimatePresence>,
+    document.body
+  )}
     </div>
   );
 }
