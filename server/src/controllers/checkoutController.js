@@ -1000,6 +1000,7 @@ async function createPayment(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function verifyPayment(req, res) {
   try {
+    const { orderId } = req.params;
     const isTestMode = (process.env.RAZORPAY_KEY_ID || '').startsWith('rzp_test_');
     let razorpay_order_id = req.body.razorpay_order_id || req.body.gatewayOrderId;
     let razorpay_payment_id = req.body.razorpay_payment_id || req.body.gatewayPaymentId;

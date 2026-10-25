@@ -1758,6 +1758,15 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
                   {isSubmitting ? 'Retrying...' : 'Retry Payment'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handlePayNow(true)}
+                  disabled={isSubmitting}
+                  style={{ padding: '0.7rem 1.5rem', borderRadius: 99, background: '#10b981', color: '#ffffff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>bolt</span>
+                  <span>Complete Test Payment Instantly</span>
+                </button>
                 <button onClick={onClose} style={{ padding: '0.7rem 1.5rem', borderRadius: 99, background: '#e0f2eb', border: '1px solid #c0c8c5', color: '#414846', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                   Close
                 </button>
