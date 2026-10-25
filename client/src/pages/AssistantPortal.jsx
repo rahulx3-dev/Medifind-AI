@@ -1310,18 +1310,18 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
           Authorization: `Bearer ${token}`
         }
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         showToast('Task accepted! On the way to pharmacy to collect medication package.', 'success');
         await fetchTasks(true);
         setTab('active');
         broadcastUpdate('ASSISTANT_TASK_ACCEPTED', { taskId });
       } else {
-        showToast(data.error || 'Failed to accept task.', 'error');
+        showToast(data.error || `Failed to accept task (Server ${res.status})`, 'error');
       }
     } catch (err) {
       console.error('Error accepting task:', err);
-      showToast('Error communicating with server.', 'error');
+      showToast('Network error communicating with server. Please retry.', 'error');
     } finally {
       setAcceptingTaskId(null);
       setActionLoading(false);
@@ -1349,8 +1349,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
         },
         body: JSON.stringify({ status: nextStatus, handoverPin })
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         let msg = `Task progressed to ${nextStatus.replace(/_/g, ' ')}.`;
         if (nextStatus === 'COLLECTING') {
           msg = 'Arrived at pharmacy! Please inspect and collect the prescription package.';
@@ -1365,11 +1365,11 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
         await fetchTasks(true);
         broadcastUpdate('ASSISTANT_TASK_PROGRESSED', { taskId, status: nextStatus });
       } else {
-        showToast(data.error || 'Failed to progress task.', 'error');
+        showToast(data.error || `Failed to progress task (Server ${res.status})`, 'error');
       }
     } catch (err) {
       console.error('Error progressing task:', err);
-      showToast('Error communicating with server.', 'error');
+      showToast('Network error communicating with server. Please retry.', 'error');
     } finally {
       setProgressingTaskId(null);
       setActionLoading(false);
