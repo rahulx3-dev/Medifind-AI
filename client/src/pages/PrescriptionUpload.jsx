@@ -1603,12 +1603,23 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       }
 
       // Mark detected items, keeping uncatalogued items excluded from reservation
-      const finalizedItems = (verifiedList || detectedItems).map(i => {
-        const inCat = isItemInCatalogue(i);
+      const finalizedItems = (detectedItems || []).map(existingItem => {
+        const dbMatch = (verifiedList || []).find(v => v.id === existingItem.id);
+        const inCat = isItemInCatalogue(existingItem);
+        const isPharmacist = Boolean(
+          existingItem.pharmacistSelectionRequested ||
+          dbMatch?.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED' ||
+          dbMatch?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED'
+        );
         return {
-          ...i,
-          isConfirmed: inCat && !i.pharmacistSelectionRequested,
-          pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested),
+          ...existingItem,
+          ...(dbMatch || {}),
+          pharmacistSelectionRequested: isPharmacist,
+          matchedMedicineName: existingItem.matchedMedicineName || dbMatch?.matchedMedicineName || existingItem.medicineName || existingItem.rawName,
+          medicineName: existingItem.medicineName || existingItem.rawName,
+          strength: existingItem.strength || existingItem.dosage || dbMatch?.dosage,
+          dosageForm: existingItem.dosageForm || existingItem.dosageForm,
+          isConfirmed: inCat && !isPharmacist,
           isUnavailable: !inCat
         };
       });
@@ -3786,7 +3797,9 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                         Back to Upload
                       </button>
 
-                      <button
+                      <motion.button
+                        whileHover={!(!canConfirm || isVerifying) ? { scale: 1.02 } : {}}
+                        whileTap={!(!canConfirm || isVerifying) ? { scale: 0.98 } : {}}
                         type="button"
                         onClick={() => {
                           setConfirmDialog({
@@ -3803,12 +3816,12 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                           });
                         }}
                         disabled={!canConfirm || isVerifying}
-                        className="px-7 py-3 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-7 py-3 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       >
                         {isVerifying && <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>}
                         <span>{isVerifying ? 'Verifying Medications...' : 'Confirm & Proceed to Verification Summary'}</span>
                         {!isVerifying && <span className="material-symbols-outlined text-base">arrow_forward</span>}
-                      </button>
+                      </motion.button>
                     </div>
                   </div>
                 );
@@ -4057,226 +4070,385 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
             {/* Right Column (7 cols): Verified Medications List + What happens next + CTA */}
             <div className="lg:col-span-7 flex flex-col gap-5">
-              {/* Verified Medications Summary Card */}
-              <div className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm flex flex-col gap-4">
-                <div className="flex items-center justify-between pb-3 border-b border-surface-container">
-                  <div>
-                    <h2 className="text-lg font-bold text-primary">Verified Medications for Availability Query</h2>
-                    <span className="text-xs text-secondary font-medium block mt-0.5">
-                      {detectedItems.length} Item{detectedItems.length === 1 ? '' : 's'} Ready for Geo-Inventory Matching
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary text-xs font-semibold flex items-center gap-1 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-xs">edit</span>
-                    <span>Edit Selection</span>
-                  </button>
-                </div>
+              {(() => {
+                const getSummaryItemDetails = (item) => {
+                  const cand = findMatchingCandidates(item, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+                  const catMed = Array.isArray(medicinesCatalog) && item.matchedMedicineId
+                    ? medicinesCatalog.find(m => m.id === item.matchedMedicineId)
+                    : null;
 
-                {/* Items List */}
-                <div className="flex flex-col gap-3">
-                  {detectedItems.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="bg-surface-container-low rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border border-outline-variant/20"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-primary shrink-0 border border-outline-variant/20 shadow-xs">
-                          <span className="material-symbols-outlined text-2xl">medication</span>
+                  const isPharmacist = Boolean(
+                    item.pharmacistSelectionRequested ||
+                    item.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED' ||
+                    item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED'
+                  );
+
+                  // 1. Resolve Title
+                  let title = '';
+                  if (item.selectedBrand?.brandName) {
+                    title = item.selectedBrand.brandName;
+                  } else if (item.matchedMedicineName) {
+                    title = item.matchedMedicineName;
+                  } else if (catMed?.brandName) {
+                    title = catMed.brandName;
+                  } else if (cand?.matchedGeneric?.name) {
+                    title = cand.matchedGeneric.name;
+                  } else if (item.medicineName) {
+                    title = item.medicineName;
+                  } else if (item.rawName) {
+                    title = item.rawName;
+                  } else if (item.genericName) {
+                    title = item.genericName;
+                  } else {
+                    title = 'Prescription Medicine';
+                  }
+
+                  // 2. Resolve Strength
+                  let strength = item.strength || catMed?.strength || '';
+                  if (!strength) {
+                    const rawCombined = `${item.dosage || ''} ${item.rawName || ''} ${item.medicineName || ''}`;
+                    const strengthMatch = rawCombined.match(/\b\d+(?:\.\d+)?\s*(?:mg|g|mcg|ml|iu|%)\b/i);
+                    if (strengthMatch) {
+                      strength = strengthMatch[0];
+                    }
+                  }
+
+                  // 3. Resolve Dosage Form
+                  let dosageForm = item.dosageForm || catMed?.dosageForm || '';
+                  if (!dosageForm || dosageForm === 'Oral formulation') {
+                    const rawCombined = `${item.rawName || ''} ${item.medicineName || ''} ${title}`.toLowerCase();
+                    if (/\b(tab|tablet|tablets)\b/i.test(rawCombined)) dosageForm = 'Tablet';
+                    else if (/\b(cap|capsule|capsules)\b/i.test(rawCombined)) dosageForm = 'Capsule';
+                    else if (/\b(syp|syrup|susp|suspension)\b/i.test(rawCombined)) dosageForm = 'Syrup';
+                    else if (/\b(inj|injection)\b/i.test(rawCombined)) dosageForm = 'Injection';
+                    else if (/\b(sachet|powder|packet)\b/i.test(rawCombined)) dosageForm = 'Powder / Sachet';
+                    else if (/\b(drop|drops)\b/i.test(rawCombined)) dosageForm = 'Drops';
+                    else if (/\b(gel|cream|ointment)\b/i.test(rawCombined)) dosageForm = 'Topical';
+                    else dosageForm = 'Oral formulation';
+                  }
+
+                  return { title, strength, dosageForm, isPharmacist, catMed, cand };
+                };
+
+                const readyItems = (detectedItems || []).filter(i => {
+                  const cand = findMatchingCandidates(i, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+                  return Boolean(
+                    i.matchedMedicineId ||
+                    cand.hasGenericInCatalogue ||
+                    cand.brandCandidates.length > 0 ||
+                    i.pharmacistSelectionRequested ||
+                    i.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED'
+                  ) && !i.isUnavailable;
+                });
+
+                const excludedSummaryItems = (detectedItems || []).filter(i => !readyItems.some(r => r.id === i.id));
+
+                return (
+                  <>
+                    {/* Verified Medications Summary Card */}
+                    <div className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm flex flex-col gap-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-surface-container">
+                        <div>
+                          <h2 className="text-lg font-bold text-primary">Verified Medications for Availability Query</h2>
+                          <span className="text-xs text-secondary font-medium block mt-0.5">
+                            {readyItems.length} Item{readyItems.length === 1 ? '' : 's'} Ready for Geo-Inventory Matching
+                          </span>
                         </div>
-                        <div className="flex flex-col">
-                          {item.pharmacistSelectionRequested ? (
-                            <>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-base font-bold text-amber-900">
-                                  {item.medicineName || item.rawName}
-                                </h3>
-                                {item.strength && (
-                                  <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 text-[10px] font-semibold">
-                                    {item.strength}
+                        <button
+                          type="button"
+                          onClick={() => setStep(3)}
+                          className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-xs">edit</span>
+                          <span>Edit Selection</span>
+                        </button>
+                      </div>
+
+                      {/* Items List */}
+                      <div className="flex flex-col gap-3">
+                        {readyItems.map((item, idx) => {
+                          const details = getSummaryItemDetails(item);
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className="bg-surface-container-low rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border border-outline-variant/20 hover:border-primary/20 transition-all shadow-xs"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${
+                                  details.isPharmacist ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-white text-primary border-outline-variant/20'
+                                }`}>
+                                  <span className="material-symbols-outlined text-2xl">
+                                    {details.isPharmacist ? 'support_agent' : 'medication'}
                                   </span>
-                                )}
-                                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 text-[10px] font-bold flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[11px]">support_agent</span>
-                                  Pharmacist Selection Pending
-                                </span>
+                                </div>
+                                <div className="flex flex-col">
+                                  {details.isPharmacist ? (
+                                    <>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-base font-bold text-amber-950">
+                                          {details.title}
+                                        </h3>
+                                        {details.strength && (
+                                          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 text-[10px] font-semibold">
+                                            {details.strength}
+                                          </span>
+                                        )}
+                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 text-[10px] font-bold flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[11px]">support_agent</span>
+                                          Pharmacist Selection Pending
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-amber-800 mt-0.5">
+                                        {details.dosageForm} · Quantity: <strong>{item.quantity || 1} units</strong> · Attending pharmacist will confirm optimal bioequivalent trade brand
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-base font-bold text-primary">
+                                          {details.title}
+                                        </h3>
+                                        {details.strength && (
+                                          <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-semibold">
+                                            {details.strength}
+                                          </span>
+                                        )}
+                                        <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold">
+                                          Prescription Required (Rx Linked)
+                                        </span>
+                                        {details.cand?.hasGenericInCatalogue && !item.selectedBrand && (
+                                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                                            Generic Prescribed
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-on-surface-variant mt-0.5">
+                                        {details.dosageForm} · Quantity: <strong>{item.quantity || 1} units</strong>
+                                      </p>
+                                    </>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1 text-[11px] text-secondary font-medium">
+                                    <span className="material-symbols-outlined text-xs">schedule</span>
+                                    <span>Regimen: {item.dosage || details.strength || 'As prescribed by physician'}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <p className="text-xs text-amber-800 mt-0.5">
-                                {item.dosageForm || 'Prescription formulation'} · Quantity: <strong>{item.quantity || 1} units</strong> · Attending pharmacist will select verified trade brand
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-base font-bold text-primary">
-                                  {item.matchedMedicineName || item.medicineName}
-                                </h3>
-                                {item.strength && (
-                                  <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-semibold">
-                                    {item.strength}
-                                  </span>
-                                )}
-                                <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold">
-                                  Prescription Required (Rx Linked)
-                                </span>
-                              </div>
-                              <p className="text-xs text-on-surface-variant mt-0.5">
-                                {item.dosageForm || 'Oral formulation'} · Quantity: <strong>{item.quantity || 1} units</strong>
-                              </p>
-                            </>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-secondary font-medium">
-                            <span className="material-symbols-outlined text-xs">schedule</span>
-                            <span>Regimen: {item.dosage || 'As prescribed by physician'}</span>
+
+                              <button
+                                type="button"
+                                onClick={() => setStep(3)}
+                                className="self-end md:self-center px-3 py-1.5 rounded-full text-secondary hover:bg-white hover:text-primary text-xs font-bold flex items-center gap-1 transition-all border border-transparent hover:border-outline-variant/30 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-sm">edit_note</span>
+                                <span>Edit</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                        {/* Excluded Uncatalogued Items Notice */}
+                        {excludedSummaryItems.length > 0 && (
+                          <div className="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant flex items-center justify-between gap-3 mt-1">
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-base text-outline shrink-0">do_not_disturb_on</span>
+                              <span>
+                                <strong>{excludedSummaryItems.length} uncatalogued item{excludedSummaryItems.length > 1 ? 's' : ''}</strong> ({excludedSummaryItems.map(i => i.matchedMedicineName || i.medicineName || i.rawName).join(', ')}) skipped from reservation hold.
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setStep(3)}
+                              className="text-primary hover:underline font-bold text-xs shrink-0 cursor-pointer"
+                            >
+                              Review
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* What Happens Next & Primary Call To Action */}
+                    <div className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-md flex flex-col gap-5">
+                      <div className="flex items-center justify-between pb-3 border-b border-surface-container">
+                        <h2 className="text-base font-bold text-primary">What happens next?</h2>
+                        <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-secondary">
+                          <span className="material-symbols-outlined text-base">alt_route</span>
+                        </div>
+                      </div>
+
+                      {/* Workflow Steps Detailed Timeline */}
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
+                          <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            1
+                          </div>
+                          <div className="flex flex-col text-xs">
+                            <span className="font-bold text-primary flex items-center gap-1">
+                              Real-time Geo-Lookup <span className="material-symbols-outlined text-xs text-secondary">radar</span>
+                            </span>
+                            <p className="text-on-surface-variant mt-0.5 leading-relaxed">
+                              Query participating pharmacies across the Chengannur region for shelf stock.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
+                          <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            2
+                          </div>
+                          <div className="flex flex-col text-xs">
+                            <span className="font-bold text-primary">Live Stock Reservation Hold</span>
+                            <p className="text-on-surface-variant mt-0.5 leading-relaxed">
+                              Select a dispensary to reserve your medicines in a 24-hour physical hold locker.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
+                          <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            3
+                          </div>
+                          <div className="flex flex-col text-xs">
+                            <span className="font-bold text-primary">Pharmacist Inspection &amp; Collection</span>
+                            <p className="text-on-surface-variant mt-0.5 leading-relaxed">
+                              Dispensing pharmacist verifies batch lot numbers. Pick up in-store or request delivery.
+                            </p>
                           </div>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setStep(3)}
-                        className="self-end md:self-center px-3 py-1.5 rounded-full text-secondary hover:bg-white text-xs font-bold flex items-center gap-1 transition-all"
-                      >
-                        <span className="material-symbols-outlined text-sm">edit_note</span>
-                        <span>Edit</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                      {/* Active Dispatch CTA Block (Continues into Pharmacy Discovery!) */}
+                      <div className="flex flex-col gap-3 pt-2">
+                        <div className="w-full">
+                          <ScanGridButton
+                            label="FIND AVAILABLE PHARMACIES"
+                            showText={false}
+                            onClick={() => {
+                              const verifiedToPass = readyItems.map((i, idx) => {
+                                const details = getSummaryItemDetails(i);
+                                let medId = i.matchedMedicineId;
+                                if (!medId && i.allMatches && i.allMatches.length > 0) {
+                                  medId = i.allMatches[0].medicineId;
+                                }
+                                if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
+                                  const nameLower = (details.title || i.medicineName || i.rawName || '').toLowerCase();
+                                  const match = medicinesCatalog.find(m =>
+                                    m.brandName.toLowerCase() === nameLower ||
+                                    (m.genericName && nameLower.includes(m.genericName.toLowerCase()))
+                                  );
+                                  if (match) medId = match.id;
+                                }
+                                return {
+                                  medicineId: medId || i.id,
+                                  brandName: details.title,
+                                  genericName: i.rawName || i.genericName || details.cand?.matchedGeneric?.name || '',
+                                  dosageForm: details.dosageForm || 'Tablet',
+                                  strength: details.strength || i.dosage || '',
+                                  quantity: parseInt(i.quantity, 10) || 1,
+                                  pharmacistSelectionRequested: Boolean(details.isPharmacist)
+                                };
+                              });
+                              if (onAddVerifiedToRequest && verifiedToPass.length > 0) {
+                                onAddVerifiedToRequest(verifiedToPass);
+                              }
+                              if (onProceedToPharmacies) {
+                                onProceedToPharmacies(verifiedToPass, prescription?.id);
+                              } else {
+                                setAvailModalOpen(true);
+                              }
+                            }}
+                            padding="15px 28px"
+                            rounded={999}
+                            colors={{
+                              fill: "#006A60",
+                              hoverFill: "#00534B",
+                              textColor: "#FFFFFF",
+                              hoverTextColor: "#FFFFFF",
+                            }}
+                            scan={{
+                              color: "#2DD4BF",
+                              speed: 60,
+                            }}
+                            border={{
+                              borderWidth: 1,
+                              borderStyle: "solid",
+                              borderColor: "rgba(45, 212, 191, 0.4)",
+                            }}
+                            glitchIntensity={2}
+                            addIcon={false}
+                            style={{
+                              width: "100%",
+                              justifyContent: "center",
+                              boxShadow: "0 6px 20px -4px rgba(0, 106, 96, 0.35)",
+                              cursor: "pointer"
+                            }}
+                          >
+                            <div className="flex items-center justify-center gap-2 font-bold text-sm text-white tracking-wide">
+                              <span>Find Available Pharmacies</span>
+                              <span className="material-symbols-outlined text-base">arrow_forward</span>
+                            </div>
+                          </ScanGridButton>
+                        </div>
 
-              {/* What Happens Next & Primary Call To Action */}
-              <div className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-md flex flex-col gap-5">
-                <div className="flex items-center justify-between pb-3 border-b border-surface-container">
-                  <h2 className="text-base font-bold text-primary">What happens next?</h2>
-                  <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-secondary">
-                    <span className="material-symbols-outlined text-base">alt_route</span>
-                  </div>
-                </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex-1">
+                            <ScanGridButton
+                              label="EDIT MEDICINES"
+                              showText={false}
+                              onClick={() => setStep(3)}
+                              padding="11px 20px"
+                              rounded={999}
+                              colors={{
+                                fill: "#E8EFEA",
+                                hoverFill: "#D9E5DF",
+                                textColor: "#006A60",
+                                hoverTextColor: "#00534B",
+                              }}
+                              scan={{
+                                color: "#006A60",
+                                speed: 45,
+                              }}
+                              border={{
+                                borderWidth: 1,
+                                borderStyle: "solid",
+                                borderColor: "rgba(0, 106, 96, 0.25)",
+                              }}
+                              glitchIntensity={1}
+                              addIcon={false}
+                              style={{
+                                width: "100%",
+                                justifyContent: "center",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <div className="flex items-center justify-center gap-1.5 font-bold text-xs text-primary">
+                                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                                <span>Edit Medicines</span>
+                              </div>
+                            </ScanGridButton>
+                          </div>
 
-                {/* Workflow Steps Detailed Timeline */}
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
-                    <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                      1
-                    </div>
-                    <div className="flex flex-col text-xs">
-                      <span className="font-bold text-primary flex items-center gap-1">
-                        Real-time Geo-Lookup <span className="material-symbols-outlined text-xs text-secondary">radar</span>
-                      </span>
-                      <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                        Query participating pharmacies across the Chengannur region for shelf stock.
-                      </p>
-                    </div>
-                  </div>
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            type="button"
+                            onClick={reset}
+                            className="flex-1 py-2.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-outline-variant/30 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">restart_alt</span>
+                            <span>Upload New Rx</span>
+                          </motion.button>
+                        </div>
 
-                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
-                    <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                      2
+                        <div className="flex items-center justify-center gap-1.5 text-on-surface-variant text-[11px]">
+                          <span className="material-symbols-outlined text-xs text-secondary">lock</span>
+                          <span>Encrypted · Zero obligation to purchase</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col text-xs">
-                      <span className="font-bold text-primary">Live Stock Reservation Hold</span>
-                      <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                        Select a dispensary to reserve your medicines in a 24-hour physical hold locker.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
-                    <div className="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                      3
-                    </div>
-                    <div className="flex flex-col text-xs">
-                      <span className="font-bold text-primary">Pharmacist Inspection &amp; Collection</span>
-                      <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                        Dispensing pharmacist verifies batch lot numbers. Pick up in-store or request delivery.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active Dispatch CTA Block (Continues into Pharmacy Discovery!) */}
-                <div className="flex flex-col gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const verifiedToPass = (detectedItems || [])
-                        .filter(i => {
-                          const cand = findMatchingCandidates(i, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
-                          return Boolean(
-                            i.matchedMedicineId ||
-                            cand.hasGenericInCatalogue ||
-                            cand.brandCandidates.length > 0 ||
-                            i.pharmacistSelectionRequested
-                          );
-                        })
-                        .map((i, idx) => {
-                          let medId = i.matchedMedicineId;
-                          if (!medId && i.allMatches && i.allMatches.length > 0) {
-                            medId = i.allMatches[0].medicineId;
-                          }
-                          if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
-                            const nameLower = (i.medicineName || i.rawName || '').toLowerCase();
-                            const match = medicinesCatalog.find(m =>
-                              m.brandName.toLowerCase() === nameLower ||
-                              (m.genericName && nameLower.includes(m.genericName.toLowerCase()))
-                            );
-                            if (match) medId = match.id;
-                          }
-                          return {
-                            medicineId: medId || i.id,
-                            brandName: i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine',
-                            genericName: i.rawName || i.genericName || '',
-                            dosageForm: i.dosageForm || 'Tablet',
-                            strength: i.strength || i.dosage || '',
-                            quantity: parseInt(i.quantity, 10) || 1,
-                            pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
-                          };
-                        });
-                      if (onAddVerifiedToRequest && verifiedToPass.length > 0) {
-                        onAddVerifiedToRequest(verifiedToPass);
-                      }
-                      // Session is strictly preserved until reservation hold succeeds
-                      if (onProceedToPharmacies) {
-                        onProceedToPharmacies(verifiedToPass, prescription?.id);
-                      } else {
-                        setAvailModalOpen(true);
-                      }
-                    }}
-                    className="w-full py-3.5 sm:py-4 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Find Available Pharmacies</span>
-                    <span className="material-symbols-outlined text-base">arrow_forward</span>
-                  </button>
-
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setStep(3)}
-                      className="flex-1 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">arrow_back</span>
-                      <span>Edit Medicines</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={reset}
-                      className="flex-1 py-2.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-outline-variant/30 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">restart_alt</span>
-                      <span>Upload New Rx</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-1.5 text-on-surface-variant text-[11px]">
-                    <span className="material-symbols-outlined text-xs text-secondary">lock</span>
-                    <span>Encrypted · Zero obligation to purchase</span>
-                  </div>
-                </div>
-              </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
