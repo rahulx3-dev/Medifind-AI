@@ -1546,29 +1546,40 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
     setIsVerifying(true);
     const token = localStorage.getItem('medifind_token');
     try {
-      const itemsToVerify = (detectedItems || []).map(item => ({
-        id: item.id,
-        matchedMedicineId: item.matchedMedicineId || null,
-        matchedMedicineName: item.matchedMedicineName || item.rawName || null,
-        rawName: item.rawName,
-        quantity: parseInt(item.quantity, 10) || 1,
-        dosage: item.dosage,
-        frequency: item.frequency,
-        duration: item.duration,
-        isConfirmed: !item.pharmacistSelectionRequested,
-        pharmacistSelectionRequested: Boolean(item.pharmacistSelectionRequested)
-      }));
+      // Helper to check if an item has a matching product, brand or pharmacist review in 50 catalogue
+      const isItemInCatalogue = (item) => {
+        const cand = findMatchingCandidates(item, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+        return Boolean(
+          item.matchedMedicineId ||
+          cand.hasGenericInCatalogue ||
+          cand.brandCandidates.length > 0 ||
+          item.pharmacistSelectionRequested
+        );
+      };
 
-      if (itemsToVerify.length === 0) {
-        showToast('Please add or map at least one medicine before verifying.', 'error');
-        setIsVerifying(false);
-        return;
+      const itemsToVerify = (detectedItems || [])
+        .filter(isItemInCatalogue)
+        .map(item => ({
+          id: item.id,
+          matchedMedicineId: item.matchedMedicineId || null,
+          matchedMedicineName: item.matchedMedicineName || item.rawName || null,
+          rawName: item.rawName,
+          quantity: parseInt(item.quantity, 10) || 1,
+          dosage: item.dosage,
+          frequency: item.frequency,
+          duration: item.duration,
+          isConfirmed: !item.pharmacistSelectionRequested,
+          pharmacistSelectionRequested: Boolean(item.pharmacistSelectionRequested)
+        }));
+
+      if (itemsToVerify.length === 0 && detectedItems.length > 0) {
+        showToast('All detected medicines are uncatalogued in our network. You can add medicines manually or remap them.', 'warning');
       }
 
       let verifiedPrescription = prescription;
       let verifiedList = detectedItems;
 
-      if (token && prescription && prescription.id && !String(prescription.id).startsWith('mock-')) {
+      if (token && prescription && prescription.id && !String(prescription.id).startsWith('mock-') && itemsToVerify.length > 0) {
         try {
           const res = await fetch(`${API}/prescriptions/${prescription.id}/verify`, {
             method: 'PUT',
@@ -1591,50 +1602,53 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
         }
       }
 
-      // Mark detected items, keeping pharmacistSelectionRequested intact
-      const finalizedItems = (verifiedList || detectedItems).map(i => ({
-        ...i,
-        isConfirmed: !i.pharmacistSelectionRequested,
-        pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
-      }));
+      // Mark detected items, keeping uncatalogued items excluded from reservation
+      const finalizedItems = (verifiedList || detectedItems).map(i => {
+        const inCat = isItemInCatalogue(i);
+        return {
+          ...i,
+          isConfirmed: inCat && !i.pharmacistSelectionRequested,
+          pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested),
+          isUnavailable: !inCat
+        };
+      });
       setPrescription(prev => ({ ...(prev || {}), ...verifiedPrescription, status: 'VERIFIED' }));
       setDetectedItems(finalizedItems);
 
-      // Feed confirmed items into App.jsx medicine request state without dropping any detected medicines
+      // Feed confirmed items into App.jsx medicine request state EXCLUDING unavailable items
       if (onAddVerifiedToRequest) {
-        const verifiedItems = finalizedItems.map((i, idx) => {
-          let medId = i.matchedMedicineId;
-          if (!medId && i.allMatches && i.allMatches.length > 0) {
-            medId = i.allMatches[0].medicineId;
-          }
-          if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
-            const nameLower = (i.medicineName || i.rawName || '').toLowerCase();
-            const match = medicinesCatalog.find(m =>
-              m.brandName.toLowerCase() === nameLower ||
-              (m.genericName && nameLower.includes(m.genericName.toLowerCase()))
-            );
-            if (match) medId = match.id;
-          }
-          if (!medId) {
-            medId = `custom-med-${(i.medicineName || i.rawName || `item-${idx}`).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-          }
-          return {
-            medicineId: medId,
-            brandName: i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine',
-            genericName: i.rawName || i.genericName || '',
-            dosageForm: i.dosageForm || 'Tablet',
-            strength: i.strength || i.dosage || '',
-            quantity: parseInt(i.quantity, 10) || 1,
-            pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
-          };
-        });
+        const verifiedItems = finalizedItems
+          .filter(isItemInCatalogue)
+          .map((i, idx) => {
+            let medId = i.matchedMedicineId;
+            if (!medId && i.allMatches && i.allMatches.length > 0) {
+              medId = i.allMatches[0].medicineId;
+            }
+            if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
+              const nameLower = (i.medicineName || i.rawName || '').toLowerCase();
+              const match = medicinesCatalog.find(m =>
+                m.brandName.toLowerCase() === nameLower ||
+                (m.genericName && nameLower.includes(m.genericName.toLowerCase()))
+              );
+              if (match) medId = match.id;
+            }
+            return {
+              medicineId: medId || i.id,
+              brandName: i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine',
+              genericName: i.rawName || i.genericName || '',
+              dosageForm: i.dosageForm || 'Tablet',
+              strength: i.strength || i.dosage || '',
+              quantity: parseInt(i.quantity, 10) || 1,
+              pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
+            };
+          });
         if (verifiedItems.length > 0) {
           onAddVerifiedToRequest(verifiedItems);
         }
       }
 
       // Advance to Step 4: Verification Summary with Attached Prescription & Safety Metrics
-      showToast('Prescription verified! Authentication record generated.', 'success');
+      showToast('Prescription verified! Available medicines queued for pharmacy matching.', 'success');
       setStep(4);
     } catch (err) {
       console.error('Error during verification:', err);
@@ -2838,30 +2852,57 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                     const genericCompoundName = item.prescribedGenericName || rxType.targetGeneric || (isGenericPrescription ? (rxType.matchedGeneric || item.genericName) : null);
                     const cleanPrescribedName = item.prescribedName || (isGenericPrescription && genericCompoundName ? `${genericCompoundName}${item.strength ? ` ${item.strength}` : ''}` : (item.medicineName || item.rawName || 'Detected item'));
 
+                    // Discover catalogue candidates (both generic and bioequivalent brands)
+                    const candidateDiscovery = findMatchingCandidates(item, medicinesCatalog, {
+                      pharmacyInventory: dispensaryInventory
+                    });
+                    const hasGenericInCatalogue = candidateDiscovery.hasGenericInCatalogue;
+                    const brandCandidates = candidateDiscovery.brandCandidates;
+                    const genericCandidate = candidateDiscovery.genericCandidate;
+                    const hasCatalogueOptions = Boolean(
+                      item.matchedMedicineId ||
+                      genericCandidate ||
+                      brandCandidates.length > 0 ||
+                      hasGenericInCatalogue ||
+                      item.pharmacistSelectionRequested
+                    );
+                    const isUnavailableInCatalogue = !hasCatalogueOptions;
+
                     return (
                       <div
                         key={item.id}
-                        className={`bg-surface-container-lowest rounded-3xl p-5 border shadow-sm transition-all flex flex-col gap-4 ${
-                          isMapped
-                            ? 'border-secondary/30'
-                            : 'border-[#ffdad4] bg-[#fff8f6]/50'
+                        className={`rounded-3xl p-5 border shadow-sm transition-all flex flex-col gap-4 ${
+                          isUnavailableInCatalogue
+                            ? 'bg-surface-container-low/40 border-dashed border-outline-variant/60 opacity-60 hover:opacity-90'
+                            : isMapped
+                              ? 'bg-surface-container-lowest border-secondary/30'
+                              : 'border-[#ffdad4] bg-[#fff8f6]/50'
                         }`}
                       >
                         {/* Header Banner & Verification Status */}
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-surface-container">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                              isMapped
-                                ? 'bg-secondary-container/60 text-secondary'
-                                : 'bg-[#ffdad4] text-[#410100]'
-                            }`}>
-                              <span className="material-symbols-outlined text-sm">
-                                {isMapped ? 'check_circle' : 'warning'}
+                            {isUnavailableInCatalogue ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant">
+                                <span className="material-symbols-outlined text-sm text-outline">inventory_2</span>
+                                <span>
+                                  Candidate {idx + 1} of {detectedItems.length}: Not Available in Catalogue
+                                </span>
                               </span>
-                              <span>
-                                Candidate {idx + 1} of {detectedItems.length}: {isHighMatch ? `High Match (${confidenceScore}%)` : 'Needs Mapping'}
+                            ) : (
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                                isMapped
+                                  ? 'bg-secondary-container/60 text-secondary'
+                                  : 'bg-[#ffdad4] text-[#410100]'
+                              }`}>
+                                <span className="material-symbols-outlined text-sm">
+                                  {isMapped ? 'check_circle' : 'warning'}
+                                </span>
+                                <span>
+                                  Candidate {idx + 1} of {detectedItems.length}: {isHighMatch ? `High Match (${confidenceScore}%)` : 'Needs Mapping'}
+                                </span>
                               </span>
-                            </span>
+                            )}
 
                             {/* Provenance Badge (Gate 2B) */}
                             {item.sourceType === 'PATIENT_CORRECTED' ? (
@@ -2885,17 +2926,24 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                             )}
                           </div>
 
-                          <label className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold select-none shadow-xs ${
-                            item.isVerified ? 'bg-emerald-600 text-white' : (isMapped ? 'bg-secondary text-white' : 'bg-surface-container text-on-surface-variant')
-                          }`}>
-                            <input
-                              type="checkbox"
-                              checked={isMapped || item.isVerified}
-                              readOnly
-                              className="accent-secondary w-3.5 h-3.5 rounded"
-                            />
-                            <span>{item.isVerified ? 'Pharmacist Verified ✓' : (isMapped ? 'Patient Reviewed' : 'Unmapped')}</span>
-                          </label>
+                          {isUnavailableInCatalogue ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold select-none bg-surface-container text-outline">
+                              <span className="material-symbols-outlined text-xs">do_not_disturb_on</span>
+                              <span>Excluded from Reservation</span>
+                            </span>
+                          ) : (
+                            <label className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold select-none shadow-xs ${
+                              item.isVerified ? 'bg-emerald-600 text-white' : (isMapped ? 'bg-secondary text-white' : 'bg-surface-container text-on-surface-variant')
+                            }`}>
+                              <input
+                                type="checkbox"
+                                checked={isMapped || item.isVerified}
+                                readOnly
+                                className="accent-secondary w-3.5 h-3.5 rounded"
+                              />
+                              <span>{item.isVerified ? 'Pharmacist Verified ✓' : (isMapped ? 'Patient Reviewed' : 'Unmapped')}</span>
+                            </label>
+                          )}
                         </div>
 
                         {/* Patient Correction Notice */}
@@ -3010,6 +3058,27 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                           : `${item.dosageForm || 'Formulation'} · ${item.genericName || 'Standardized catalogue'}`}
                                       </p>
                                     </>
+                                  ) : isUnavailableInCatalogue ? (
+                                    <div>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <h3 className="text-sm font-bold text-on-surface-variant line-through decoration-outline/60 truncate">
+                                          {topAux ? topAux.brandName : cleanPrescribedName}
+                                        </h3>
+                                        <span className="px-2 py-0.5 rounded-full bg-surface-container-highest text-outline text-[10px] font-bold flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[11px]">block</span>
+                                          Not in Catalogue
+                                        </span>
+                                        {topAux && (
+                                          <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-900 text-[10px] font-medium flex items-center gap-1">
+                                            <span className="material-symbols-outlined text-[11px]">menu_book</span>
+                                            National Lexicon
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-[11px] text-outline font-medium mt-0.5">
+                                        {topAux ? `${topAux.genericName} • ` : ''}Not stocked in our 50-item network catalogue. Skipped from reservation automatically.
+                                      </p>
+                                    </div>
                                   ) : topAux ? (
                                     <div>
                                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -3054,9 +3123,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                         {/* Generic Medicine Matching: Generic Product & Brand Formulations Selection */}
                         {(() => {
-                          const candidateResult = findMatchingCandidates(item, medicinesCatalog, {
-                            pharmacyInventory: dispensaryInventory
-                          });
+                          const candidateResult = candidateDiscovery;
                           const genericCandidate = candidateResult.genericCandidate;
                           const brandCandidates = candidateResult.brandCandidates;
                           const matchingBrands = brandCandidates;
@@ -3596,28 +3663,38 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                         {/* Bottom Controls: Quantity Stepper & Clean Actions */}
                         <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-surface-container">
                           {/* Quantity Selector */}
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-on-surface-variant font-medium">Reserve Qty:</span>
-                            <div className="inline-flex items-center bg-surface-container-low rounded-full p-0.5 border border-surface-container">
-                              <button
-                                type="button"
-                                onClick={() => updateItemField(item.id, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-primary hover:bg-white transition-colors"
-                              >
-                                -
-                              </button>
-                              <span className="w-7 text-center font-bold font-mono text-primary">
-                                {item.quantity || 1}
+                          {isUnavailableInCatalogue ? (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-outline font-medium">Reserve Hold:</span>
+                              <span className="px-3 py-1 rounded-full bg-surface-container-high text-outline text-xs font-semibold flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-xs">do_not_disturb_on</span>
+                                Not Available (0 units reserved)
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => updateItemField(item.id, 'quantity', (item.quantity || 1) + 1)}
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-primary hover:bg-white transition-colors"
-                              >
-                                +
-                              </button>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-on-surface-variant font-medium">Reserve Qty:</span>
+                              <div className="inline-flex items-center bg-surface-container-low rounded-full p-0.5 border border-surface-container">
+                                <button
+                                  type="button"
+                                  onClick={() => updateItemField(item.id, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-primary hover:bg-white transition-colors"
+                                >
+                                  -
+                                </button>
+                                <span className="w-7 text-center font-bold font-mono text-primary">
+                                  {item.quantity || 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateItemField(item.id, 'quantity', (item.quantity || 1) + 1)}
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-primary hover:bg-white transition-colors"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Actions: Patient Correct / Report Unreadable / Remap / Remove */}
                           <div className="flex items-center gap-2 flex-wrap">
@@ -3683,16 +3760,19 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
               {/* Action Bottom Row: Verification Notice & Confirm CTA */}
               {(() => {
-                const unmappedCount = detectedItems.filter(i => !i.matchedMedicineId).length;
+                const unmappedCount = detectedItems.filter(i => {
+                  const cand = findMatchingCandidates(i, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+                  return !i.matchedMedicineId && !cand.hasGenericInCatalogue && cand.brandCandidates.length === 0 && !i.pharmacistSelectionRequested;
+                }).length;
                 const canConfirm = detectedItems.length > 0;
 
                 return (
                   <div className="flex flex-col gap-3 pt-3 border-t border-surface-container">
                     {unmappedCount > 0 && (
-                      <div className="p-3.5 rounded-2xl bg-secondary-container/40 border border-secondary/20 text-xs text-on-surface-variant font-medium flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base text-secondary shrink-0">info</span>
+                      <div className="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant font-medium flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base text-outline shrink-0">inventory_2</span>
                         <span>
-                          {unmappedCount} medicine{unmappedCount > 1 ? 's are' : ' is'} uncatalogued and will be preserved as written on your prescription, or you can click "Change / Remap Drug" to map to a standardized formulation.
+                          {unmappedCount} uncatalogued medicine{unmappedCount > 1 ? 's are' : ' is'} marked as <strong>Not Available</strong> and will be automatically skipped during pharmacy reservation. You do not need to remove them manually.
                         </span>
                       </div>
                     )}
@@ -4123,32 +4203,39 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                   <button
                     type="button"
                     onClick={() => {
-                      const verifiedToPass = (detectedItems || []).map((i, idx) => {
-                        let medId = i.matchedMedicineId;
-                        if (!medId && i.allMatches && i.allMatches.length > 0) {
-                          medId = i.allMatches[0].medicineId;
-                        }
-                        if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
-                          const nameLower = (i.medicineName || i.rawName || '').toLowerCase();
-                          const match = medicinesCatalog.find(m =>
-                            m.brandName.toLowerCase() === nameLower ||
-                            (m.genericName && nameLower.includes(m.genericName.toLowerCase()))
+                      const verifiedToPass = (detectedItems || [])
+                        .filter(i => {
+                          const cand = findMatchingCandidates(i, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+                          return Boolean(
+                            i.matchedMedicineId ||
+                            cand.hasGenericInCatalogue ||
+                            cand.brandCandidates.length > 0 ||
+                            i.pharmacistSelectionRequested
                           );
-                          if (match) medId = match.id;
-                        }
-                        if (!medId) {
-                          medId = `custom-med-${(i.medicineName || i.rawName || `item-${idx}`).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-                        }
-                        return {
-                          medicineId: medId,
-                          brandName: i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine',
-                          genericName: i.rawName || i.genericName || '',
-                          dosageForm: i.dosageForm || 'Tablet',
-                          strength: i.strength || i.dosage || '',
-                          quantity: parseInt(i.quantity, 10) || 1,
-                          pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
-                        };
-                      });
+                        })
+                        .map((i, idx) => {
+                          let medId = i.matchedMedicineId;
+                          if (!medId && i.allMatches && i.allMatches.length > 0) {
+                            medId = i.allMatches[0].medicineId;
+                          }
+                          if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
+                            const nameLower = (i.medicineName || i.rawName || '').toLowerCase();
+                            const match = medicinesCatalog.find(m =>
+                              m.brandName.toLowerCase() === nameLower ||
+                              (m.genericName && nameLower.includes(m.genericName.toLowerCase()))
+                            );
+                            if (match) medId = match.id;
+                          }
+                          return {
+                            medicineId: medId || i.id,
+                            brandName: i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine',
+                            genericName: i.rawName || i.genericName || '',
+                            dosageForm: i.dosageForm || 'Tablet',
+                            strength: i.strength || i.dosage || '',
+                            quantity: parseInt(i.quantity, 10) || 1,
+                            pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
+                          };
+                        });
                       if (onAddVerifiedToRequest && verifiedToPass.length > 0) {
                         onAddVerifiedToRequest(verifiedToPass);
                       }
