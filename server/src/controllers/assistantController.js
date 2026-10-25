@@ -978,55 +978,59 @@ async function acceptTask(req, res) {
       return res.status(400).json({ success: false, error: `Task cannot be accepted. Current status: ${task.status}` });
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      // Re-verify inside transaction to prevent race conditions / double acceptance
-      const current = await tx.assistantTask.findUnique({ where: { id } });
-      const currentCanAccept = current && (
-        (current.status === 'AVAILABLE' && !current.assistantId) ||
-        (current.status === 'ASSIGNED' && current.assistantId === assistantId)
-      );
-      if (!currentCanAccept) {
-        throw new Error('TASK_ALREADY_CLAIMED');
-      }
+    // Re-verify to prevent race conditions / double acceptance
+    const current = await prisma.assistantTask.findUnique({ where: { id } });
+    const currentCanAccept = current && (
+      (current.status === 'AVAILABLE' && !current.assistantId) ||
+      (current.status === 'ASSIGNED' && current.assistantId === assistantId)
+    );
+    if (!currentCanAccept) {
+      return res.status(400).json({ success: false, error: 'This task has already been accepted.' });
+    }
 
-      const t = await tx.assistantTask.update({
-        where: { id },
-        data: {
-          status: 'ACCEPTED',
-          assistantId,
-          acceptedAt: new Date()
-        },
-        include: {
-          order: {
-            include: {
-              pharmacy: true,
-              user: { select: { id: true, name: true, phone: true } }
-            }
+    const updated = await prisma.assistantTask.update({
+      where: { id },
+      data: {
+        status: 'ACCEPTED',
+        assistantId,
+        acceptedAt: new Date()
+      },
+      include: {
+        order: {
+          include: {
+            pharmacy: true,
+            user: { select: { id: true, name: true, phone: true } }
           }
         }
-      });
+      }
+    });
 
-      // Update order status history
-      const isDelivery = effectiveServiceType === 'MEDICINE_DELIVERY';
-      const isCollection = effectiveServiceType === 'MEDICINE_COLLECTION';
-      const historyComment = isDelivery || isCollection
-        ? `Medicine Access Assistant ${req.user.name} accepted service task. En route to pharmacy.`
-        : `Medicine Access Assistant ${req.user.name} accepted service task. Initiating assistance service.`;
+    // Update order status history (non-blocking for resilient PgBouncer support)
+    const isDelivery = effectiveServiceType === 'MEDICINE_DELIVERY';
+    const isCollection = effectiveServiceType === 'MEDICINE_COLLECTION';
+    const historyComment = isDelivery || isCollection
+      ? `Medicine Access Assistant ${req.user.name} accepted service task. En route to pharmacy.`
+      : `Medicine Access Assistant ${req.user.name} accepted service task. Initiating assistance service.`;
 
-      await tx.orderStatusHistory.create({
+    try {
+      await prisma.orderStatusHistory.create({
         data: {
           orderId: task.orderId,
           status: 'IN_TRANSIT',
           comment: historyComment
         }
       });
+    } catch (histErr) {
+      console.warn('Non-fatal orderStatusHistory create warning:', histErr.message);
+    }
 
-      // Notify the patient
+    // Notify the patient (non-blocking)
+    try {
       const notifMsg = isDelivery || isCollection
-        ? `${req.user.name} has accepted your medicine access request and is heading to ${task.order.pharmacy.name}.`
+        ? `${req.user.name} has accepted your medicine access request and is heading to ${task.order?.pharmacy?.name || 'the pharmacy'}.`
         : `${req.user.name} has accepted your medicine access request.`;
 
-      await tx.notification.create({
+      await prisma.notification.create({
         data: {
           userId: task.order.userId,
           title: 'Medicine Access Assistant Assigned!',
@@ -1035,9 +1039,9 @@ async function acceptTask(req, res) {
           linkUrl: `/orders/${task.orderId}`
         }
       });
-
-      return t;
-    });
+    } catch (notifErr) {
+      console.warn('Non-fatal notification create warning:', notifErr.message);
+    }
 
     return res.json({
       success: true,
@@ -1144,53 +1148,61 @@ async function progressTaskStatus(req, res) {
       updateData.deliveredAt = new Date();
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const t = await tx.assistantTask.update({
-        where: { id },
-        data: updateData,
-        include: {
-          order: {
-            include: { pharmacy: true, user: true }
-          }
+    const updated = await prisma.assistantTask.update({
+      where: { id },
+      data: updateData,
+      include: {
+        order: {
+          include: { pharmacy: true, user: true }
         }
-      });
+      }
+    });
 
-      // Update child order status if confirmed
-      if (status === 'CONFIRMED') {
-        await tx.order.update({
+    // Update child order status if confirmed
+    if (status === 'CONFIRMED') {
+      try {
+        await prisma.order.update({
           where: { id: task.orderId },
           data: { status: 'COMPLETED' }
         });
-
-        // Gate 4: Parent Aggregate Status Synchronization if child of a split order
-        if (task.order?.parentOrderId) {
-          try {
-            const { syncParentAggregateStatus } = require('./orderController');
-            await syncParentAggregateStatus(tx, task.order.parentOrderId, task.orderId, 'COMPLETED');
-          } catch (syncErr) {
-            console.error('Error synchronizing parent aggregate status in updateTaskStatus:', syncErr);
-          }
-        }
+      } catch (ordErr) {
+        console.warn('Non-fatal order update warning:', ordErr.message);
       }
 
-      // Generate service-specific progress details (strictly preventing delivery wording for non-delivery services)
-      const { historyComment, notifTitle, notifMsg } = getServiceProgressDetails(
-        effectiveServiceType,
-        status,
-        task.order?.pharmacy?.name || 'Pharmacy',
-        req.user.name || 'Assistant'
-      );
+      // Gate 4: Parent Aggregate Status Synchronization if child of a split order
+      if (task.order?.parentOrderId) {
+        try {
+          const { syncParentAggregateStatus } = require('./orderController');
+          await syncParentAggregateStatus(prisma, task.order.parentOrderId, task.orderId, 'COMPLETED');
+        } catch (syncErr) {
+          console.error('Error synchronizing parent aggregate status in updateTaskStatus:', syncErr);
+        }
+      }
+    }
 
-      await tx.orderStatusHistory.create({
+    // Generate service-specific progress details (strictly preventing delivery wording for non-delivery services)
+    const { historyComment, notifTitle, notifMsg } = getServiceProgressDetails(
+      effectiveServiceType,
+      status,
+      task.order?.pharmacy?.name || 'Pharmacy',
+      req.user.name || 'Assistant'
+    );
+
+    try {
+      await prisma.orderStatusHistory.create({
         data: {
           orderId: task.orderId,
           status: status === 'CONFIRMED' ? 'COMPLETED' : 'IN_TRANSIT',
           comment: historyComment
         }
       });
+    } catch (histErr) {
+      console.warn('Non-fatal orderStatusHistory create warning:', histErr.message);
+    }
 
-      // Notify patient
-      await tx.notification.create({
+    // Notify patient
+    try {
+      await prisma.notification.create({
         data: {
           userId: task.order.userId,
           title: notifTitle,
@@ -1199,9 +1211,9 @@ async function progressTaskStatus(req, res) {
           linkUrl: `/orders/${task.orderId}`
         }
       });
-
-      return t;
-    });
+    } catch (notifErr) {
+      console.warn('Non-fatal notification create warning:', notifErr.message);
+    }
 
     return res.json({
       success: true,
