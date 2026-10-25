@@ -3041,6 +3041,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                           });
                           const genericCandidate = candidateResult.genericCandidate;
                           const brandCandidates = candidateResult.brandCandidates;
+                          const matchingBrands = brandCandidates;
                           const hasGenericInCatalogue = candidateResult.hasGenericInCatalogue;
                           const selectedDispensary = (pharmacies || []).find(p => p.id === selectedDispensaryId);
 
