@@ -1549,10 +1549,23 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       // Helper to check if an item has a matching product, brand or pharmacist review in 50 catalogue
       const isItemInCatalogue = (item) => {
         const cand = findMatchingCandidates(item, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+        const hasDirectMatch = Array.isArray(medicinesCatalog) && medicinesCatalog.some(m => {
+          const rawLower = (item.rawName || item.medicineName || '').toLowerCase();
+          const genericLower = (m.genericName || '').toLowerCase();
+          const brandLower = (m.brandName || '').toLowerCase();
+          if (!rawLower) return false;
+          if (brandLower && rawLower.includes(brandLower.split(' ')[0].toLowerCase())) return true;
+          if (genericLower && (rawLower.includes(genericLower) || genericLower.includes(rawLower.split(' ')[0].toLowerCase()))) return true;
+          return false;
+        });
+
         return Boolean(
           item.matchedMedicineId ||
           cand.hasGenericInCatalogue ||
           cand.brandCandidates.length > 0 ||
+          cand.genericCandidate ||
+          hasDirectMatch ||
+          (item.allMatches && item.allMatches.length > 0) ||
           item.pharmacistSelectionRequested
         );
       };
@@ -2423,14 +2436,17 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                 {/* Action buttons: Proceed to Verification or Skip to manual entry */}
                 <div className="pt-2 flex flex-col items-center gap-2.5 text-center">
                   {(ocrProgress >= 99 || detectedItems.length > 0) && (
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.015, translateY: -1 }}
+                      whileTap={{ scale: 0.985 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
                       type="button"
                       onClick={() => setStep(3)}
-                      className="w-full py-3 px-6 rounded-2xl bg-secondary text-white font-extrabold text-sm shadow-md hover:bg-secondary/90 transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.01]"
+                      className="w-full py-3.5 px-6 rounded-2xl bg-secondary text-white font-extrabold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-base">fact_check</span>
                       <span>View &amp; Verify Extracted Medicines ({detectedItems.length || 'Ready'}) &rarr;</span>
-                    </button>
+                    </motion.button>
                   )}
                   <button
                     type="button"
@@ -2868,13 +2884,56 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                       pharmacyInventory: dispensaryInventory
                     });
                     const hasGenericInCatalogue = candidateDiscovery.hasGenericInCatalogue;
-                    const brandCandidates = candidateDiscovery.brandCandidates;
+                    let brandCandidates = candidateDiscovery.brandCandidates || [];
                     const genericCandidate = candidateDiscovery.genericCandidate;
+
+                    // Robust fallback: if candidateDiscovery returned 0 brand candidates, check directly in medicinesCatalog
+                    // for active generic ingredient matches or brand name matches (e.g. Cefixime -> Taxim-O 200 / Zifi 200)
+                    if ((!brandCandidates || brandCandidates.length === 0) && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
+                      const rawLower = (item.rawName || item.medicineName || '').toLowerCase();
+                      const directMatches = medicinesCatalog.filter(m => {
+                        const genericLower = (m.genericName || '').toLowerCase();
+                        const brandLower = (m.brandName || '').toLowerCase();
+                        if (!rawLower) return false;
+                        if (genericLower && (rawLower.includes(genericLower) || genericLower.includes(rawLower.split(' ')[0].toLowerCase()))) return true;
+                        if (brandLower && rawLower.includes(brandLower.split(' ')[0].toLowerCase())) return true;
+                        return false;
+                      });
+                      if (directMatches.length > 0) {
+                        brandCandidates = directMatches.map(m => ({
+                          id: m.id,
+                          brandName: m.brandName,
+                          genericName: m.genericName,
+                          strength: m.strength,
+                          dosageForm: m.dosageForm,
+                          category: m.category || 'Clinical Formulation',
+                          manufacturer: m.manufacturer || 'Verified Manufacturer',
+                          price: m.price,
+                          inStock: true,
+                          candidateType: 'BRAND',
+                          clinicalMatchReason: `Bioequivalent brand (${m.brandName}) for ${m.genericName} • ${m.strength} ${m.dosageForm}`
+                        }));
+                      }
+                    }
+
+                    const hasDirectCatalogueMatches = Array.isArray(medicinesCatalog) && medicinesCatalog.some(m => {
+                      const rawLower = (item.rawName || item.medicineName || '').toLowerCase();
+                      const genericLower = (m.genericName || '').toLowerCase();
+                      const brandLower = (m.brandName || '').toLowerCase();
+                      if (!rawLower) return false;
+                      if (brandLower && rawLower.includes(brandLower.split(' ')[0].toLowerCase())) return true;
+                      if (genericLower && (rawLower.includes(genericLower) || genericLower.includes(rawLower.split(' ')[0].toLowerCase()))) return true;
+                      return false;
+                    });
+
                     const hasCatalogueOptions = Boolean(
                       item.matchedMedicineId ||
                       genericCandidate ||
                       brandCandidates.length > 0 ||
                       hasGenericInCatalogue ||
+                      hasDirectCatalogueMatches ||
+                      (item.allMatches && item.allMatches.length > 0) ||
+                      (item.medicineCandidates && item.medicineCandidates.length > 0) ||
                       item.pharmacistSelectionRequested
                     );
                     const isUnavailableInCatalogue = !hasCatalogueOptions;
@@ -2884,7 +2943,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                         key={item.id}
                         className={`rounded-3xl p-5 border shadow-sm transition-all flex flex-col gap-4 ${
                           isUnavailableInCatalogue
-                            ? 'bg-surface-container-low/40 border-dashed border-outline-variant/60 opacity-60 hover:opacity-90'
+                            ? 'bg-amber-50/25 dark:bg-amber-950/15 border-2 border-dashed border-amber-300 dark:border-amber-800/80 opacity-100'
                             : isMapped
                               ? 'bg-surface-container-lowest border-secondary/30'
                               : 'border-[#ffdad4] bg-[#fff8f6]/50'
@@ -2894,8 +2953,8 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-surface-container">
                           <div className="flex items-center gap-2 flex-wrap">
                             {isUnavailableInCatalogue ? (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant">
-                                <span className="material-symbols-outlined text-sm text-outline">inventory_2</span>
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300/60">
+                                <span className="material-symbols-outlined text-sm text-amber-700 dark:text-amber-400">inventory_2</span>
                                 <span>
                                   Candidate {idx + 1} of {detectedItems.length}: Not Available in Catalogue
                                 </span>
@@ -2973,6 +3032,41 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                             <span className="text-[10px] text-amber-800 italic">
                               Raw OCR candidate remains preserved for pharmacist clinical verification.
                             </span>
+                          </div>
+                        )}
+
+                        {/* Uncatalogued Status & Action Banner */}
+                        {isUnavailableInCatalogue && (
+                          <div className="p-3.5 rounded-2xl bg-amber-100/90 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                            <div className="flex items-start sm:items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-200 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                                <span className="material-symbols-outlined text-base">inventory_2</span>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-bold text-amber-950 dark:text-amber-100">
+                                    Not Available in 50-Item Catalogue
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-200/90 dark:bg-amber-800 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
+                                    Excluded from Reservation (0 Units)
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-amber-900/85 dark:text-amber-200/85 mt-0.5 leading-relaxed">
+                                  This medicine is not stocked in our 50-item network catalogue. It is automatically excluded from your pharmacy hold basket. You can re-map to a catalogue alternative or leave it excluded.
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMappingModalItem(item);
+                                setMappingSearchQuery(cleanDrugSearch(item.medicineName || item.rawName || ''));
+                              }}
+                              className="px-3.5 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0 cursor-pointer self-start sm:self-auto"
+                            >
+                              <span className="material-symbols-outlined text-sm">swap_horiz</span>
+                              <span>Change / Remap Drug</span>
+                            </button>
                           </div>
                         )}
 
@@ -3072,12 +3166,12 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                   ) : isUnavailableInCatalogue ? (
                                     <div>
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <h3 className="text-sm font-bold text-on-surface-variant line-through decoration-outline/60 truncate">
+                                        <h3 className="text-sm font-bold text-on-surface truncate">
                                           {topAux ? topAux.brandName : cleanPrescribedName}
                                         </h3>
-                                        <span className="px-2 py-0.5 rounded-full bg-surface-container-highest text-outline text-[10px] font-bold flex items-center gap-1">
-                                          <span className="material-symbols-outlined text-[11px]">block</span>
-                                          Not in Catalogue
+                                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300/60 text-[10px] font-bold flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[11px] text-amber-700 dark:text-amber-400">inventory_2</span>
+                                          Not in 50 Catalogue
                                         </span>
                                         {topAux && (
                                           <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-900 text-[10px] font-medium flex items-center gap-1">
@@ -3735,9 +3829,13 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                 setMappingModalItem(item);
                                 setMappingSearchQuery(cleanDrugSearch(item.medicineName || item.rawName || ''));
                               }}
-                              className="px-3.5 py-1.5 rounded-full border border-surface-container bg-surface-container-lowest text-primary hover:bg-surface-container text-xs font-bold transition-all shadow-xs flex items-center gap-1"
+                              className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer ${
+                                isUnavailableInCatalogue
+                                  ? 'border-amber-400 bg-amber-100 hover:bg-amber-200 text-amber-950 font-extrabold shadow-sm'
+                                  : 'border-surface-container bg-surface-container-lowest text-primary hover:bg-surface-container'
+                              }`}
                             >
-                              <span className="material-symbols-outlined text-sm text-secondary">swap_horiz</span>
+                              <span className={`material-symbols-outlined text-sm ${isUnavailableInCatalogue ? 'text-amber-800' : 'text-secondary'}`}>swap_horiz</span>
                               <span>Change / Remap Drug</span>
                             </button>
                             <button
@@ -3798,8 +3896,9 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                       </button>
 
                       <motion.button
-                        whileHover={!(!canConfirm || isVerifying) ? { scale: 1.02 } : {}}
-                        whileTap={!(!canConfirm || isVerifying) ? { scale: 0.98 } : {}}
+                        whileHover={!(!canConfirm || isVerifying) ? { scale: 1.015, translateY: -1 } : {}}
+                        whileTap={!(!canConfirm || isVerifying) ? { scale: 0.985 } : {}}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
                         type="button"
                         onClick={() => {
                           setConfirmDialog({
@@ -4320,9 +4419,11 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                       {/* Active Dispatch CTA Block (Continues into Pharmacy Discovery!) */}
                       <div className="flex flex-col gap-3 pt-2">
                         <div className="w-full">
-                          <ScanGridButton
-                            label="FIND AVAILABLE PHARMACIES"
-                            showText={false}
+                          <motion.button
+                            whileHover={{ scale: 1.015, translateY: -1 }}
+                            whileTap={{ scale: 0.985 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                            type="button"
                             onClick={() => {
                               const verifiedToPass = readyItems.map((i, idx) => {
                                 const details = getSummaryItemDetails(i);
@@ -4357,83 +4458,33 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                 setAvailModalOpen(true);
                               }
                             }}
-                            padding="15px 28px"
-                            rounded={999}
-                            colors={{
-                              fill: "#006A60",
-                              hoverFill: "#00534B",
-                              textColor: "#FFFFFF",
-                              hoverTextColor: "#FFFFFF",
-                            }}
-                            scan={{
-                              color: "#2DD4BF",
-                              speed: 60,
-                            }}
-                            border={{
-                              borderWidth: 1,
-                              borderStyle: "solid",
-                              borderColor: "rgba(45, 212, 191, 0.4)",
-                            }}
-                            glitchIntensity={2}
-                            addIcon={false}
-                            style={{
-                              width: "100%",
-                              justifyContent: "center",
-                              boxShadow: "0 6px 20px -4px rgba(0, 106, 96, 0.35)",
-                              cursor: "pointer"
-                            }}
+                            className="w-full py-4 px-6 rounded-full bg-primary hover:bg-[#00534b] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                           >
-                            <div className="flex items-center justify-center gap-2 font-bold text-sm text-white tracking-wide">
-                              <span>Find Available Pharmacies</span>
-                              <span className="material-symbols-outlined text-base">arrow_forward</span>
-                            </div>
-                          </ScanGridButton>
+                            <span>Find Available Pharmacies</span>
+                            <span className="material-symbols-outlined text-base">arrow_forward</span>
+                          </motion.button>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2">
-                          <div className="flex-1">
-                            <ScanGridButton
-                              label="EDIT MEDICINES"
-                              showText={false}
-                              onClick={() => setStep(3)}
-                              padding="11px 20px"
-                              rounded={999}
-                              colors={{
-                                fill: "#E8EFEA",
-                                hoverFill: "#D9E5DF",
-                                textColor: "#006A60",
-                                hoverTextColor: "#00534B",
-                              }}
-                              scan={{
-                                color: "#006A60",
-                                speed: 45,
-                              }}
-                              border={{
-                                borderWidth: 1,
-                                borderStyle: "solid",
-                                borderColor: "rgba(0, 106, 96, 0.25)",
-                              }}
-                              glitchIntensity={1}
-                              addIcon={false}
-                              style={{
-                                width: "100%",
-                                justifyContent: "center",
-                                cursor: "pointer"
-                              }}
-                            >
-                              <div className="flex items-center justify-center gap-1.5 font-bold text-xs text-primary">
-                                <span className="material-symbols-outlined text-sm">arrow_back</span>
-                                <span>Edit Medicines</span>
-                              </div>
-                            </ScanGridButton>
-                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.02, translateY: -1 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                            type="button"
+                            onClick={() => setStep(3)}
+                            className="flex-1 py-2.5 px-4 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-outline-variant/30 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">arrow_back</span>
+                            <span>Edit Medicines</span>
+                          </motion.button>
 
                           <motion.button
-                            whileHover={{ scale: 1.02 }}
+                            whileHover={{ scale: 1.02, translateY: -1 }}
                             whileTap={{ scale: 0.98 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
                             type="button"
                             onClick={reset}
-                            className="flex-1 py-2.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-outline-variant/30 cursor-pointer"
+                            className="flex-1 py-2.5 px-4 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-outline-variant/30 cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-sm">restart_alt</span>
                             <span>Upload New Rx</span>
