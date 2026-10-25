@@ -716,6 +716,11 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   const [clarificationOrder, setClarificationOrder] = useState(null);
   const [clinicalReviewOrder, setClinicalReviewOrder] = useState(null);
 
+  // Assistant Collection Code Verification Terminal
+  const [collectionModalOrder, setCollectionModalOrder] = useState(null);
+  const [collectionCodeDigits, setCollectionCodeDigits] = useState(['', '', '', '']);
+  const [verifyingCollection, setVerifyingCollection] = useState(false);
+
   // Gate 8: Clinical Assistance Requests Assigned to this Pharmacy
   const [clinicalQueue, setClinicalQueue] = useState([]);
   const [loadingClinicalQueue, setLoadingClinicalQueue] = useState(false);
@@ -1299,6 +1304,41 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
     } catch (err) {
       console.error('Error verifying PIN:', err);
       showToast('Error validating PIN.', 'error');
+    }
+  };
+
+  const handleVerifyCollection = async (orderId, explicitCode = null) => {
+    const code = explicitCode || collectionCodeDigits.join('');
+    if (!code || code.trim().length < 4) {
+      showToast('Please enter the 4-digit Collection Code presented by the delivery assistant', 'warning');
+      return;
+    }
+    const token = localStorage.getItem('medifind_token');
+    setVerifyingCollection(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/verify-collection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ collectionCode: code.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Collection verified! Package handed over to delivery assistant for transit.', 'success');
+        setCollectionModalOrder(null);
+        setCollectionCodeDigits(['', '', '', '']);
+        fetchPharmacyAndOrders(true);
+        broadcastUpdate('ORDER_STATUS_UPDATED', { orderId, newStatus: 'IN_TRANSIT' });
+      } else {
+        showToast(data.error || 'Invalid collection code.', 'error');
+      }
+    } catch (err) {
+      console.error('Error verifying collection:', err);
+      showToast('Error verifying collection code.', 'error');
+    } finally {
+      setVerifyingCollection(false);
     }
   };
 
@@ -2610,6 +2650,39 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                         </div>
                       </div>
 
+                      {/* Financial Allocation Breakdown */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: '#f8faf9',
+                        border: '1px solid #e0f2eb',
+                        borderRadius: 12,
+                        padding: '0.6rem 0.85rem',
+                        fontSize: 12,
+                        color: '#414846',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>account_balance_wallet</span>
+                          <span><strong>Pharmacy Net:</strong> ₹{((order.medicineSubtotal != null && Number(order.medicineSubtotal) > 0) ? Number(order.medicineSubtotal) : ((order.totalAmount || 0) - (order.deliveryFee || 0) - (order.platformFee || 0))).toFixed(2)}</span>
+                        </div>
+                        {(order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: 11 }}>
+                            <span><strong>Delivery Fee (Partner):</strong> ₹{(Number(order.deliveryFee) || 80).toFixed(2)}</span>
+                            <span><strong>Platform:</strong> ₹{(Number(order.platformFee) || 2).toFixed(2)}</span>
+                            <span style={{ fontWeight: 800, color: '#032f28' }}>Total: ₹{(order.totalAmount || 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {(order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY') && (order.assistantTasks?.[0]?.assistant || order.assistantTask?.assistant) && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#e0f2eb', padding: '0.2rem 0.6rem', borderRadius: 99, fontSize: 11, fontWeight: 700, color: '#032f28' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#2e685d' }}>sports_motorsports</span>
+                            <span>Assistant: {(order.assistantTasks?.[0]?.assistant || order.assistantTask?.assistant).name} (Verified)</span>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Action Controls */}
                       <div style={{
                         display: 'flex',
@@ -2727,6 +2800,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             const isOnlinePending = order.payment?.method === 'ONLINE' && order.payment?.status !== 'PAID';
                             const hasFulfillment = Boolean(order.fulfillmentType) || isCounter;
                             const canMarkReady = hasFulfillment && (isCounter || isOnlinePaid);
+                            const isDelivery = order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY';
 
                             if (!canMarkReady) {
                               const pendingMessage = (!hasFulfillment && !isCounter) || !order.payment?.method
@@ -2737,7 +2811,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                   <button
                                     disabled
-                                    title="Patient must complete checkout and select payment method before order can be marked ready for pickup"
+                                    title="Patient must complete checkout and select payment method before order can be marked ready"
                                     style={{
                                       background: '#f1f5f3',
                                       color: '#717976',
@@ -2761,6 +2835,34 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             }
 
                             const isUpdatingThisOrder = updatingStatusId === order.id;
+
+                            if (isDelivery) {
+                              return (
+                                <FlowButton
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={isUpdatingThisOrder}
+                                  loading={isUpdatingThisOrder}
+                                  onClick={() => {
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: 'Mark Order Ready for Dispatch?',
+                                      message: `Confirm that all medicines for delivery #${order.id.slice(0, 8)} are packaged and ready for delivery partner collection?`,
+                                      confirmLabel: 'Mark Ready for Dispatch',
+                                      variant: 'primary',
+                                      impactPoints: [
+                                        'Generates Pharmacy Collection Code and Patient Delivery OTP.',
+                                        'Notifies assigned delivery assistant to proceed to pharmacy.',
+                                        'Online payment escrow is confirmed.'
+                                      ],
+                                      onConfirm: () => handleUpdateStatus(order.id, 'READY_FOR_DISPATCH')
+                                    });
+                                  }}
+                                >
+                                  {isUpdatingThisOrder ? 'Marking Dispatch...' : 'Mark Ready for Dispatch'}
+                                </FlowButton>
+                              );
+                            }
 
                             return (
                               <FlowButton
@@ -2789,7 +2891,22 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             );
                           })()}
 
-                          {isReady && (
+                          {/* Delivery: Verify Assistant Collection Code when READY_FOR_DISPATCH */}
+                          {order.status === 'READY_FOR_DISPATCH' && (
+                            <FlowButton
+                              variant="primary"
+                              size="sm"
+                              onClick={() => {
+                                setCollectionModalOrder(order);
+                                setCollectionCodeDigits(['', '', '', '']);
+                              }}
+                            >
+                              Verify Assistant Collection Code
+                            </FlowButton>
+                          )}
+
+                          {/* Pickup only: Counter PIN Terminal when READY_FOR_PICKUP */}
+                          {isReady && order.fulfillmentType !== 'ASSISTANT_DELIVERY' && order.fulfillmentType !== 'DELIVERY' && (
                             <FlowButton
                               variant="outline"
                               size="sm"
@@ -2801,6 +2918,21 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             >
                               Counter PIN Terminal
                             </FlowButton>
+                          )}
+
+                          {/* Delivery: Transit and Delivered status pills */}
+                          {order.status === 'IN_TRANSIT' && (
+                            <span style={{ color: '#2e685d', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#e0f2eb', padding: '0.35rem 0.85rem', borderRadius: 99 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>local_shipping</span>
+                              Collected by Assistant • In Transit
+                            </span>
+                          )}
+
+                          {order.status === 'DELIVERED' && (
+                            <span style={{ color: '#032f28', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#b0ecdd', padding: '0.35rem 0.85rem', borderRadius: 99 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check_circle</span>
+                              Delivered to Doorstep
+                            </span>
                           )}
 
                           {isConfirmed && (
@@ -3728,6 +3860,103 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
           setClarificationOrder(ord);
         }}
       />
+      {/* Verify Assistant Collection Code Modal */}
+      {collectionModalOrder && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(3,47,40,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: 24, width: '100%', maxWidth: 440, padding: '2rem', boxShadow: '0 24px 64px rgba(3,47,40,0.25)', border: '1px solid #e0f2eb', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e0f2eb', color: '#2e685d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 32 }}>qr_code_scanner</span>
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#032f28', margin: '0 0 0.5rem 0' }}>
+              Verify Assistant Collection Code
+            </h3>
+            <p style={{ fontSize: 13, color: '#414846', margin: '0 0 1.25rem 0', lineHeight: 1.5 }}>
+              Ask the delivery assistant for their <strong>4-digit Collection Code</strong> to authenticate medication custody transfer.
+            </p>
+
+            {/* Assistant Details Badge if available */}
+            {(() => {
+              const assistant = collectionModalOrder.assistantTasks?.[0]?.assistant || collectionModalOrder.assistantTask?.assistant;
+              if (assistant) {
+                return (
+                  <div style={{ background: '#f5faf8', border: '1px solid #e0f2eb', borderRadius: 14, padding: '0.75rem 1rem', marginBottom: '1.25rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#b0ecdd', color: '#032f28', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 20 }}>person</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>{assistant.name || 'Delivery Assistant'}</div>
+                      <div style={{ fontSize: 11, color: '#717976' }}>{assistant.phone ? `Phone: ${assistant.phone} • ` : ''}<span style={{ color: '#2e685d', fontWeight: 700 }}>VERIFIED ASSISTANT</span></div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* 4 Digit Code Inputs */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {[0, 1, 2, 3].map(idx => (
+                <input
+                  key={idx}
+                  id={`collection-digit-${idx}`}
+                  type="text"
+                  maxLength={1}
+                  value={collectionCodeDigits[idx]}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    const newDigits = [...collectionCodeDigits];
+                    newDigits[idx] = val;
+                    setCollectionCodeDigits(newDigits);
+                    if (val && idx < 3) {
+                      document.getElementById(`collection-digit-${idx + 1}`)?.focus();
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Backspace' && !collectionCodeDigits[idx] && idx > 0) {
+                      document.getElementById(`collection-digit-${idx - 1}`)?.focus();
+                    }
+                  }}
+                  style={{
+                    width: 54,
+                    height: 64,
+                    borderRadius: 14,
+                    border: '2px solid #2e685d',
+                    background: '#e6f8f1',
+                    fontSize: 28,
+                    fontWeight: 800,
+                    textAlign: 'center',
+                    color: '#032f28',
+                    outline: 'none'
+                  }}
+                />
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCollectionModalOrder(null);
+                  setCollectionCodeDigits(['', '', '', '']);
+                }}
+                style={{ background: '#e0f2eb', color: '#414846', border: 'none', borderRadius: 99, padding: '0.65rem 1.5rem', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <FlowButton
+                variant="primary"
+                size="md"
+                disabled={verifyingCollection || collectionCodeDigits.join('').length < 4}
+                loading={verifyingCollection}
+                onClick={() => handleVerifyCollection(collectionModalOrder.id)}
+              >
+                Verify &amp; Release Package
+              </FlowButton>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

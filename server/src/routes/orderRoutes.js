@@ -4,6 +4,7 @@ const {
   createOrder,
   updateOrderStatus,
   verifyOrderPin,
+  verifyCollection,
   getOrderById,
   getOrders,
   confirmReceipt,
@@ -25,6 +26,7 @@ router.get('/', authenticateToken, getOrders);
 router.get('/:id', authenticateToken, getOrderById);
 router.put('/:id/status', authenticateToken, updateOrderStatus);
 router.post('/:id/verify-pin', authenticateToken, verifyOrderPin);
+router.post('/:id/verify-collection', authenticateToken, verifyCollection);
 router.post('/:id/confirm-receipt', authenticateToken, confirmReceipt);
 router.post('/:id/follow-up', authenticateToken, submitOrderFollowUp);
 

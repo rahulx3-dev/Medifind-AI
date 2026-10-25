@@ -9,11 +9,16 @@ const {
   verifyPayment,
   getPaymentStatus,
   retryPayment,
-  handleRazorpayWebhook
+  handleRazorpayWebhook,
+  getAssistantAvailability
 } = require('../controllers/checkoutController');
 
 // POST /api/checkout/webhook — Razorpay asynchronous webhook (verified via x-razorpay-signature)
 router.post('/webhook', handleRazorpayWebhook);
+
+// Check delivery assistant availability in service area
+router.get('/assistant-availability', authenticateToken, getAssistantAvailability);
+router.get('/:orderId/assistant-availability', authenticateToken, getAssistantAvailability);
 
 // All checkout routes require authentication
 // Ownership validation is enforced inside each controller function

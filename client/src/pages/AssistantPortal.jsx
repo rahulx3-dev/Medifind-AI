@@ -378,12 +378,12 @@ function AssistantPinKeypad({ task, pin = '', onChangePin, onSubmit, onResendSms
           <span className="material-symbols-outlined" style={{ fontSize: 24 }}>dialpad</span>
         </div>
         <h3 style={{ fontSize: 18, fontWeight: 700, color: '#032f28', margin: '0 0 0.25rem 0' }}>
-          {task.serviceType === 'MEDICINE_DELIVERY' ? 'Delivery Handover Verification' : 'Service Handover Verification'}
+          {task.serviceType === 'MEDICINE_DELIVERY' ? 'Doorstep Delivery OTP Verification' : 'Service Handover Verification'}
         </h3>
         <p style={{ fontSize: 12, color: '#414846', margin: 0, lineHeight: 1.5 }}>
           {task.serviceType === 'MEDICINE_DELIVERY'
-            ? 'Ask the recipient or authorized concierge for their 4-digit pickup PIN provided in their MediFind order confirmation.'
-            : 'Ask the patient for their 4-digit verification PIN provided in their MediFind order confirmation.'}
+            ? 'Ask the recipient for their 4-digit Delivery OTP provided in their MediFind order tracking.'
+            : 'Ask the patient for their 4-digit verification PIN provided in their MediFind order tracking.'}
         </p>
       </div>
 
@@ -3935,6 +3935,30 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                           </FlowButton>
                         )}
 
+                        {/* Dispensary Pharmacy Collection Code Display for Assistant to show at Counter */}
+                        {(task.status === 'ACCEPTED' || task.status === 'COLLECTING') && task.collectionCode && (
+                          <div style={{
+                            background: 'linear-gradient(135deg, #032f28 0%, #1e453e 100%)',
+                            borderRadius: 18,
+                            padding: '1.25rem 1.5rem',
+                            marginBottom: '1.25rem',
+                            color: '#ffffff',
+                            textAlign: 'center',
+                            boxShadow: '0 6px 20px rgba(3,47,40,0.18)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: 11, fontWeight: 700, color: '#b0ecdd', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>storefront</span>
+                              <span>Dispensary Pharmacy Collection Code</span>
+                            </div>
+                            <div style={{ fontSize: 36, fontWeight: 900, letterSpacing: '0.3em', color: '#ffffff', fontFamily: 'monospace', margin: '0.4rem 0' }}>
+                              {task.collectionCode}
+                            </div>
+                            <p style={{ fontSize: 12, color: '#c1ebe1', margin: '0.35rem 0 0 0', lineHeight: 1.4 }}>
+                              Present this 4-digit Collection Code to the dispensing pharmacist at the counter to authenticate package release.
+                            </p>
+                          </div>
+                        )}
+
                         {task.status === 'ACCEPTED' && (
                           <FlowButton
                             fullWidth
@@ -3944,34 +3968,71 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                             disabled={actionLoading}
                             onClick={() => handleProgressTask(task.id, 'COLLECTING')}
                           >
-                            {stepLabels.btnCollecting}
+                            Arrived at Pharmacy • Present Collection Code
                           </FlowButton>
                         )}
 
                         {task.status === 'COLLECTING' && (
-                          <FlowButton
-                            fullWidth
-                            size="md"
-                            variant="primary"
-                            loading={actionLoading && progressingTaskId === task.id}
-                            disabled={actionLoading}
-                            onClick={() => handleProgressTask(task.id, 'IN_TRANSIT')}
-                          >
-                            {stepLabels.btnInTransit}
-                          </FlowButton>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div style={{
+                              background: '#fffbeb',
+                              border: '1.5px solid #fde68a',
+                              borderRadius: 14,
+                              padding: '1rem',
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '0.75rem'
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#b45309', flexShrink: 0, marginTop: 2 }}>hourglass_top</span>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e', marginBottom: '0.2rem' }}>
+                                  Awaiting Pharmacist Collection Verification
+                                </div>
+                                <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.45 }}>
+                                  Please present the 4-digit Collection Code above to the dispensary pharmacist. Once verified by the pharmacist, this task will automatically advance to In Transit.
+                                </div>
+                              </div>
+                            </div>
+                            <FlowButton
+                              fullWidth
+                              size="sm"
+                              variant="outline"
+                              loading={actionLoading}
+                              disabled={actionLoading}
+                              onClick={() => fetchTasks(true)}
+                            >
+                              Check Verification Status / Refresh
+                            </FlowButton>
+                          </div>
                         )}
 
                         {task.status === 'IN_TRANSIT' && (
-                          <FlowButton
-                            fullWidth
-                            size="md"
-                            variant="primary"
-                            loading={actionLoading && progressingTaskId === task.id}
-                            disabled={actionLoading}
-                            onClick={() => handleProgressTask(task.id, 'DELIVERED')}
-                          >
-                            {stepLabels.btnDelivered}
-                          </FlowButton>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div style={{
+                              background: '#e6f8f1',
+                              border: '1px solid #b0ecdd',
+                              borderRadius: 14,
+                              padding: '0.85rem 1rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.65rem'
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#2e685d' }}>check_circle</span>
+                              <span style={{ fontSize: 12, color: '#032f28', fontWeight: 600 }}>
+                                Medication package verified by dispensary and in active custody. Heading to patient address.
+                              </span>
+                            </div>
+                            <FlowButton
+                              fullWidth
+                              size="md"
+                              variant="primary"
+                              loading={actionLoading && progressingTaskId === task.id}
+                              disabled={actionLoading}
+                              onClick={() => handleProgressTask(task.id, 'DELIVERED')}
+                            >
+                              Arrived at Doorstep • Enter Patient Delivery OTP
+                            </FlowButton>
+                          </div>
                         )}
 
                         {/* Handover Keypad when DELIVERED */}

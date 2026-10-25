@@ -10,10 +10,18 @@ const {
 } = require('../utils/referencePricing');
 const { computeOpenStatus } = require('../utils/openHoursParser');
 const { sendIdempotentNotification, sendUrgentCareGuidanceNotification } = require('../utils/notificationDispatcher');
+const {
+  generateSecureCode,
+  generateSeparateDeliveryCodes,
+  parseVerificationMeta,
+  serializeVerificationMeta,
+  computePaymentAllocation,
+  checkDeliveryAssistantAvailability
+} = require('../utils/fulfillmentVerification');
 
 // Generate a 4-digit random secure PIN for pickup/handover
 function generatePin() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return generateSecureCode(4);
 }
 
 // Generate unique order number
@@ -415,7 +423,9 @@ async function createOrder(req, res) {
       : null;
 
     const orderNumber = generateOrderNumber();
-    const verificationPin = generatePin();
+    // Reservation Acceptance and PIN Issuance Rules:
+    // Creating a reservation must NOT generate or expose a usable pickup PIN.
+    const verificationPin = null;
 
     // Create order with items and status history atomically
     let order;
@@ -623,7 +633,7 @@ async function createOrder(req, res) {
             create: [
               {
                 status: 'PENDING',
-                comment: `Order placed by patient. Type: ${orderType}. Verification PIN generated.`
+                comment: `Order placed by patient. Type: ${orderType}.`
               }
             ]
           }
@@ -650,7 +660,7 @@ async function createOrder(req, res) {
             deliveryAddress: resolvedAddress.trim(),
             deliveryNotes: deliveryNotes || null,
             serviceNote: deliveryNotes || null,
-            handoverPin: verificationPin
+            handoverPin: null
           }
         });
 
@@ -688,7 +698,7 @@ async function createOrder(req, res) {
       await sendIdempotentNotification(prisma, {
         userId,
         title: `Order Reserved: #${orderNumber}`,
-        message: `Your order reservation at ${pharmacy.name} has been placed. Pickup PIN: ${verificationPin}.`,
+        message: `Your order reservation at ${pharmacy.name} has been placed. We will notify you once confirmed.`,
         type: 'ORDER_STATUS',
         linkUrl: `/orders/${order.id}`
       });
@@ -733,7 +743,7 @@ async function updateOrderStatus(req, res) {
     const { id } = req.params;
     const { status, comment } = req.body;
 
-    const validStatuses = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED', 'REJECTED'];
+    const validStatuses = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'REJECTED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
@@ -746,6 +756,8 @@ async function updateOrderStatus(req, res) {
     if (!order) {
       return res.status(404).json({ success: false, error: 'Order not found.' });
     }
+
+    const isDeliveryOrder = order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY';
 
     // Terminal statuses cannot transition further
     const TERMINAL_STATUSES = ['COMPLETED', 'REJECTED', 'CANCELLED'];
@@ -795,8 +807,8 @@ async function updateOrderStatus(req, res) {
           order: currentOrder || order
         });
       }
-      // 3. Patient can cancel if order is in PENDING, CONFIRMED, or READY_FOR_PICKUP
-      const cancellableStatuses = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP'];
+      // 3. Patient can cancel if order is in PENDING, CONFIRMED, READY_FOR_PICKUP, or READY_FOR_DISPATCH
+      const cancellableStatuses = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'];
       if (!cancellableStatuses.includes(order.status)) {
         return res.status(400).json({ success: false, error: `Cannot cancel order in ${order.status} state. Contact the pharmacy.` });
       }
@@ -828,13 +840,13 @@ async function updateOrderStatus(req, res) {
       }
 
       // Approved transitions for Pharmacist:
-      // PENDING -> CONFIRMED, REJECTED, CANCELLED
-      // CONFIRMED -> READY_FOR_PICKUP, REJECTED, CANCELLED
-      // READY_FOR_PICKUP -> COMPLETED, REJECTED, CANCELLED
       const pharmacistAllowedTransitions = {
         'PENDING': ['CONFIRMED', 'REJECTED', 'CANCELLED'],
-        'CONFIRMED': ['READY_FOR_PICKUP', 'REJECTED', 'CANCELLED'],
-        'READY_FOR_PICKUP': ['COMPLETED', 'REJECTED', 'CANCELLED']
+        'CONFIRMED': isDeliveryOrder
+          ? ['READY_FOR_DISPATCH', 'READY_FOR_PICKUP', 'REJECTED', 'CANCELLED']
+          : ['READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'REJECTED', 'CANCELLED'],
+        'READY_FOR_PICKUP': ['COMPLETED', 'REJECTED', 'CANCELLED'],
+        'READY_FOR_DISPATCH': ['IN_TRANSIT', 'REJECTED', 'CANCELLED']
       };
 
       const allowedTransitions = pharmacistAllowedTransitions[order.status] || [];
@@ -867,8 +879,9 @@ async function updateOrderStatus(req, res) {
 
       const adminAllowedTransitions = {
         'PENDING': ['CONFIRMED', 'REJECTED', 'CANCELLED'],
-        'CONFIRMED': ['READY_FOR_PICKUP', 'REJECTED', 'CANCELLED'],
-        'READY_FOR_PICKUP': ['COMPLETED', 'CANCELLED']
+        'CONFIRMED': ['READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'REJECTED', 'CANCELLED'],
+        'READY_FOR_PICKUP': ['COMPLETED', 'CANCELLED'],
+        'READY_FOR_DISPATCH': ['IN_TRANSIT', 'CANCELLED']
       };
       const allowedTransitions = adminAllowedTransitions[order.status] || [];
       if (!allowedTransitions.includes(status)) {
@@ -882,28 +895,32 @@ async function updateOrderStatus(req, res) {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CRITICAL BUSINESS LOGIC GUARD FOR READY_FOR_PICKUP:
-    // Before allowing CONFIRMED -> READY_FOR_PICKUP, verify:
-    // 1. Order is CONFIRMED.
-    // 2. A valid fulfillment method has been selected (PICKUP, DELIVERY, ASSISTANT_DELIVERY).
-    // 3. A valid payment method has been explicitly selected.
-    // 4. If payment method = ONLINE: verified PAID.
-    // 5. If payment method = COUNTER: explicitly confirmed Pay at Counter (PENDING status).
-    // 6. If ASSISTANT_DELIVERY: required assistant validation is satisfied.
+    // FULFILLMENT METHOD SPECIFIC GUARDS
     // ─────────────────────────────────────────────────────────────────────────
+    let generatedPickupPin = null;
+    let generatedDeliveryCodes = null;
+
+    // Requirement 6: Pharmacy cannot use Mark Ready for Pickup on a delivery order
+    if (isDeliveryOrder && status === 'READY_FOR_PICKUP') {
+      return res.status(400).json({
+        success: false,
+        error: "Pharmacy cannot use Mark Ready for Pickup on a delivery order. Please use 'Mark Ready for Dispatch'."
+      });
+    }
+
+    if (!isDeliveryOrder && status === 'READY_FOR_DISPATCH') {
+      return res.status(400).json({
+        success: false,
+        error: "Mark Ready for Dispatch is only applicable for delivery orders. Please use 'Mark Ready for Pickup'."
+      });
+    }
+
+    // Guard for READY_FOR_PICKUP (Counter Pickup)
     if (status === 'READY_FOR_PICKUP') {
       if (order.status !== 'CONFIRMED') {
         return res.status(400).json({
           success: false,
-          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
-        });
-      }
-
-      // Check fulfillment type
-      if (!order.fulfillmentType || !VALID_FULFILLMENT_TYPES.includes(order.fulfillmentType)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+          error: 'Order must be CONFIRMED before it can be marked ready for pickup.'
         });
       }
 
@@ -917,44 +934,63 @@ async function updateOrderStatus(req, res) {
       }
 
       // Online payment requires verified PAID
-      if (payment.method === 'ONLINE') {
-        if (payment.status !== 'PAID') {
-          return res.status(400).json({
-            success: false,
-            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
-          });
-        }
+      if (payment.method === 'ONLINE' && payment.status !== 'PAID') {
+        return res.status(400).json({
+          success: false,
+          error: 'Online payment must be verified as PAID before marking ready for pickup.'
+        });
       } else if (payment.method === 'COUNTER' || payment.method === 'PAY_AT_COUNTER') {
-        // Counter payment requires explicit patient selection (PENDING or PAY_AT_COUNTER status)
         if (payment.status !== 'PENDING' && payment.status !== 'PAY_AT_COUNTER') {
           return res.status(400).json({
             success: false,
             error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
           });
         }
-      } else {
+      }
+
+      // Generate 4-digit pickup PIN ONLY when paid, prepared order is marked READY_FOR_PICKUP
+      generatedPickupPin = generateSecureCode(4);
+    }
+
+    // Guard for READY_FOR_DISPATCH (Assistant Delivery)
+    if (status === 'READY_FOR_DISPATCH') {
+      if (order.status !== 'CONFIRMED') {
         return res.status(400).json({
           success: false,
-          error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
+          error: 'Order must be CONFIRMED before it can be marked ready for dispatch.'
         });
       }
 
-      // Assistant fulfillment validation
-      if (order.fulfillmentType === 'ASSISTANT_DELIVERY') {
-        if (!order.selectedAssistantId) {
-          return res.status(400).json({
-            success: false,
-            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
-          });
-        }
-        const asstVal = await validateAssistantSelection(order.selectedAssistantId, order.assistantServiceType);
-        if (!asstVal.valid) {
-          return res.status(400).json({
-            success: false,
-            error: 'Checkout and payment method selection are required before the order can be marked ready for pickup.'
-          });
-        }
+      const payment = order.payment || await prisma.payment.findUnique({ where: { orderId: order.id } });
+      if (!payment || payment.status !== 'PAID') {
+        return res.status(400).json({
+          success: false,
+          error: 'Verified online payment is required before a delivery order can be marked ready for dispatch.'
+        });
       }
+
+      let existingTask = await prisma.assistantTask.findUnique({ where: { orderId: id } });
+      if (!existingTask && order.selectedAssistantId) {
+        existingTask = await prisma.assistantTask.create({
+          data: {
+            orderId: id,
+            status: 'ASSIGNED',
+            assistantId: order.selectedAssistantId,
+            deliveryAddress: order.deliveryAddress,
+            serviceType: order.assistantServiceType || 'MEDICINE_DELIVERY',
+            handoverPin: null
+          }
+        });
+      }
+      if (!existingTask || !existingTask.assistantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'An eligible delivery assistant must be assigned before marking ready for dispatch.'
+        });
+      }
+
+      // Generate separate Collection Code and Delivery OTP (guaranteed distinct)
+      generatedDeliveryCodes = generateSeparateDeliveryCodes();
     }
 
     // Determine notification copy
@@ -966,7 +1002,10 @@ async function updateOrderStatus(req, res) {
       notifMessage = `Your order at ${order.pharmacy.name} has been confirmed. Stock is reserved and preparation is underway.`;
     } else if (status === 'READY_FOR_PICKUP') {
       notifTitle = `Medicines Ready for Pickup: #${order.orderNumber}`;
-      notifMessage = `Your medicines are packed and ready for collection at ${order.pharmacy.name}. Pickup PIN: ${order.verificationPin}.`;
+      notifMessage = `Your medicines are packed and ready for collection at ${order.pharmacy.name}. Pickup PIN: ${generatedPickupPin}.`;
+    } else if (status === 'READY_FOR_DISPATCH') {
+      notifTitle = `Medicines Packed & Ready for Dispatch: #${order.orderNumber}`;
+      notifMessage = `Your medicines are packed and ready at ${order.pharmacy.name}. Your delivery partner has been alerted to collect them.`;
     } else if (status === 'COMPLETED') {
       notifTitle = `Medicines Handed Over: #${order.orderNumber}`;
       notifMessage = `Your medicines from ${order.pharmacy.name} have been collected and verified. Order completed.`;
@@ -1132,20 +1171,56 @@ async function updateOrderStatus(req, res) {
           }
         }
       }
-      // 3. ALL OTHER TRANSITIONS (e.g. CONFIRMED -> READY_FOR_PICKUP, READY_FOR_PICKUP -> COMPLETED, PENDING -> CANCELLED/REJECTED)
+      // 3. ALL OTHER TRANSITIONS (e.g. CONFIRMED -> READY_FOR_PICKUP, CONFIRMED -> READY_FOR_DISPATCH, READY_FOR_PICKUP -> COMPLETED, PENDING -> CANCELLED/REJECTED)
       else {
+        const orderData = { status };
+        if (status === 'READY_FOR_PICKUP' && generatedPickupPin) {
+          orderData.verificationPin = generatedPickupPin;
+        }
+
         const orderUpdateResult = await tx.order.updateMany({
           where: {
             id,
             status: order.status
           },
-          data: { status }
+          data: orderData
         });
 
         if (orderUpdateResult.count === 0) {
           const err = new Error(`Order #${order.orderNumber} status changed concurrently.`);
           err.statusCode = 409;
           throw err;
+        }
+
+        // On READY_FOR_DISPATCH, attach Collection Code and Delivery OTP to AssistantTask
+        if (status === 'READY_FOR_DISPATCH' && generatedDeliveryCodes) {
+          const task = await tx.assistantTask.findUnique({ where: { orderId: id } });
+          if (task) {
+            const updatedMetaNote = serializeVerificationMeta(task.serviceNote, {
+              collectionCode: generatedDeliveryCodes.collectionCode,
+              generatedAt: new Date().toISOString()
+            });
+            await tx.assistantTask.update({
+              where: { id: task.id },
+              data: {
+                serviceNote: updatedMetaNote,
+                handoverPin: generatedDeliveryCodes.deliveryOtp
+              }
+            });
+
+            // Alert assigned assistant that package is prepared for dispensary pickup
+            if (task.assistantId) {
+              await tx.notification.create({
+                data: {
+                  userId: task.assistantId,
+                  title: `Order Ready for Dispatch: #${order.orderNumber}`,
+                  message: `Order #${order.orderNumber} is packed and ready for dispensary collection at ${order.pharmacy.name}. Check your portal for the collection code.`,
+                  type: 'ASSISTANT',
+                  linkUrl: '/assistant-portal'
+                }
+              });
+            }
+          }
         }
       }
 
@@ -1265,7 +1340,7 @@ async function updateOrderStatus(req, res) {
   }
 }
 
-// Verify pickup PIN at counter
+// Verify pickup PIN at counter (Counter Pickup only)
 async function verifyOrderPin(req, res) {
   try {
     const { id } = req.params;
@@ -1299,6 +1374,14 @@ async function verifyOrderPin(req, res) {
       }
     }
 
+    const isDeliveryOrder = order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY';
+    if (isDeliveryOrder) {
+      return res.status(400).json({
+        success: false,
+        error: 'Counter pickup verification PIN is only valid for Counter Pickup orders. Assistant delivery requires collection code and patient delivery OTP.'
+      });
+    }
+
     const TERMINAL_STATUSES = ['COMPLETED', 'REJECTED', 'CANCELLED'];
     if (TERMINAL_STATUSES.includes(order.status)) {
       return res.status(400).json({
@@ -1307,14 +1390,22 @@ async function verifyOrderPin(req, res) {
       });
     }
 
-    if (order.verificationPin !== pin.trim()) {
+    if (order.status !== 'READY_FOR_PICKUP') {
+      return res.status(400).json({
+        success: false,
+        error: `Order must be in READY_FOR_PICKUP status to verify PIN (current: ${order.status}).`
+      });
+    }
+
+    if (!order.verificationPin || order.verificationPin !== pin.trim()) {
       return res.status(400).json({ success: false, error: 'Incorrect verification PIN. Please re-check with customer.' });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Consume verificationPin (set to null) to strictly prevent PIN reuse
       const ord = await tx.order.update({
         where: { id },
-        data: { status: 'COMPLETED' },
+        data: { status: 'COMPLETED', verificationPin: null },
         include: { items: { include: { medicine: true } } }
       });
 
@@ -1382,6 +1473,159 @@ async function verifyOrderPin(req, res) {
   } catch (err) {
     console.error('verifyOrderPin error:', err);
     return res.status(500).json({ success: false, error: 'Failed to verify PIN.' });
+  }
+}
+
+// POST /api/orders/:id/verify-collection
+// Pharmacist verifies the assistant's Pharmacy Collection Code before handing over the medicine package
+async function verifyCollection(req, res) {
+  try {
+    const { id } = req.params;
+    const code = (req.body?.code || req.body?.collectionCode || '').toString().trim();
+
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'Collection code is required.' });
+    }
+
+    if (req.user && req.user.role !== 'PHARMACIST' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Unauthorized: Pharmacy collection verification requires Pharmacist role.' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        pharmacy: true,
+        user: true,
+        assistantTask: {
+          include: {
+            assistant: {
+              select: { id: true, name: true, phone: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found.' });
+    }
+
+    if (req.user.role === 'PHARMACIST') {
+      const managedPharmacy = await prisma.pharmacy.findUnique({
+        where: { managerId: req.user.id }
+      });
+      if (!managedPharmacy || managedPharmacy.id !== order.pharmacyId) {
+        return res.status(403).json({ success: false, error: 'Unauthorized: You can only verify collection for orders at your own pharmacy.' });
+      }
+    }
+
+    const isDeliveryOrder = order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY';
+    if (!isDeliveryOrder) {
+      return res.status(400).json({
+        success: false,
+        error: 'Collection verification is only applicable for delivery orders. Counter pickup orders use counter PIN verification.'
+      });
+    }
+
+    if (order.status !== 'READY_FOR_DISPATCH') {
+      return res.status(400).json({
+        success: false,
+        error: `Order must be in READY_FOR_DISPATCH status to verify assistant collection (current: ${order.status}).`
+      });
+    }
+
+    const task = order.assistantTask;
+    if (!task) {
+      return res.status(400).json({ success: false, error: 'No delivery assistant task found for this order.' });
+    }
+
+    if (!task.assistantId) {
+      return res.status(400).json({ success: false, error: 'No assistant is currently assigned to this task.' });
+    }
+
+    const meta = parseVerificationMeta(task.serviceNote);
+    const expectedCollectionCode = meta.collectionCode;
+
+    if (!expectedCollectionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid collection code has been issued for this order. Ensure the order was marked Ready for Dispatch.'
+      });
+    }
+
+    if (expectedCollectionCode !== code.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Incorrect pharmacy collection code. Please check code with the assigned assistant.'
+      });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Consume collectionCode in meta to prevent code reuse
+      const updatedMeta = { ...meta, collectionCodeConsumedAt: new Date().toISOString() };
+      delete updatedMeta.collectionCode;
+      const newServiceNote = serializeVerificationMeta(task.serviceNote, updatedMeta);
+
+      const updTask = await tx.assistantTask.update({
+        where: { id: task.id },
+        data: {
+          status: 'IN_TRANSIT',
+          collectedAt: new Date(),
+          serviceNote: newServiceNote
+        }
+      });
+
+      const ord = await tx.order.update({
+        where: { id },
+        data: { status: 'IN_TRANSIT' },
+        include: { items: { include: { medicine: true } } }
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: 'IN_TRANSIT',
+          comment: `Medicine package collected by delivery assistant ${task.assistant?.name || task.assistantId} after verifying pharmacy collection code (${code}). Handover confirmed by pharmacist ${req.user.name}.`
+        }
+      });
+
+      // Send patient notification with Delivery OTP now that the package is collected and in transit
+      if (task.handoverPin) {
+        await tx.notification.create({
+          data: {
+            userId: order.userId,
+            title: `Medicines Out for Delivery: #${order.orderNumber}`,
+            message: `Your medicine package has been collected by ${task.assistant?.name || 'your delivery assistant'} from ${order.pharmacy.name} and is on the way. Your Delivery OTP: ${task.handoverPin}. Please provide this OTP to the assistant upon arrival.`,
+            type: 'ORDER_STATUS',
+            linkUrl: `/orders/${order.id}`
+          }
+        });
+      }
+
+      // Notify assistant
+      await tx.notification.create({
+        data: {
+          userId: task.assistantId,
+          title: `Collection Verified: Order #${order.orderNumber}`,
+          message: `Pharmacy verified package collection. Custody confirmed. Please proceed to patient delivery address.`,
+          type: 'ASSISTANT',
+          linkUrl: '/assistant-portal'
+        }
+      });
+
+      return { order: ord, task: updTask };
+    }, DB_TRANSACTION_OPTIONS);
+
+    invalidateOrdersCache();
+    return res.json({
+      success: true,
+      message: 'Collection verified successfully! Order is now IN_TRANSIT.',
+      order: updated.order,
+      task: updated.task
+    });
+  } catch (err) {
+    console.error('verifyCollection error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to verify collection.' });
   }
 }
 
@@ -1511,13 +1755,48 @@ async function getOrderById(req, res) {
       }
     }
 
-    // PIN data minimization: Only the owning user/patient receives their own verificationPin.
-    // Pharmacist and Assistant never receive the raw PIN from GET endpoints.
+    // PIN and Verification Code Data Minimization:
+    // - Counter Pickup:
+    //   Only expose verificationPin if order.status === 'READY_FOR_PICKUP' and requester is patient or admin.
+    //   If order is PENDING or CONFIRMED, verificationPin is NOT exposed.
+    // - Assistant Delivery:
+    //   verificationPin is ALWAYS null.
+    //   Only expose deliveryOtp if order.status is 'IN_TRANSIT' or 'DELIVERED' and requester is patient or admin.
+    //   Only expose collectionCode if requester is assigned assistant or authorized pharmacist/admin.
+    const isOwner = order.userId === req.user.id;
+    const isPickup = !order.fulfillmentType || order.fulfillmentType === 'PICKUP';
+    const isDelivery = order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY';
+
+    let exposedVerificationPin = null;
+    let exposedDeliveryOtp = null;
+    let exposedCollectionCode = null;
+
+    if (isPickup) {
+      if (order.status === 'READY_FOR_PICKUP' && (isOwner || req.user.role === 'ADMIN')) {
+        exposedVerificationPin = order.verificationPin || null;
+      }
+    } else if (isDelivery) {
+      exposedVerificationPin = null;
+      if ((order.status === 'IN_TRANSIT' || order.status === 'DELIVERED') && (isOwner || req.user.role === 'ADMIN')) {
+        exposedDeliveryOtp = order.assistantTask?.handoverPin || null;
+      }
+      if (req.user.role === 'ASSISTANT' && order.assistantTask?.assistantId === req.user.id) {
+        const meta = parseVerificationMeta(order.assistantTask?.serviceNote);
+        exposedCollectionCode = meta.collectionCode || null;
+      } else if (req.user.role === 'PHARMACIST' || req.user.role === 'ADMIN') {
+        const meta = parseVerificationMeta(order.assistantTask?.serviceNote);
+        exposedCollectionCode = meta.collectionCode || null;
+      }
+    }
+
     const { followUpState, pharmacyResponseStatus, patientPurchaseStatus } = deriveOrderFollowUpAndResponsiveness(order);
     const safeOrder = {
       ...order,
-      verificationPin: (order.userId === req.user.id || req.user.role === 'PATIENT' || req.user.role === 'ADMIN') ? order.verificationPin : undefined,
+      verificationPin: exposedVerificationPin,
+      deliveryOtp: exposedDeliveryOtp,
+      collectionCode: exposedCollectionCode,
       prescription: prescriptionDetails,
+      paymentAllocation: computePaymentAllocation(order),
       followUpState,
       pharmacyResponseStatus,
       patientPurchaseStatus
@@ -1668,12 +1947,41 @@ async function getOrders(req, res) {
           prescription: o.prescriptionId ? (prescriptionMap[o.prescriptionId] || null) : null
         }));
 
-    // PIN data minimization: only the owning user/patient receives their verificationPin.
+    // Data minimization:
     const finalOrders = sanitizedOrders.map(o => {
       const { followUpState, pharmacyResponseStatus, patientPurchaseStatus } = deriveOrderFollowUpAndResponsiveness(o);
+      const isOwner = o.userId === userId;
+      const isPickup = !o.fulfillmentType || o.fulfillmentType === 'PICKUP';
+      const isDelivery = o.fulfillmentType === 'ASSISTANT_DELIVERY' || o.fulfillmentType === 'DELIVERY';
+
+      let exposedPin = null;
+      let exposedOtp = null;
+      let exposedColCode = null;
+
+      if (isPickup) {
+        if (o.status === 'READY_FOR_PICKUP' && (isOwner || role === 'ADMIN')) {
+          exposedPin = o.verificationPin || null;
+        }
+      } else if (isDelivery) {
+        exposedPin = null;
+        if ((o.status === 'IN_TRANSIT' || o.status === 'DELIVERED') && (isOwner || role === 'ADMIN')) {
+          exposedOtp = o.assistantTask?.handoverPin || null;
+        }
+        if (role === 'ASSISTANT' && o.assistantTask?.assistantId === userId) {
+          const meta = parseVerificationMeta(o.assistantTask?.serviceNote);
+          exposedColCode = meta.collectionCode || null;
+        } else if (role === 'PHARMACIST' || role === 'ADMIN') {
+          const meta = parseVerificationMeta(o.assistantTask?.serviceNote);
+          exposedColCode = meta.collectionCode || null;
+        }
+      }
+
       return {
         ...o,
-        verificationPin: (o.userId === userId || role === 'PATIENT' || role === 'ADMIN') ? o.verificationPin : undefined,
+        verificationPin: exposedPin,
+        deliveryOtp: exposedOtp,
+        collectionCode: exposedColCode,
+        paymentAllocation: computePaymentAllocation(o),
         followUpState,
         pharmacyResponseStatus,
         patientPurchaseStatus
@@ -1900,6 +2208,7 @@ module.exports = {
   createSplitOrder,
   updateOrderStatus,
   verifyOrderPin,
+  verifyCollection,
   getOrderById,
   getOrders,
   confirmReceipt,

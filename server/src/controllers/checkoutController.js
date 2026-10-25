@@ -22,6 +22,10 @@ const {
 const { formatAddressString } = require('./addressController');
 const { validateAssistantSelection, discoverAssistants } = require('./assistantController');
 const { invalidateOrdersCache } = require('./orderController');
+const {
+  computePaymentAllocation,
+  checkDeliveryAssistantAvailability
+} = require('../utils/fulfillmentVerification');
 
 /**
  * Resolves the effective platform fee for an order:
@@ -253,7 +257,7 @@ async function getCheckoutSummary(req, res) {
                     assistantId: order.selectedAssistantId,
                     deliveryAddress: order.deliveryAddress || null,
                     serviceType: order.assistantServiceType || null,
-                    handoverPin: order.verificationPin || null
+                    handoverPin: null
                   }
                 });
               }
@@ -285,6 +289,9 @@ async function getCheckoutSummary(req, res) {
       };
     }
 
+    const deliveryAvailability = await checkDeliveryAssistantAvailability(order.pharmacy?.city, order.pharmacy?.address);
+    const paymentAllocation = computePaymentAllocation(order, { platformFee: totals.platformFee });
+
     return res.json({
       success: true,
       checkout: {
@@ -297,12 +304,14 @@ async function getCheckoutSummary(req, res) {
         pharmacy: order.pharmacy,
         items,
         totals,
+        paymentAllocation,
+        deliveryAvailability,
         deliveryAddress: order.deliveryAddress,
         addressId: order.addressId,
         selectedAssistantId: order.selectedAssistantId,
         notes: order.notes,
         payment: paymentInfo,
-        verificationPin: order.verificationPin,
+        verificationPin: (order.status === 'READY_FOR_PICKUP') ? order.verificationPin : null,
         // Expose public Razorpay key for frontend to use (NEVER expose secret)
         razorpayKeyId: getRazorpayKeyId()
       }
@@ -429,7 +438,22 @@ async function selectFulfillment(req, res) {
       });
     }
 
+    // Section 1 & Requirement 14: Allow delivery selection ONLY when an eligible, verified delivery assistant is available in the patient's service area.
+    // If no eligible assistant is available, reject selection and clearly explain why.
+    if (fulfillmentType === 'ASSISTANT_DELIVERY' || fulfillmentType === 'DELIVERY') {
+      const targetArea = order.pharmacy?.city || 'Chengannur';
+      const availability = await checkDeliveryAssistantAvailability(targetArea);
+      if (!availability.available) {
+        return res.status(400).json({
+          success: false,
+          code: 'DELIVERY_UNAVAILABLE',
+          error: availability.reason || 'No verified delivery assistants are currently active or available in your service area. Delivery cannot be selected at this time. Please choose Counter Pickup.'
+        });
+      }
+    }
+
     // Validate assistantServiceType when ASSISTANT_DELIVERY is chosen
+    let asstValidation = null;
     if (fulfillmentType === 'ASSISTANT_DELIVERY') {
       if (!assistantServiceType || !VALID_ASSISTANT_SERVICE_TYPES.includes(assistantServiceType)) {
         return res.status(400).json({
@@ -446,7 +470,7 @@ async function selectFulfillment(req, res) {
         });
       }
 
-      const asstValidation = await validateAssistantSelection(targetAssistantId, assistantServiceType);
+      asstValidation = await validateAssistantSelection(targetAssistantId, assistantServiceType);
       if (!asstValidation.valid) {
         return res.status(400).json({
           success: false,
@@ -531,7 +555,7 @@ async function selectFulfillment(req, res) {
         deliveryAddress: requiresAddress ? effectiveDeliveryAddress : null,
         addressId: requiresAddress ? effectiveAddressId : null,
         assistantServiceType: fulfillmentType === 'ASSISTANT_DELIVERY' ? assistantServiceType : null,
-        selectedAssistantId: fulfillmentType === 'ASSISTANT_DELIVERY' ? (targetAssistantId || null) : null,
+        selectedAssistantId: fulfillmentType === 'ASSISTANT_DELIVERY' ? (asstValidation?.assistant?.id || targetAssistantId || null) : null,
         medicineSubtotal: totals.medicineSubtotal,
         deliveryFee: totals.fulfillmentFee,
         platformFee: totals.platformFee,
@@ -550,7 +574,7 @@ async function selectFulfillment(req, res) {
         data: {
           serviceType: assistantServiceType || existingTask.serviceType,
           deliveryAddress: requiresAddress ? effectiveDeliveryAddress : null,
-          assistantId: targetAssistantId || existingTask.assistantId,
+          assistantId: (asstValidation?.assistant?.id || targetAssistantId) || existingTask.assistantId,
           ...(isAlreadyProgressed ? {} : { status: 'ASSIGNED', acceptedAt: null })
         }
       });
@@ -738,7 +762,7 @@ async function selectPayment(req, res) {
                 serviceType: order.assistantServiceType || null,
                 serviceNote: order.notes || null,
                 deliveryNotes: order.notes || null,
-                handoverPin: order.verificationPin || null
+                handoverPin: null
               }
             });
           } else {
@@ -940,7 +964,7 @@ async function createPayment(req, res) {
                       assistantId: order.selectedAssistantId,
                       deliveryAddress: order.deliveryAddress || null,
                       serviceType: order.assistantServiceType || null,
-                      handoverPin: order.verificationPin || null
+                      handoverPin: null
                     }
                   });
                 }
@@ -1094,12 +1118,12 @@ async function createPayment(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function verifyPayment(req, res) {
   try {
-    const { orderId } = req.params;
+    const orderId = req.params?.orderId || req.body?.orderId;
     const isTestMode = (process.env.RAZORPAY_KEY_ID || '').startsWith('rzp_test_');
-    let razorpay_order_id = req.body.razorpay_order_id || req.body.gatewayOrderId;
-    let razorpay_payment_id = req.body.razorpay_payment_id || req.body.gatewayPaymentId;
-    let razorpay_signature = req.body.razorpay_signature || req.body.gatewaySignature;
-    const userId = req.user.id;
+    let razorpay_order_id = req.body?.razorpay_order_id || req.body?.gatewayOrderId || req.body?.razorpayOrderId;
+    let razorpay_payment_id = req.body?.razorpay_payment_id || req.body?.gatewayPaymentId || req.body?.razorpayPaymentId;
+    let razorpay_signature = req.body?.razorpay_signature || req.body?.gatewaySignature || req.body?.razorpaySignature;
+    const userId = req.user?.id;
 
     if (isTestMode && req.body.isTestSimulation === true) {
       if (!razorpay_payment_id) {
@@ -1370,7 +1394,7 @@ async function verifyPayment(req, res) {
               serviceType: order.assistantServiceType || null,
               serviceNote: order.notes || null,
               deliveryNotes: order.notes || null,
-              handoverPin: order.verificationPin || null
+              handoverPin: null
             }
           });
         } else {
@@ -1401,11 +1425,16 @@ async function verifyPayment(req, res) {
       }
 
       // Notify patient — payment success
+      const isDeliveryOrder = order.fulfillmentType === 'ASSISTANT_DELIVERY' || order.fulfillmentType === 'DELIVERY';
+      const patientPaymentMsg = isDeliveryOrder
+        ? `Your payment of ₹${Number(updatedPayment.amount).toFixed(2)} has been confirmed. Fulfillment: Assistant Delivery. The pharmacy will now prepare your package for dispatch.`
+        : `Your payment of ₹${Number(updatedPayment.amount).toFixed(2)} has been confirmed. Fulfillment: Counter Pickup. The pharmacy will prepare your medicines and notify you with your pickup PIN when ready.`;
+
       await tx.notification.create({
         data: {
           userId: order.userId,
           title: `Payment Successful: #${order.orderNumber}`,
-          message: `Your payment of ₹${Number(updatedPayment.amount).toFixed(2)} has been confirmed. Fulfillment: ${order.fulfillmentType}. Pickup PIN: ${order.verificationPin}.`,
+          message: patientPaymentMsg,
           type: 'ORDER_STATUS',
           linkUrl: `/orders/${order.id}`
         }
@@ -1418,7 +1447,7 @@ async function verifyPayment(req, res) {
     return res.json({
       success: true,
       message: 'Payment verified successfully. Fulfillment proceeding.',
-      verificationPin: order.verificationPin,
+      verificationPin: null,
       payment: {
         id: result.payment.id,
         status: result.payment.status,
@@ -1887,7 +1916,7 @@ async function handleRazorpayWebhook(req, res) {
                 serviceType: order.assistantServiceType || null,
                 serviceNote: order.notes || null,
                 deliveryNotes: order.notes || null,
-                handoverPin: order.verificationPin || null
+                handoverPin: null
               }
             });
           }
@@ -1898,7 +1927,7 @@ async function handleRazorpayWebhook(req, res) {
           data: {
             userId: order.userId,
             title: `Payment Confirmed: #${order.orderNumber}`,
-            message: `Your payment has been successfully reconciled. Fulfillment: ${order.fulfillmentType}. Pickup PIN: ${order.verificationPin}.`,
+            message: `Your payment has been successfully reconciled. Fulfillment: ${order.fulfillmentType}.`,
             type: 'ORDER_STATUS',
             linkUrl: `/orders/${order.id}`
           }
@@ -1916,6 +1945,36 @@ async function handleRazorpayWebhook(req, res) {
   }
 }
 
+/**
+ * GET /api/checkout/assistant-availability or GET /api/checkout/:orderId/assistant-availability
+ * Checks if verified delivery assistants are active and available in target service area.
+ */
+async function getAssistantAvailability(req, res) {
+  try {
+    const { orderId } = req.params;
+    let city = req.query.city || req.query.area;
+
+    if (orderId) {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { pharmacy: true }
+      });
+      if (order && order.pharmacy?.city) {
+        city = order.pharmacy.city;
+      }
+    }
+
+    const availability = await checkDeliveryAssistantAvailability(city);
+    return res.json({
+      success: true,
+      ...availability
+    });
+  } catch (err) {
+    console.error('getAssistantAvailability error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to check assistant availability.' });
+  }
+}
+
 module.exports = {
   getCheckoutSummary,
   selectFulfillment,
@@ -1926,5 +1985,6 @@ module.exports = {
   retryPayment,
   handleRazorpayWebhook,
   resolveOrderPlatformFee,
-  reserveParentFeeInsideTransaction
+  reserveParentFeeInsideTransaction,
+  getAssistantAvailability
 };

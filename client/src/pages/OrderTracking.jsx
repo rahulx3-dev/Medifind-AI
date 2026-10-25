@@ -448,14 +448,15 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
     const isCounterPay = detailOrder.payment?.method === 'COUNTER' || detailOrder.payment?.method === 'PAY_AT_COUNTER';
     const isCheckoutComplete = Boolean(detailOrder.fulfillmentType) && (isPaid || isCounterPay);
 
-    // 4 PIN Digits — strictly from server verificationPin, never fallback to fabricated PIN
-    const pinStr = (!isTerminal && detailOrder.verificationPin) ? detailOrder.verificationPin : '';
-    const pinDigits = pinStr ? pinStr.padEnd(4, '0').slice(0, 4).split('') : ['—', '—', '—', '—'];
-
-    const isAssistantDelivery = detailOrder.fulfillmentType === 'ASSISTANT_DELIVERY' || Boolean(detailOrder.assistantTask);
+    const isAssistantDelivery = detailOrder.fulfillmentType === 'ASSISTANT_DELIVERY' || detailOrder.fulfillmentType === 'DELIVERY' || Boolean(detailOrder.assistantTask);
     const assistantTask = detailOrder.assistantTask;
     const assistantStatus = assistantTask?.status;
     const assistantName = assistantTask?.assistant?.name || 'Delivery Partner';
+
+    // Separate security codes: Delivery OTP for delivery orders, Pickup PIN for counter pickup
+    const activeCode = isAssistantDelivery ? detailOrder.deliveryOtp : detailOrder.verificationPin;
+    const pinStr = (!isTerminal && activeCode) ? activeCode : '';
+    const pinDigits = pinStr ? pinStr.padEnd(4, '0').slice(0, 4).split('') : ['—', '—', '—', '—'];
 
     let heroBadge = isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Action Required by You' : isPending ? 'Review In Progress' : 'Live Clinical Status';
     let heroTitle = isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Ready for Pickup' : isPending ? 'Awaiting Pharmacy Confirmation' : (isConfirmed && !isPaid && !isCounterPay) ? 'Reservation Approved: Choose Mode & Pay' : isCompleted ? 'Dispensation Completed' : 'Medicines Staged & Packing';
@@ -1054,15 +1055,19 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', borderBottom: '1px solid #e0f2eb', paddingBottom: '0.65rem' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: isTerminal ? '#93000a' : '#717976', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 15, color: isTerminal ? '#93000a' : '#2e685d' }}>{isTerminal ? 'block' : 'lock'}</span>
-                      {isTerminal ? 'TOKEN INACTIVE' : 'DISPENSING TOKEN'}
+                      {isTerminal ? 'TOKEN INACTIVE' : (isAssistantDelivery ? (pinStr ? 'DELIVERY OTP' : 'AWAITING DISPATCH') : (pinStr ? 'DISPENSING TOKEN' : 'AWAITING STAGING'))}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: isTerminal ? '#93000a' : '#2e685d', background: isTerminal ? '#ffdad6' : '#b0ecdd', padding: '0.15rem 0.55rem', borderRadius: 99 }}>
-                      {isTerminal ? 'VOIDED' : 'Bay #04'}
+                      {isTerminal ? 'VOIDED' : (isAssistantDelivery ? 'Doorstep Handover' : 'Bay #04')}
                     </span>
                   </div>
 
                   <span style={{ fontSize: 12, fontWeight: 600, color: isTerminal ? '#93000a' : '#414846', margin: '0.75rem 0 0.5rem 0' }}>
-                    {isTerminal ? `Pickup PIN Voided (${detailOrder.status})` : 'Patient Pickup Verification PIN'}
+                    {isTerminal
+                      ? (isAssistantDelivery ? `Delivery OTP Voided (${detailOrder.status})` : `Pickup PIN Voided (${detailOrder.status})`)
+                      : (isAssistantDelivery
+                          ? (pinStr ? 'Doorstep Delivery Handover OTP' : 'OTP Revealed Upon Assistant Collection')
+                          : (pinStr ? 'Patient Pickup Verification PIN' : 'PIN Generated Upon Pharmacy Staging'))}
                   </span>
 
                   {/* Large 4-digit PIN layout */}
@@ -1097,8 +1102,16 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                         <span key={i} style={{ width: w, height: '100%', background: isTerminal ? '#93000a' : '#032f28', borderRadius: 1 }} />
                       ))}
                     </div>
-                    <p style={{ fontSize: 11, color: isTerminal ? '#93000a' : '#717976', margin: 0 }}>
-                      {isTerminal ? 'Single-use clinical release code has been voided.' : <>Valid today until <strong style={{ color: '#032f28' }}>10:30 PM</strong> • Single-use clinical release code</>}
+                    <p style={{ fontSize: 11, color: isTerminal ? '#93000a' : '#717976', margin: 0, textAlign: 'center' }}>
+                      {isTerminal
+                        ? 'Single-use security code has been voided.'
+                        : (isAssistantDelivery
+                            ? (pinStr
+                                ? <>Provide this <strong style={{ color: '#032f28' }}>4-digit OTP</strong> to your delivery assistant at your doorstep.</>
+                                : 'Your Delivery OTP will appear here once your delivery assistant collects the medication package from the dispensary.')
+                            : (pinStr
+                                ? <>Show this <strong style={{ color: '#032f28' }}>4-digit PIN</strong> to the pharmacist at the dispensary counter.</>
+                                : 'Your Pickup PIN will appear here once the pharmacist prepares and marks your order Ready for Pickup.'))}
                     </p>
                   </div>
                 </div>

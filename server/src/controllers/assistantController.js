@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { parseVerificationMeta } = require('../utils/fulfillmentVerification');
 
 // Canonical 8 non-clinical assistant service types
 const VALID_ASSISTANT_SERVICE_TYPES = [
@@ -16,13 +17,21 @@ const VALID_ASSISTANT_SERVICE_TYPES = [
  * Assistant Clinical-Data Isolation Helper
  * Ensures no prescription images, prescription IDs, or clinical diagnostics are leaked to assistants.
  * Strips sensitive clinical references and handover PIN from task/order payloads.
+ * Exposes the pharmacy collectionCode to assigned assistants.
  */
 function sanitizeTaskForAssistant(task, { includeHandoverPin = false, isAssigned = false } = {}) {
   if (!task) return null;
   const clone = { ...task };
 
-  if (!includeHandoverPin) {
-    delete clone.handoverPin;
+  // Always delete patient delivery OTP (handoverPin) from assistant payload
+  delete clone.handoverPin;
+
+  // Expose pharmacy collection code to assigned assistant
+  if (clone.serviceNote) {
+    const meta = parseVerificationMeta(clone.serviceNote);
+    if (meta && meta.collectionCode) {
+      clone.collectionCode = meta.collectionCode;
+    }
   }
 
   const NON_ADDRESS_SERVICE_TYPES = ['DIGITAL_ASSISTANCE', 'PRESCRIPTION_ASSISTANCE', 'PHARMACY_COMMS'];
@@ -978,23 +987,30 @@ async function acceptTask(req, res) {
       return res.status(400).json({ success: false, error: `Task cannot be accepted. Current status: ${task.status}` });
     }
 
-    // Re-verify to prevent race conditions / double acceptance
-    const current = await prisma.assistantTask.findUnique({ where: { id } });
-    const currentCanAccept = current && (
-      (current.status === 'AVAILABLE' && !current.assistantId) ||
-      (current.status === 'ASSIGNED' && current.assistantId === assistantId)
-    );
-    if (!currentCanAccept) {
-      return res.status(400).json({ success: false, error: 'This task has already been accepted.' });
-    }
+    // Atomic conditional update to strictly prevent race conditions / double acceptance
+    const acceptWhere = {
+      id,
+      OR: [
+        { status: 'AVAILABLE', assistantId: null },
+        { status: 'ASSIGNED', assistantId }
+      ]
+    };
 
-    const updated = await prisma.assistantTask.update({
-      where: { id },
+    const updateCount = await prisma.assistantTask.updateMany({
+      where: acceptWhere,
       data: {
         status: 'ACCEPTED',
         assistantId,
         acceptedAt: new Date()
-      },
+      }
+    });
+
+    if (updateCount.count === 0) {
+      return res.status(400).json({ success: false, error: 'This task has already been accepted.' });
+    }
+
+    const updated = await prisma.assistantTask.findUnique({
+      where: { id },
       include: {
         order: {
           include: {
@@ -1129,12 +1145,49 @@ async function progressTaskStatus(req, res) {
       });
     }
 
-    // Handover PIN verification if marking CONFIRMED
+    // Business Logic Control: Prevent collection of unprepared/unpaid order
+    if (status === 'COLLECTING' && effectiveServiceType === 'MEDICINE_DELIVERY') {
+      if (task.order && task.order.status !== 'READY_FOR_DISPATCH' && task.order.status !== 'CONFIRMED') {
+        return res.status(400).json({
+          success: false,
+          error: `Order #${task.order.orderNumber} is not ready for dispatch (current status: ${task.order.status}). Pharmacy must prepare order first.`
+        });
+      }
+    }
+
+    // Business Logic Control: In-Transit requires pharmacy collection verification
+    if (status === 'IN_TRANSIT' && effectiveServiceType === 'MEDICINE_DELIVERY') {
+      if (!task.collectedAt) {
+        return res.status(400).json({
+          success: false,
+          error: 'Pharmacy counter collection verification is required before in-transit delivery. Please present your 4-digit Collection Code to the pharmacy dispensary.'
+        });
+      }
+    }
+
+    // Requirement 10: The assistant cannot confirm delivery before collection
+    if ((status === 'DELIVERED' || status === 'CONFIRMED') && effectiveServiceType === 'MEDICINE_DELIVERY') {
+      if (!task.collectedAt) {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot confirm delivery before successful pharmacy collection.'
+        });
+      }
+    }
+
+    // Requirement 11 & 12: Delivery OTP verification when marking CONFIRMED
     if (status === 'CONFIRMED') {
+      if (!task.handoverPin) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid recipient handover PIN: Patient delivery OTP has already been consumed or was not issued for this order.'
+        });
+      }
+
       if (!handoverPin || handoverPin.trim() !== task.handoverPin) {
         return res.status(400).json({
           success: false,
-          error: 'Invalid recipient handover PIN. Recipient must provide their 4-digit verification PIN.'
+          error: 'Invalid recipient handover PIN (Delivery OTP). Recipient must provide their 4-digit delivery OTP.'
         });
       }
     }
@@ -1143,9 +1196,13 @@ async function progressTaskStatus(req, res) {
     if (status === 'ACCEPTED') {
       updateData.acceptedAt = new Date();
     } else if (status === 'COLLECTING') {
-      updateData.collectedAt = new Date();
-    } else if (status === 'DELIVERED' || status === 'CONFIRMED') {
+      updateData.collectedAt = task.collectedAt || new Date();
+    } else if (status === 'DELIVERED') {
       updateData.deliveredAt = new Date();
+    } else if (status === 'CONFIRMED') {
+      updateData.deliveredAt = task.deliveredAt || new Date();
+      // Consume handoverPin to prevent OTP reuse!
+      updateData.handoverPin = null;
     }
 
     const updated = await prisma.assistantTask.update({
@@ -1161,6 +1218,10 @@ async function progressTaskStatus(req, res) {
     // Update child order status if confirmed
     if (status === 'CONFIRMED') {
       try {
+        await prisma.order.update({
+          where: { id: task.orderId },
+          data: { status: 'DELIVERED' }
+        });
         await prisma.order.update({
           where: { id: task.orderId },
           data: { status: 'COMPLETED' }
@@ -1287,10 +1348,20 @@ async function discoverAssistants(req, res) {
 async function validateAssistantSelection(assistantId, serviceType) {
   if (!assistantId) return { valid: false, error: 'Assistant ID is required.' };
 
-  const assistant = await prisma.user.findUnique({
+  let assistant = await prisma.user.findUnique({
     where: { id: assistantId },
     include: { assistantProfile: true }
   });
+
+  if (!assistant) {
+    const prof = await prisma.assistantProfile.findUnique({
+      where: { id: assistantId },
+      include: { user: true }
+    });
+    if (prof && prof.user) {
+      assistant = { ...prof.user, assistantProfile: prof };
+    }
+  }
 
   if (!assistant || assistant.role !== 'ASSISTANT') {
     return { valid: false, error: 'Selected assistant was not found or is not a registered assistant.' };
