@@ -251,7 +251,7 @@ function DeliveryLocationBadge({ addressString }) {
   );
 }
 
-function AssistantPinKeypad({ task, pin = '', onChangePin, onSubmit, onResendSms, onCallDispatch }) {
+function AssistantPinKeypad({ task, pin = '', onChangePin, onSubmit, onResendSms, onCallDispatch, loading = false }) {
   const pressKey = (num) => {
     if (pin.length < 4) {
       const next = pin + num;
@@ -593,7 +593,8 @@ function AssistantPinKeypad({ task, pin = '', onChangePin, onSubmit, onResendSms
         <FlowButton
           type="button"
           onClick={onSubmit}
-          disabled={pin.length < 4}
+          loading={loading}
+          disabled={pin.length < 4 || loading}
           variant="primary"
           size="md"
           fullWidth
@@ -654,6 +655,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   });
   const [actionLoading, setActionLoading] = useState(false);
   const [acceptingTaskId, setAcceptingTaskId] = useState(null);
+  const [progressingTaskId, setProgressingTaskId] = useState(null);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [handoverPinMap, setHandoverPinMap] = useState({});
@@ -1313,6 +1315,9 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       return;
     }
 
+    setProgressingTaskId(taskId);
+    setActionLoading(true);
+
     try {
       const res = await fetch(`/api/assistant/tasks/${taskId}/progress`, {
         method: 'PUT',
@@ -1324,13 +1329,18 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(
-          nextStatus === 'CONFIRMED'
-            ? 'Handover PIN verified! Service task successfully confirmed and recorded.'
-            : `Task progressed to ${nextStatus.replace(/_/g, ' ')}.`,
-          'success'
-        );
-        fetchTasks();
+        let msg = `Task progressed to ${nextStatus.replace(/_/g, ' ')}.`;
+        if (nextStatus === 'COLLECTING') {
+          msg = 'Arrived at pharmacy! Please inspect and collect the prescription package.';
+        } else if (nextStatus === 'IN_TRANSIT') {
+          msg = 'Medicine collected from pharmacy! Active custody started — out for delivery.';
+        } else if (nextStatus === 'DELIVERED') {
+          msg = 'Arrived at doorstep! Please ask recipient for their 4-digit Handover PIN.';
+        } else if (nextStatus === 'CONFIRMED') {
+          msg = 'Handover PIN verified! Delivery successfully confirmed and completed.';
+        }
+        showToast(msg, 'success');
+        await fetchTasks(true);
         broadcastUpdate('ASSISTANT_TASK_PROGRESSED', { taskId, status: nextStatus });
       } else {
         showToast(data.error || 'Failed to progress task.', 'error');
@@ -1338,6 +1348,9 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
     } catch (err) {
       console.error('Error progressing task:', err);
       showToast('Error communicating with server.', 'error');
+    } finally {
+      setProgressingTaskId(null);
+      setActionLoading(false);
     }
   };
 
@@ -1357,22 +1370,28 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       {feedback.show && (
         <div style={{
           position: 'fixed',
-          top: '5.5rem',
-          right: '1.5rem',
-          zIndex: 9999,
-          background: feedback.type === 'error' ? '#ffdad6' : feedback.type === 'warning' ? '#ffdad4' : '#e0f2eb',
-          color: feedback.type === 'error' ? '#ba1a1a' : feedback.type === 'warning' ? '#5a0100' : '#032f28',
-          border: `1px solid ${feedback.type === 'error' ? '#ba1a1a' : '#2e685d'}`,
-          borderRadius: 14,
-          padding: '0.75rem 1.25rem',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          top: '1.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 99999,
+          background: feedback.type === 'error' ? '#93000a' : feedback.type === 'warning' ? '#78350f' : '#032f28',
+          color: '#ffffff',
+          borderRadius: 99,
+          padding: '0.85rem 1.75rem',
+          boxShadow: '0 12px 36px rgba(0,0,0,0.28)',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.65rem',
-          fontSize: 13,
-          fontWeight: 600
+          gap: '0.75rem',
+          fontSize: 14,
+          fontWeight: 700,
+          border: '1.5px solid rgba(255,255,255,0.25)',
+          maxWidth: '90vw',
+          pointerEvents: 'none'
         }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+          <span className="material-symbols-outlined" style={{
+            fontSize: 22,
+            color: feedback.type === 'error' ? '#ffdad6' : feedback.type === 'warning' ? '#fde68a' : '#b0ecdd'
+          }}>
             {feedback.type === 'error' ? 'error' : feedback.type === 'warning' ? 'warning' : 'check_circle'}
           </span>
           <span>{feedback.message}</span>
@@ -3397,7 +3416,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
 
                   <FlowButton
                     onClick={buttonAction}
-                    loading={actionLoading && isAssigned && acceptingTaskId === primaryActiveTask.id}
+                    loading={actionLoading && (acceptingTaskId === primaryActiveTask.id || progressingTaskId === primaryActiveTask.id)}
+                    disabled={actionLoading}
                     variant="secondary"
                     size="md"
                     style={{ background: '#b0ecdd', color: '#00201b', '--fb-circle-bg': '#032f28', '--fb-color': '#00201b', '--fb-border': 'rgba(3,47,40,0.25)', fontWeight: 700 }}
@@ -3867,6 +3887,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                             size="md"
                             variant="primary"
                             loading={actionLoading && acceptingTaskId === task.id}
+                            disabled={actionLoading}
                             onClick={() => handleAcceptTask(task.id)}
                           >
                             Accept Task
@@ -3878,6 +3899,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                             fullWidth
                             size="md"
                             variant="primary"
+                            loading={actionLoading && progressingTaskId === task.id}
+                            disabled={actionLoading}
                             onClick={() => handleProgressTask(task.id, 'COLLECTING')}
                           >
                             {stepLabels.btnCollecting}
@@ -3889,6 +3912,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                             fullWidth
                             size="md"
                             variant="primary"
+                            loading={actionLoading && progressingTaskId === task.id}
+                            disabled={actionLoading}
                             onClick={() => handleProgressTask(task.id, 'IN_TRANSIT')}
                           >
                             {stepLabels.btnInTransit}
@@ -3900,6 +3925,8 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                             fullWidth
                             size="md"
                             variant="primary"
+                            loading={actionLoading && progressingTaskId === task.id}
+                            disabled={actionLoading}
                             onClick={() => handleProgressTask(task.id, 'DELIVERED')}
                           >
                             {stepLabels.btnDelivered}
@@ -3911,6 +3938,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                           <AssistantPinKeypad
                             task={task}
                             pin={currentPin}
+                            loading={actionLoading && progressingTaskId === task.id}
                             onChangePin={(val) => setHandoverPinMap({ ...handoverPinMap, [task.id]: val })}
                             onSubmit={() => handleProgressTask(task.id, 'CONFIRMED')}
                             onResendSms={() => showToast('Dispatch notification triggered: PIN resent to patient phone.', 'info')}
