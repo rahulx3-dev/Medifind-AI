@@ -174,6 +174,26 @@ function areFormsCompatible(prescribedFormStr, catalogFormStr) {
   return true;
 }
 
+function calculateStringSimilarity(s1, s2) {
+  if (!s1 || !s2) return 0;
+  const a = s1.toLowerCase().trim();
+  const b = s2.toLowerCase().trim();
+  if (a === b) return 1.0;
+  if (a.length <= 3 || b.length <= 3) return a === b ? 1.0 : 0.0;
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j - 1], dp[i][j - 1], dp[i - 1][j]);
+    }
+  }
+  return Math.max(0, 1 - dp[m][n] / Math.max(m, n));
+}
+
 // ─── 3. Generic vs. Brand Prescription Identification ────────────────────────
 
 /**
@@ -184,9 +204,23 @@ function identifyPrescriptionType(itemOrText, catalog) {
     return { isGeneric: false, isBrand: false, targetGeneric: '', matchedBrand: null };
   }
 
+  // If item is already marked as generic
+  if (typeof itemOrText === 'object') {
+    if (itemOrText.isGeneric === true || itemOrText.isGenericPrescription === true) {
+      const tgt = itemOrText.prescribedGenericName || itemOrText.genericName || '';
+      return {
+        isGeneric: true,
+        isBrand: false,
+        targetGeneric: tgt,
+        detectedIngredients: extractActiveIngredients(tgt)
+      };
+    }
+  }
+
+  // Prioritize raw prescription text extracted from the slip over overridden matched brand names
   const raw = typeof itemOrText === 'string'
     ? itemOrText
-    : (itemOrText.medicineName || itemOrText.rawName || '');
+    : (itemOrText.prescribedName || itemOrText.rawName || itemOrText.primaryOcrText || itemOrText.medicineName || '');
   const clean = cleanText(raw);
 
   // 1. Direct Brand Match: Check if the text explicitly names a proprietary trade brand in the catalogue
@@ -220,10 +254,11 @@ function identifyPrescriptionType(itemOrText, catalog) {
       const isSingleMatch = prescribedIngredients.length === 1 && catIngredients.length === 1 &&
         (catIngredients[0] === prescribedIngredients[0] ||
          catIngredients[0].includes(prescribedIngredients[0]) ||
-         prescribedIngredients[0].includes(catIngredients[0]));
+         prescribedIngredients[0].includes(catIngredients[0]) ||
+         calculateStringSimilarity(catIngredients[0], prescribedIngredients[0]) >= 0.78);
 
       const isComboMatch = prescribedIngredients.length > 1 &&
-        prescribedIngredients.every(p => catIngredients.some(c => c.includes(p) || p.includes(c)));
+        prescribedIngredients.every(p => catIngredients.some(c => c.includes(p) || p.includes(c) || calculateStringSimilarity(c, p) >= 0.78));
 
       if (isSingleMatch || isComboMatch) {
         return {
@@ -232,6 +267,23 @@ function identifyPrescriptionType(itemOrText, catalog) {
           targetGeneric: med.genericName,
           detectedIngredients: prescribedIngredients,
           isCombo: prescribedIngredients.length > 1
+        };
+      }
+    }
+  }
+
+  // 3. Fallback: If item was matched to a catalogue medicine via genericName, but raw prescription did NOT contain the brand
+  if (typeof itemOrText === 'object') {
+    const matchedMed = itemOrText.matchedMedicine || (itemOrText.matchedMedicineId ? catalog.find(m => m.id === itemOrText.matchedMedicineId) : null);
+    if (matchedMed && matchedMed.genericName) {
+      const brandFirstToken = cleanText(matchedMed.brandName).split(/\s+/)[0];
+      const rawLower = (itemOrText.rawName || itemOrText.primaryOcrText || '').toLowerCase();
+      if (!rawLower.includes(brandFirstToken)) {
+        return {
+          isGeneric: true,
+          isBrand: false,
+          targetGeneric: matchedMed.genericName,
+          detectedIngredients: extractActiveIngredients(matchedMed.genericName)
         };
       }
     }
@@ -345,13 +397,38 @@ function findMatchingGenericProduct(item, catalog, options = {}) {
   const prescribedStrength = item.strength || (raw.match(/\d+\s*(?:mg|mcg|gm?|ml|%)\b/i)?.[0] || '');
   const prescribedForm = item.dosageForm || (raw.match(/\b(?:tab|tablet|cap|capsule|syr|syrup|inj|injection|powder|sachet|gel)\b/i)?.[0] || '');
 
-  let prescribedIngredients = extractActiveIngredients(clean);
-  const itemGeneric = item.genericName || item.matchedMedicine?.genericName;
-  if (itemGeneric && typeof itemGeneric === 'string') {
-    const hintIngredients = extractActiveIngredients(itemGeneric);
-    if (hintIngredients.length > 0) {
-      prescribedIngredients = hintIngredients;
+  let prescribedIngredients = [];
+
+  if (typeof item === 'object' && item !== null) {
+    if (item.prescribedGenericName) {
+      const ings = extractActiveIngredients(item.prescribedGenericName);
+      if (ings.length > 0) prescribedIngredients = ings;
     }
+    if (prescribedIngredients.length === 0) {
+      const rxType = identifyPrescriptionType(item, catalog);
+      if (rxType && rxType.isGeneric && rxType.targetGeneric) {
+        const ings = extractActiveIngredients(rxType.targetGeneric);
+        if (ings.length > 0) prescribedIngredients = ings;
+      }
+    }
+    if (prescribedIngredients.length === 0) {
+      const itemGeneric = item.genericName || item.matchedMedicine?.genericName;
+      if (itemGeneric && typeof itemGeneric === 'string') {
+        const hintIngredients = extractActiveIngredients(itemGeneric);
+        if (hintIngredients.length > 0) prescribedIngredients = hintIngredients;
+      }
+    }
+    if (prescribedIngredients.length === 0) {
+      const matchedMed = catalog.find(m => m.id === (item.matchedMedicineId || item.id) || m.brandName === item.matchedMedicineName || m.brandName === item.medicineName);
+      if (matchedMed && matchedMed.genericName) {
+        const ings = extractActiveIngredients(matchedMed.genericName);
+        if (ings.length > 0) prescribedIngredients = ings;
+      }
+    }
+  }
+
+  if (prescribedIngredients.length === 0) {
+    prescribedIngredients = extractActiveIngredients(clean);
   }
 
   const isPrescribedCombo = prescribedIngredients.length > 1 ||
@@ -457,16 +534,38 @@ function findMatchingBrands(item, catalog, options = {}) {
   const prescribedStrength = item.strength || (raw.match(/\d+\s*(?:mg|mcg|gm?|ml|%)\b/i)?.[0] || '');
   const prescribedForm = item.dosageForm || (raw.match(/\b(?:tab|tablet|cap|capsule|syr|syrup|inj|injection|powder|sachet|gel)\b/i)?.[0] || '');
 
-  // Extract active ingredients from the prescribed item
-  let prescribedIngredients = extractActiveIngredients(clean);
+  let prescribedIngredients = [];
 
-  // If item already has a matched generic name or generic hint, include its ingredients
-  const itemGeneric = item.genericName || item.matchedMedicine?.genericName;
-  if (itemGeneric && typeof itemGeneric === 'string') {
-    const hintIngredients = extractActiveIngredients(itemGeneric);
-    if (hintIngredients.length > 0) {
-      prescribedIngredients = hintIngredients;
+  if (typeof item === 'object' && item !== null) {
+    if (item.prescribedGenericName) {
+      const ings = extractActiveIngredients(item.prescribedGenericName);
+      if (ings.length > 0) prescribedIngredients = ings;
     }
+    if (prescribedIngredients.length === 0) {
+      const rxType = identifyPrescriptionType(item, catalog);
+      if (rxType && rxType.isGeneric && rxType.targetGeneric) {
+        const ings = extractActiveIngredients(rxType.targetGeneric);
+        if (ings.length > 0) prescribedIngredients = ings;
+      }
+    }
+    if (prescribedIngredients.length === 0) {
+      const itemGeneric = item.genericName || item.matchedMedicine?.genericName;
+      if (itemGeneric && typeof itemGeneric === 'string') {
+        const hintIngredients = extractActiveIngredients(itemGeneric);
+        if (hintIngredients.length > 0) prescribedIngredients = hintIngredients;
+      }
+    }
+    if (prescribedIngredients.length === 0) {
+      const matchedMed = catalog.find(m => m.id === (item.matchedMedicineId || item.id) || m.brandName === item.matchedMedicineName || m.brandName === item.medicineName);
+      if (matchedMed && matchedMed.genericName) {
+        const ings = extractActiveIngredients(matchedMed.genericName);
+        if (ings.length > 0) prescribedIngredients = ings;
+      }
+    }
+  }
+
+  if (prescribedIngredients.length === 0) {
+    prescribedIngredients = extractActiveIngredients(clean);
   }
 
   // Determine if prescribed as a combination formulation

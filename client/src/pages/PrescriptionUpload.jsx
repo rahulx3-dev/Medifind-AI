@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import AvailabilityModal from '../components/AvailabilityModal';
 import ConfirmationDialog from '../components/ConfirmationDialog';
@@ -2820,6 +2821,12 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                     const confidenceScore = item.confidenceScore || (isMapped ? 99 : 64);
                     const isHighMatch = confidenceScore >= 80;
 
+                    // Resolve prescription classification, generic compound name, and display text
+                    const rxType = identifyPrescriptionType(item, medicinesCatalog);
+                    const isGenericPrescription = Boolean(item.isGeneric || item.isGenericPrescription || rxType.isGeneric);
+                    const genericCompoundName = item.prescribedGenericName || rxType.targetGeneric || (isGenericPrescription ? (rxType.matchedGeneric || item.genericName) : null);
+                    const cleanPrescribedName = item.prescribedName || (isGenericPrescription && genericCompoundName ? `${genericCompoundName}${item.strength ? ` ${item.strength}` : ''}` : (item.medicineName || item.rawName || 'Detected item'));
+
                     return (
                       <div
                         key={item.id}
@@ -2908,14 +2915,19 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                 <span className="material-symbols-outlined text-xs text-secondary">description</span>
                                 Recognized Medicine
                               </span>
-                              {item.medicineName && (
+                              {isGenericPrescription ? (
+                                <span className="text-[10px] font-bold text-secondary bg-secondary/15 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-xs">science</span>
+                                  Generic Prescribed
+                                </span>
+                              ) : item.medicineName ? (
                                 <span className="text-[10px] font-bold text-primary bg-secondary/10 px-2 py-0.5 rounded-md">
                                   {item.medicineName}
                                 </span>
-                              )}
+                              ) : null}
                             </div>
-                            <p className="font-mono text-xs text-on-surface font-semibold bg-surface-container-lowest px-2.5 py-1.5 rounded-lg border border-surface-container truncate" title={item.rawName}>
-                              "{item.medicineName || item.rawName || 'Detected item'}"
+                            <p className="font-mono text-xs text-on-surface font-semibold bg-surface-container-lowest px-2.5 py-1.5 rounded-lg border border-surface-container truncate" title={item.rawName || cleanPrescribedName}>
+                              "{cleanPrescribedName}"
                             </p>
                           </div>
 
@@ -2926,9 +2938,6 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                           {/* Right: Matched Catalogue Medicine */}
                           {(() => {
-                            const rxType = identifyPrescriptionType(item, medicinesCatalog);
-                            const isGenericPrescription = Boolean(item.isGeneric || rxType.isGeneric);
-                            const genericCompoundName = item.prescribedGenericName || rxType.targetGeneric || item.medicineName;
                             const topAux = item.auxiliaryCandidates && item.auxiliaryCandidates.length > 0 ? item.auxiliaryCandidates[0] : null;
 
                             return (
@@ -2938,16 +2947,33 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                     ? 'bg-secondary-container/40 text-secondary'
                                     : topAux
                                     ? 'bg-amber-100 text-amber-800'
+                                    : item.pharmacistSelectionRequested
+                                    ? 'bg-amber-100 text-amber-800'
                                     : isGenericPrescription
                                     ? 'bg-secondary/15 text-secondary'
                                     : 'bg-surface-container text-outline'
                                 }`}>
                                   <span className="material-symbols-outlined text-xl">
-                                    {isMapped ? 'medication' : topAux ? 'menu_book' : (isGenericPrescription ? 'science' : 'help_outline')}
+                                    {isMapped ? 'medication' : topAux ? 'menu_book' : item.pharmacistSelectionRequested ? 'support_agent' : (isGenericPrescription ? 'science' : 'help_outline')}
                                   </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  {isMapped ? (
+                                  {item.pharmacistSelectionRequested ? (
+                                    <div>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <h3 className="text-sm font-bold text-amber-900 truncate">
+                                          {genericCompoundName || cleanPrescribedName}
+                                        </h3>
+                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 text-[10px] font-bold flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[11px]">support_agent</span>
+                                          Pharmacist Review Pending
+                                        </span>
+                                      </div>
+                                      <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                                        Prescribed: {cleanPrescribedName} • Attending pharmacist will select genuine trade brand
+                                      </p>
+                                    </div>
+                                  ) : isMapped ? (
                                     <>
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         <h3 className="text-sm font-bold text-primary truncate">
@@ -2969,7 +2995,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                       </div>
                                       <p className="text-[11px] text-on-surface-variant mt-0.5 truncate">
                                         {isGenericPrescription
-                                          ? `Bioequivalent for ${genericCompoundName} · ${item.dosageForm || 'Formulation'}`
+                                          ? `Bioequivalent for ${genericCompoundName || cleanPrescribedName} · ${item.dosageForm || 'Formulation'}`
                                           : `${item.dosageForm || 'Formulation'} · ${item.genericName || 'Standardized catalogue'}`}
                                       </p>
                                     </>
@@ -2988,26 +3014,11 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                         {topAux.genericName} ({topAux.strength || item.dosage || '10mg'}) • {topAux.dosageForm || 'Formulation'}
                                       </p>
                                     </div>
-                                  ) : item.pharmacistSelectionRequested ? (
-                                    <div>
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <h3 className="text-sm font-bold text-amber-900 truncate">
-                                          {genericCompoundName}
-                                        </h3>
-                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 text-[10px] font-bold flex items-center gap-1">
-                                          <span className="material-symbols-outlined text-[11px]">support_agent</span>
-                                          Pharmacist Selection Pending
-                                        </span>
-                                      </div>
-                                      <p className="text-[11px] text-amber-800 font-medium mt-0.5">
-                                        Prescribed generic: {genericCompoundName} ({item.strength || item.dosage || 'Standard'} · Qty: {item.quantity || 1}) • Attending pharmacist will select genuine trade brand
-                                      </p>
-                                    </div>
                                   ) : isGenericPrescription ? (
                                     <div>
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         <h3 className="text-sm font-bold text-secondary truncate">
-                                          {item.matchedMedicineName || item.medicineName}
+                                          {cleanPrescribedName}
                                         </h3>
                                         <span className="px-1.5 py-0.2 rounded-full bg-secondary/15 text-secondary text-[10px] font-bold flex items-center gap-1">
                                           <span className="material-symbols-outlined text-[11px]">science</span>
@@ -3032,10 +3043,6 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                         {/* Generic Medicine Matching: Generic Product & Brand Formulations Selection */}
                         {(() => {
-                          const rxType = identifyPrescriptionType(item, medicinesCatalog);
-                          const isGenericPrescription = Boolean(item.isGeneric || rxType.isGeneric);
-                          const genericCompoundName = item.prescribedGenericName || rxType.targetGeneric || item.medicineName;
-
                           const candidateResult = findMatchingCandidates(item, medicinesCatalog, {
                             pharmacyInventory: dispensaryInventory
                           });
@@ -3052,7 +3059,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                   <div className="flex items-center gap-1.5">
                                     <span className="material-symbols-outlined text-sm text-secondary">science</span>
                                     <span className="text-xs font-bold text-primary">
-                                      Doctor Prescribed Active Ingredient: <span className="text-secondary">{genericCompoundName}</span>
+                                      Doctor Prescribed Active Ingredient: <span className="text-secondary">{genericCompoundName || cleanPrescribedName}</span>
                                     </span>
                                   </div>
                                   {pharmacies.length > 0 && (
@@ -3191,7 +3198,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                         return (
                                           <div
                                             key={b.id}
-                                            className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
+                                            className={`p-2.5 rounded-xl border transition-all duration-200 flex items-center justify-between gap-2.5 ${
                                               isCurrent
                                                 ? 'bg-secondary/15 border-secondary shadow-xs scale-[1.01]'
                                                 : 'bg-white hover:bg-surface-container border-outline-variant/30 hover:border-secondary/40'
@@ -3270,7 +3277,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                           </span>
                                         </div>
                                         <p className="text-[11px] text-amber-800 mt-1 leading-relaxed">
-                                          The attending licensed pharmacist at {selectedDispensary?.name || 'the fulfillment pharmacy'} will evaluate your prescription and confirm the optimal bioequivalent trade brand for <strong>{genericCompoundName}</strong> ({item.strength || item.dosage || 'Standard'} • Qty: {item.quantity || 1}).
+                                          The attending licensed pharmacist at {selectedDispensary?.name || 'the fulfillment pharmacy'} will evaluate your prescription and confirm the optimal bioequivalent trade brand for <strong>{genericCompoundName || cleanPrescribedName}</strong> ({item.strength || item.dosage || 'Standard'} • Qty: {item.quantity || 1}).
                                         </p>
                                       </div>
                                     </div>
@@ -3307,7 +3314,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                         type="button"
                                         onClick={() => {
                                           setMappingModalItem(item);
-                                          setMappingSearchQuery(cleanDrugSearch(genericCompoundName));
+                                          setMappingSearchQuery(cleanDrugSearch(genericCompoundName || cleanPrescribedName));
                                         }}
                                         className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
                                       >
@@ -3327,7 +3334,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                   <span className="material-symbols-outlined text-amber-700 text-base mt-0.5">warning</span>
                                   <div>
                                     <span className="text-xs font-bold text-amber-900">
-                                      No Catalogue Records for Generic "{genericCompoundName}"
+                                      No Catalogue Records for Generic "{genericCompoundName || cleanPrescribedName}"
                                     </span>
                                     <p className="text-[11px] text-amber-800">
                                       Neither generic nor brand formulations of this drug exist in the current catalogue. Request pharmacist assistance or remove.
@@ -3340,7 +3347,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                     onClick={() => {
                                       setPatientCorrectingCandidate(item);
                                       setPatientCorrectionForm({
-                                        correctedMedicineName: genericCompoundName,
+                                        correctedMedicineName: genericCompoundName || cleanPrescribedName,
                                         dosage: item.dosage || '',
                                         frequency: item.frequency || '',
                                         duration: item.duration || '',
@@ -3365,57 +3372,162 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                           if (!isGenericPrescription && matchingBrands.length > 0) {
                             return (
-                              <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-surface-container-low/80 border border-secondary/20">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-secondary uppercase tracking-wider flex items-center gap-1">
-                                    <span className="material-symbols-outlined text-xs">verified</span>
-                                    Available Trade Brand Formulations:
-                                  </span>
-                                  <span className="text-[10px] text-outline font-medium">
-                                    {matchingBrands.length} catalogue brand{matchingBrands.length > 1 ? 's' : ''} available
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                  {matchingBrands.slice(0, 4).map(b => {
-                                    const isCurrent = item.matchedMedicineId === b.id;
-                                    return (
-                                      <button
-                                        key={b.id}
-                                        type="button"
-                                        onClick={() => handleSelectMatchedMedicine(item.id, b.id)}
-                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
-                                          isCurrent
-                                            ? 'bg-secondary text-white border-secondary shadow-xs scale-[1.02]'
-                                            : 'bg-white hover:bg-surface-container text-primary border-surface-container hover:border-secondary/40'
-                                        }`}
+                              <div className="flex flex-col gap-3 p-3.5 rounded-2xl bg-surface-container-low/80 border border-secondary/25 shadow-xs transition-all">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-sm text-secondary">verified</span>
+                                    <span className="text-xs font-bold text-primary">
+                                      Available Trade Brand Formulations: <span className="text-secondary font-medium">({matchingBrands.length} catalogue brand{matchingBrands.length > 1 ? 's' : ''} available)</span>
+                                    </span>
+                                  </div>
+                                  {pharmacies.length > 0 && (
+                                    <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                                      <span className="material-symbols-outlined text-xs text-outline">local_pharmacy</span>
+                                      <span className="text-[10px] text-outline font-medium">Dispensary:</span>
+                                      <select
+                                        value={selectedDispensaryId || ''}
+                                        onChange={e => setSelectedDispensaryId(e.target.value)}
+                                        className="text-[10px] font-semibold text-primary bg-white border border-outline-variant/40 rounded-lg px-2 py-0.5 focus:outline-none focus:border-secondary cursor-pointer"
                                       >
-                                        <span className="material-symbols-outlined text-xs">
-                                          {isCurrent ? 'check_circle' : 'radio_button_unchecked'}
-                                        </span>
-                                        <span>{b.brandName}</span>
-                                        {b.strength && (
-                                          <span className={`text-[10px] font-mono px-1 rounded ${
-                                            isCurrent ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant'
-                                          }`}>
-                                            {b.strength}
-                                          </span>
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                  {matchingBrands.length > 4 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setMappingModalItem(item);
-                                        setMappingSearchQuery(cleanDrugSearch(item.medicineName || item.rawName || ''));
-                                      }}
-                                      className="px-2.5 py-1 rounded-xl text-[11px] font-semibold text-secondary hover:underline"
-                                    >
-                                      +{matchingBrands.length - 4} more in catalogue...
-                                    </button>
+                                        {pharmacies.map(p => (
+                                          <option key={p.id} value={p.id}>
+                                            {p.name} {p.isParticipating ? '• Verified Partner' : ''}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
                                   )}
                                 </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {matchingBrands.slice(0, 4).map(b => {
+                                    const isCurrent = !item.pharmacistSelectionRequested && item.matchedMedicineId === b.id;
+                                    return (
+                                      <div
+                                        key={b.id}
+                                        className={`p-2.5 rounded-xl border transition-all duration-200 flex items-center justify-between gap-2.5 ${
+                                          isCurrent
+                                            ? 'bg-secondary/15 border-secondary shadow-xs scale-[1.01]'
+                                            : 'bg-white hover:bg-surface-container border-outline-variant/30 hover:border-secondary/40'
+                                        }`}
+                                      >
+                                        <div className="flex flex-col min-w-0">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="text-xs font-bold text-primary truncate">{b.brandName}</span>
+                                            {b.strength && (
+                                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-secondary/10 text-secondary font-semibold">
+                                                {b.strength}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <span className="text-[10px] text-on-surface-variant truncate">
+                                            {b.dosageForm} • {b.manufacturer}
+                                          </span>
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] font-bold text-primary">
+                                              ₹{b.price != null ? b.price : (medicinesCatalog.find(m => m.id === b.id)?.price || '—')}
+                                            </span>
+                                            {b.inStock === true ? (
+                                              <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
+                                                In Stock ({b.stock})
+                                              </span>
+                                            ) : b.inStock === false ? (
+                                              <span className="text-[9px] text-rose-700 font-medium flex items-center gap-0.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>
+                                                Out of Stock
+                                              </span>
+                                            ) : (
+                                              <span className="text-[9px] text-outline font-medium flex items-center gap-0.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-outline/50 inline-block"></span>
+                                                In Catalogue
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSelectMatchedMedicine(item.id, b.id)}
+                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                                            isCurrent
+                                              ? 'bg-secondary text-white shadow-xs'
+                                              : 'bg-surface-container hover:bg-secondary hover:text-white text-primary'
+                                          }`}
+                                        >
+                                          <span className="material-symbols-outlined text-xs">
+                                            {isCurrent ? 'check_circle' : 'add'}
+                                          </span>
+                                          <span>{isCurrent ? 'Selected Brand' : 'Select Brand'}</span>
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Pharmacist Clarification Option for Brand Formulation */}
+                                {item.pharmacistSelectionRequested ? (
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                                    <div className="flex items-start gap-2.5">
+                                      <span className="material-symbols-outlined text-amber-600 text-lg mt-0.5 shrink-0">
+                                        pending_actions
+                                      </span>
+                                      <div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-xs font-bold text-amber-900">
+                                            Attending Pharmacist Brand Selection Requested
+                                          </span>
+                                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 text-[10px] font-bold">
+                                            Pending Clinical Review
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-amber-800 mt-1 leading-relaxed">
+                                          The attending licensed pharmacist at {selectedDispensary?.name || 'the fulfillment pharmacy'} will confirm the optimal formulation and brand for <strong>{cleanPrescribedName}</strong>.
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                      <button
+                                        type="button"
+                                        disabled={requestingPharmacistSelectionId === item.id}
+                                        onClick={() => handleRequestPharmacistSelection(item.id, true)}
+                                        className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <span className="material-symbols-outlined text-xs">close</span>
+                                        <span>Choose Myself</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-secondary/15">
+                                    <button
+                                      type="button"
+                                      disabled={requestingPharmacistSelectionId === item.id}
+                                      onClick={() => handleRequestPharmacistSelection(item.id, false)}
+                                      className="inline-flex items-center gap-1.5 text-xs text-secondary font-bold hover:underline py-0.5 cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined text-sm">support_agent</span>
+                                      <span>
+                                        {requestingPharmacistSelectionId === item.id
+                                          ? 'Sending Request...'
+                                          : 'Not sure? Ask Attending Pharmacist to Confirm'}
+                                      </span>
+                                    </button>
+
+                                    {matchingBrands.length > 4 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setMappingModalItem(item);
+                                          setMappingSearchQuery(cleanDrugSearch(cleanPrescribedName));
+                                        }}
+                                        className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                                      >
+                                        +{matchingBrands.length - 4} more options...
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             );
                           }
@@ -4073,13 +4185,13 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       )}
 
       {/* ── PART 5: LOW CONFIDENCE / MANUAL MEDICINE MAPPING MODAL (Stitch Screen 7861901e465f40148c7c56a0f7667051) ── */}
-      {mappingModalItem && (
+      {mappingModalItem && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-on-surface/60 backdrop-blur-md"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-on-surface/60 backdrop-blur-sm"
           onClick={() => setMappingModalItem(null)}
         >
           <div
-            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-2xl border border-outline-variant/30 flex flex-col gap-6"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-2xl border border-outline-variant/30 flex flex-col gap-6 my-auto"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -4335,7 +4447,8 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Fallback Availability Modal */}
@@ -4404,160 +4517,166 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       )}
 
       {/* Shared-Element Smooth Image Enlargement Lightbox Modal (Rule 33) */}
-      <AnimatePresence>
-        {isImageModalOpen && (
-          <div
-            className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-            onClick={() => setIsImageModalOpen(false)}
-            role="dialog"
-            aria-modal="true"
-            aria-label="High-Resolution Prescription Preview"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 12 }}
-              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-              className="relative max-w-4xl w-full max-h-[92vh] bg-surface-container-lowest rounded-3xl p-4 sm:p-6 shadow-2xl border border-outline-variant/30 flex flex-col items-center overflow-hidden"
-              onClick={e => e.stopPropagation()}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isImageModalOpen && (
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+              onClick={() => setIsImageModalOpen(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label="High-Resolution Prescription Preview"
             >
-              <div className="w-full flex items-center justify-between pb-3 border-b border-surface-container mb-3">
-                <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-base text-secondary">zoom_in</span>
-                  High-Resolution Prescription Scan Preview {previewRotation !== 0 ? `(${previewRotation}°)` : ''}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewRotation(r => (r + 90) % 360)}
-                    className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Rotate 90 degrees clockwise"
-                  >
-                    <span className="material-symbols-outlined text-sm text-secondary">rotate_right</span>
-                    <span>Rotate</span>
-                  </button>
-                  {currentPreviewSrc && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="relative max-w-4xl w-full max-h-[92vh] bg-surface-container-lowest rounded-3xl p-4 sm:p-6 shadow-2xl border border-outline-variant/30 flex flex-col items-center overflow-hidden my-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="w-full flex items-center justify-between pb-3 border-b border-surface-container mb-3">
+                  <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base text-secondary">zoom_in</span>
+                    High-Resolution Prescription Scan Preview {previewRotation !== 0 ? `(${previewRotation}°)` : ''}
+                  </span>
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsImageModalOpen(false);
-                        handleOpenCropper(currentPreviewSrc);
-                      }}
-                      className="px-3.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Crop this prescription photo"
+                      onClick={() => setPreviewRotation(r => (r + 90) % 360)}
+                      className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Rotate 90 degrees clockwise"
                     >
-                      <span className="material-symbols-outlined text-sm text-secondary">crop</span>
-                      <span>Crop Photo</span>
+                      <span className="material-symbols-outlined text-sm text-secondary">rotate_right</span>
+                      <span>Rotate</span>
                     </button>
-                  )}
+                    {currentPreviewSrc && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsImageModalOpen(false);
+                          handleOpenCropper(currentPreviewSrc);
+                        }}
+                        className="px-3.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Crop this prescription photo"
+                      >
+                        <span className="material-symbols-outlined text-sm text-secondary">crop</span>
+                        <span>Crop Photo</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsImageModalOpen(false)}
+                      className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      title="Close preview"
+                    >
+                      <span className="material-symbols-outlined text-base">close</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full flex items-center justify-center overflow-auto max-h-[75vh] p-2">
+                  <AuthenticatedPrescriptionImage
+                    prescriptionId={prescription?.id}
+                    imageId={selectedImageVersion?.id}
+                    fallbackSrc={currentPreviewSrc || filePreviewUrl || persistentImageSrc}
+                    rotation={previewRotation}
+                    alt="Enlarged prescription preview"
+                    className="max-h-[70vh] w-auto object-contain rounded-2xl shadow-sm select-none"
+                    customEmptyState={
+                      <div className="w-full max-w-xl">
+                        <PrescriptionDocumentSlip
+                          prescription={prescription}
+                          detectedItems={detectedItems}
+                          fileName={getDisplayFileName()}
+                          rotation={previewRotation}
+                          isEnlarged={true}
+                          ocrText={ocrText}
+                        />
+                      </div>
+                    }
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Raw OCR Text Inspection Modal (Stitch Image 2 Action) */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showRawTextModal && (
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+              onClick={() => setShowRawTextModal(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Raw OCR Extracted Text"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="relative max-w-2xl w-full bg-surface-container-lowest rounded-3xl p-5 sm:p-6 shadow-2xl border border-outline-variant/30 flex flex-col gap-4 max-h-[85vh] overflow-hidden my-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-surface-container">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-lg">code</span>
+                    <h3 className="text-sm font-bold text-primary">Raw Optical Text Stream</h3>
+                    {ocrConfidence !== null && (
+                      <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-mono font-bold">
+                        {ocrConfidence}% Confidence
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setIsImageModalOpen(false)}
+                    onClick={() => setShowRawTextModal(false)}
                     className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
-                    title="Close preview"
                   >
                     <span className="material-symbols-outlined text-base">close</span>
                   </button>
                 </div>
-              </div>
 
-              <div className="w-full flex items-center justify-center overflow-auto max-h-[75vh] p-2">
-                <AuthenticatedPrescriptionImage
-                  prescriptionId={prescription?.id}
-                  imageId={selectedImageVersion?.id}
-                  fallbackSrc={filePreviewUrl || persistentImageSrc}
-                  rotation={previewRotation}
-                  alt="Enlarged prescription preview"
-                  className="max-h-[70vh] w-auto object-contain rounded-2xl shadow-sm select-none"
-                  customEmptyState={
-                    <div className="w-full max-w-xl">
-                      <PrescriptionDocumentSlip
-                        prescription={prescription}
-                        detectedItems={detectedItems}
-                        fileName={getDisplayFileName()}
-                        rotation={previewRotation}
-                        isEnlarged={true}
-                        ocrText={ocrText}
-                      />
-                    </div>
-                  }
-                />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                <div className="text-xs text-on-surface-variant">
+                  Below is the verbatim character stream parsed by MediFind AI's optical character recognition engine directly from your uploaded document.
+                </div>
 
-      {/* Raw OCR Text Inspection Modal (Stitch Image 2 Action) */}
-      <AnimatePresence>
-        {showRawTextModal && (
-          <div
-            className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
-            onClick={() => setShowRawTextModal(false)}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Raw OCR Extracted Text"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 12 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="relative max-w-2xl w-full bg-surface-container-lowest rounded-3xl p-5 sm:p-6 shadow-2xl border border-outline-variant/30 flex flex-col gap-4 max-h-[85vh] overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-surface-container">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-lg">code</span>
-                  <h3 className="text-sm font-bold text-primary">Raw Optical Text Stream</h3>
-                  {ocrConfidence !== null && (
-                    <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-mono font-bold">
-                      {ocrConfidence}% Confidence
+                <div className="flex-1 overflow-y-auto bg-surface-container-lowest/90 border border-outline-variant/30 rounded-2xl p-4 font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed select-text shadow-inner">
+                  {ocrText || (
+                    <span className="text-outline italic">
+                      No raw OCR text available yet. Please upload or capture a clinical prescription document.
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowRawTextModal(false)}
-                  className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-base">close</span>
-                </button>
-              </div>
 
-              <div className="text-xs text-on-surface-variant">
-                Below is the verbatim character stream parsed by MediFind AI's optical character recognition engine directly from your uploaded document.
-              </div>
-
-              <div className="flex-1 overflow-y-auto bg-surface-container-lowest/90 border border-outline-variant/30 rounded-2xl p-4 font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed select-text shadow-inner">
-                {ocrText || (
-                  <span className="text-outline italic">
-                    No raw OCR text available yet. Please upload or capture a clinical prescription document.
+                <div className="flex items-center justify-between pt-2 border-t border-surface-container text-xs">
+                  <span className="text-[11px] text-on-surface-variant font-mono">
+                    Characters: {(ocrText || '').length} | Lines: {(ocrText || '').split('\n').filter(Boolean).length || 0}
                   </span>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-surface-container text-xs">
-                <span className="text-[11px] text-on-surface-variant font-mono">
-                  Characters: {(ocrText || '').length} | Lines: {(ocrText || '').split('\n').filter(Boolean).length || 0}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const textToCopy = ocrText || 'No raw OCR text available.';
-                    navigator.clipboard.writeText(textToCopy);
-                    showToast('Raw OCR text copied to clipboard', 'success');
-                  }}
-                  className="px-3 py-1.5 rounded-full bg-secondary-container text-on-secondary-container hover:bg-secondary/20 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-sm">content_copy</span>
-                  <span>Copy OCR Text</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const textToCopy = ocrText || 'No raw OCR text available.';
+                      navigator.clipboard.writeText(textToCopy);
+                      showToast('Raw OCR text copied to clipboard', 'success');
+                    }}
+                    className="px-3 py-1.5 rounded-full bg-secondary-container text-on-secondary-container hover:bg-secondary/20 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">content_copy</span>
+                    <span>Copy OCR Text</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
       {/* Interactive Prescription Photo Cropper Modal */}
       <ImageCropperModal
         isOpen={isCropModalOpen}
@@ -4568,15 +4687,16 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       />
 
       {/* Patient Candidate Correction Modal (Gate 2B) */}
-      <AnimatePresence>
-        {patientCorrectingCandidate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-6 sm:p-7 shadow-2xl border border-secondary/30 flex flex-col gap-4 text-on-surface"
-            >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {patientCorrectingCandidate && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-6 sm:p-7 shadow-2xl border border-secondary/30 flex flex-col gap-4 text-on-surface my-auto"
+              >
               <div className="flex items-center justify-between pb-3 border-b border-surface-container">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-2xl">edit_note</span>
@@ -4692,11 +4812,16 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
             </motion.div>
           </div>
         )}
+      </AnimatePresence>,
+      document.body
+    )}
 
-        {/* Previous Prescription Record View Modal (Problem 2 & 4) */}
+    {/* Previous Prescription Record View Modal (Problem 2 & 4) */}
+    {typeof document !== 'undefined' && createPortal(
+      <AnimatePresence>
         {viewModalRx && (
           <div
-            className="fixed inset-0 z-[1250] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto"
             onClick={() => setViewModalRx(null)}
             role="dialog"
             aria-modal="true"
@@ -4707,7 +4832,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="relative max-w-2xl w-full bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-outline-variant/30 flex flex-col gap-5 my-8 text-on-surface"
+              className="relative max-w-2xl w-full bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-outline-variant/30 flex flex-col gap-5 my-auto text-on-surface"
               onClick={e => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -4884,7 +5009,9 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </div>
   );
 }

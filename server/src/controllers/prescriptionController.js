@@ -1188,11 +1188,31 @@ async function uploadPrescription(req, res) {
             strength: top.strength
           } : null);
           const effectiveSingleHighConf = isFromTrocr ? false : isSingleHighConf;
-          const displayName = top ? top.medicineName : (topAux ? topAux.brandName : cleanName);
+
+          // Accurately classify if doctor prescribed a generic active ingredient
+          const rxType = identifyPrescriptionType(cleanName, catalog);
+          const isGenericPrescription = Boolean(
+            rxType.isGeneric ||
+            (top && top.genericName && (
+              cleanLower.includes(top.genericName.toLowerCase()) ||
+              top.genericName.toLowerCase().includes(cleanLower) ||
+              calculateSimilarity(cleanLower, top.genericName.toLowerCase()) >= 0.75
+            ))
+          );
+          const prescribedGeneric = isGenericPrescription
+            ? ((top ? top.genericName : null) || rxType.targetGeneric || cleanName)
+            : null;
+          const prescribedDisplayName = isGenericPrescription
+            ? `${prescribedGeneric}${cleanStrength ? ' ' + cleanStrength : ''}`
+            : (top ? top.medicineName : (topAux ? topAux.brandName : cleanName));
 
           return {
             rawName: line.rawLine,
-            medicineName: displayName,
+            medicineName: prescribedDisplayName,
+            prescribedName: prescribedDisplayName,
+            isGeneric: isGenericPrescription,
+            isGenericPrescription: isGenericPrescription,
+            prescribedGenericName: prescribedGeneric,
             matchedMedicineId: effectiveMatchedMedicineId,
             matchedMedicineName: isFromTrocr ? null : (top ? top.medicineName : null),
             matchedMedicine: effectiveMatchedMedicine,
@@ -1365,6 +1385,10 @@ async function uploadPrescription(req, res) {
         status: memItem.status || (dbItem.needsMapping ? 'NEEDS_MAPPING' : 'AUTO_MATCHED'),
         isNonCatalogue: memItem.isNonCatalogue || false,
         matchedMedicine: memItem.matchedMedicine || null,
+        isGeneric: memItem.isGeneric || false,
+        isGenericPrescription: memItem.isGenericPrescription || false,
+        prescribedGenericName: memItem.prescribedGenericName || null,
+        prescribedName: memItem.prescribedName || memItem.medicineName || null,
       };
     });
 
