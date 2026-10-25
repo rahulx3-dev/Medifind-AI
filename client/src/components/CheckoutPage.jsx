@@ -118,6 +118,167 @@ function getAssistantServiceLabel(value) {
   return found ? found.label : (value?.replace(/_/g, ' ') || 'Assistant Service');
 }
 
+function VerificationPinDisplay({ activePin }) {
+  const [copied, setCopied] = useState(false);
+  const pinStr = String(activePin || '').trim();
+  const digits = pinStr ? pinStr.padEnd(4, '0').slice(0, 4).split('') : ['—', '—', '—', '—'];
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    if (!pinStr) return;
+    try {
+      navigator.clipboard?.writeText(pinStr);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // clipboard not allowed in insecure context
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(145deg, #02251f 0%, #032f28 60%, #073f36 100%)',
+        borderRadius: 20,
+        padding: '1.4rem 1.25rem 1.25rem',
+        marginBottom: '1.5rem',
+        textAlign: 'center',
+        boxShadow: '0 12px 28px rgba(3, 47, 40, 0.22), 0 2px 6px rgba(0, 0, 0, 0.06)',
+        border: '1.5px solid rgba(176, 236, 221, 0.28)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      {/* Top subtle radial glow */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-30%',
+          left: '15%',
+          right: '15%',
+          height: '75%',
+          background: 'radial-gradient(ellipse at center, rgba(52, 211, 153, 0.16) 0%, transparent 70%)',
+          pointerEvents: 'none'
+        }}
+      />
+
+      {/* 1. Category / Security Context Badge */}
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.45rem',
+          background: 'rgba(176, 236, 221, 0.12)',
+          border: '1px solid rgba(176, 236, 221, 0.24)',
+          borderRadius: 99,
+          padding: '0.3rem 0.85rem',
+          marginBottom: '1.1rem',
+          position: 'relative'
+        }}
+      >
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 14, color: '#34d399', fontVariationSettings: "'FILL' 1" }}
+        >
+          verified_user
+        </span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            color: '#b0ecdd'
+          }}
+        >
+          4-Digit Dispensary Pickup PIN
+        </span>
+      </div>
+
+      {/* 2. Hero 4 PIN Digits Tiles */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.65rem',
+          marginBottom: '0.85rem',
+          position: 'relative'
+        }}
+      >
+        {digits.map((digit, idx) => (
+          <div
+            key={idx}
+            style={{
+              width: 58,
+              height: 68,
+              borderRadius: 14,
+              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 100%)',
+              border: '1.5px solid rgba(176, 236, 221, 0.42)',
+              boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.18), 0 6px 14px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 34,
+              fontWeight: 800,
+              fontFamily: "'JetBrains Mono', 'Fira Code', 'Roboto Mono', monospace",
+              color: '#ffffff',
+              textShadow: '0 2px 8px rgba(0, 0, 0, 0.45)',
+              userSelect: 'all'
+            }}
+          >
+            {digit}
+          </div>
+        ))}
+      </div>
+
+      {/* 3. Micro Copy Action */}
+      {pinStr && (
+        <div style={{ marginBottom: '0.75rem', position: 'relative' }}>
+          <button
+            type="button"
+            onClick={handleCopy}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: copied ? 'rgba(52, 211, 153, 0.22)' : 'rgba(255, 255, 255, 0.07)',
+              border: `1px solid ${copied ? '#34d399' : 'rgba(176, 236, 221, 0.22)'}`,
+              color: copied ? '#34d399' : '#e0f2eb',
+              borderRadius: 99,
+              padding: '0.22rem 0.75rem',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+              {copied ? 'check' : 'content_copy'}
+            </span>
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* 4. Subordinate Explanatory Note */}
+      <div
+        style={{
+          fontSize: 12,
+          color: '#e0f2eb',
+          lineHeight: 1.45,
+          maxWidth: 380,
+          margin: '0 auto',
+          position: 'relative',
+          opacity: 0.95
+        }}
+      >
+        Show this 4-digit PIN to the pharmacist upon collecting your medicines.
+      </div>
+    </div>
+  );
+}
+
 export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
   const [step, setStep] = useState('loading');
   const [checkout, setCheckout] = useState(null);
@@ -1632,28 +1793,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 </p>
 
                 {/* Pickup Verification PIN Card */}
-                {activePin && (
-                  <div style={{
-                    background: '#032f28',
-                    color: '#ffffff',
-                    borderRadius: 16,
-                    padding: '1.25rem',
-                    marginBottom: '1.5rem',
-                    textAlign: 'center',
-                    boxShadow: '0 8px 24px rgba(3,47,40,0.18)',
-                    border: '1.5px solid #2e685d'
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b0ecdd', marginBottom: '0.4rem' }}>
-                      4-Digit Dispensary Pickup PIN
-                    </div>
-                    <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.3em', color: '#ffffff' }}>
-                      {activePin}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#e0f2eb', marginTop: '0.4rem' }}>
-                      Show this 4-digit PIN to the pharmacist upon collecting your medicines.
-                    </div>
-                  </div>
-                )}
+                {activePin && <VerificationPinDisplay activePin={activePin} />}
 
                 <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: 14 }}>
@@ -1705,28 +1845,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 <p style={{ color: '#414846', fontSize: 14, marginBottom: '1.5rem' }}>Your payment has been verified. Fulfillment is now in progress.</p>
 
                 {/* Pickup Verification PIN Card */}
-                {activePin && (
-                  <div style={{
-                    background: '#032f28',
-                    color: '#ffffff',
-                    borderRadius: 16,
-                    padding: '1.25rem',
-                    marginBottom: '1.5rem',
-                    textAlign: 'center',
-                    boxShadow: '0 8px 24px rgba(3,47,40,0.18)',
-                    border: '1.5px solid #2e685d'
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#b0ecdd', marginBottom: '0.4rem' }}>
-                      4-Digit Dispensary Pickup PIN
-                    </div>
-                    <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.3em', color: '#ffffff' }}>
-                      {activePin}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#e0f2eb', marginTop: '0.4rem' }}>
-                      Show this 4-digit PIN to the pharmacist upon collecting your medicines.
-                    </div>
-                  </div>
-                )}
+                {activePin && <VerificationPinDisplay activePin={activePin} />}
 
                 {paymentData && (
                   <div style={{ background: '#e6f8f1', border: '1px solid #b0ecdd', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left' }}>
