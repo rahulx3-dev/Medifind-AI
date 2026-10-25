@@ -159,16 +159,20 @@ function MainApp() {
   // Non-patient role sidebar tab state & mobile sidebar toggle
   const [nonPatientSubTab, setNonPatientSubTab] = useState(() => {
     if (user?.role === 'PHARMACIST') return 'overview';
-    if (user?.role === 'ASSISTANT') return 'available';
+    if (user?.role === 'ASSISTANT') return 'active';
     if (user?.role === 'ADMIN') return 'overview';
     return 'overview';
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (user?.role === 'PHARMACIST') setNonPatientSubTab('overview');
-    else if (user?.role === 'ASSISTANT') setNonPatientSubTab('available');
-    else if (user?.role === 'ADMIN') setNonPatientSubTab('overview');
+    if (user?.role === 'PHARMACIST') {
+      setNonPatientSubTab(prev => ['overview', 'inventory', 'profile'].includes(prev) ? prev : 'overview');
+    } else if (user?.role === 'ASSISTANT') {
+      setNonPatientSubTab(prev => ['active', 'available', 'completed', 'profile'].includes(prev) ? prev : 'active');
+    } else if (user?.role === 'ADMIN') {
+      setNonPatientSubTab(prev => ['overview', 'profile'].includes(prev) ? prev : 'overview');
+    }
   }, [user?.role]);
 
   // Persistent Medicine Request ("My Medicines" personal cart selection)

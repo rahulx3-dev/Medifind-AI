@@ -13,6 +13,21 @@ import AnimatedStatCard from '../components/ui/AnimatedStatCard';
 import RollingNumber from '../components/ui/RollingNumber';
 const FulfillmentMapBox = React.lazy(() => import('../components/FulfillmentMapBox'));
 
+// ── Universal module-level toast event bus for Assistant Portal ──
+const toastListeners = new Set();
+let globalToastData = null;
+let globalToastTimer = null;
+
+export function emitAssistantToast(message, type = 'success', duration = 4500) {
+  if (globalToastTimer) clearTimeout(globalToastTimer);
+  globalToastData = { id: Date.now(), message, type, visible: true };
+  toastListeners.forEach(listener => listener({ ...globalToastData }));
+  globalToastTimer = setTimeout(() => {
+    globalToastData = null;
+    toastListeners.forEach(listener => listener(null));
+  }, duration);
+}
+
 // ── Service Type Configuration (Dedicated Delivery Only for Delivery Assistants) ──
 const SERVICE_TYPE_CONFIG = {
   MEDICINE_DELIVERY: {
@@ -132,7 +147,7 @@ function ServiceTypeBadge({ serviceType, size = 'sm' }) {
 function getAssistantStepLabels(serviceType) {
   if (serviceType === 'MEDICINE_DELIVERY') {
     return {
-      step2: '2. En Route to Pharmacy',
+      step2: '2. On the Way to Pharmacy',
       step3: '3. Out for Delivery',
       step4: '4. Handover PIN',
       btnCollecting: 'Arrived at Pharmacy • Collect Medicine',
@@ -142,7 +157,7 @@ function getAssistantStepLabels(serviceType) {
   }
   if (serviceType === 'MEDICINE_COLLECTION') {
     return {
-      step2: '2. En Route to Pharmacy',
+      step2: '2. On the Way to Pharmacy',
       step3: '3. Ready for Handover',
       step4: '4. Handover PIN',
       btnCollecting: 'Arrived at Pharmacy • Collect Medicine',
@@ -725,8 +740,20 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [isEditingApplication, setIsEditingApplication] = useState(false);
 
-  // Inline feedback alert
-  const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
+  // Universal persistent toast state (survives tab switches and remounts)
+  const [activeToast, setActiveToast] = useState(() => globalToastData);
+
+  useEffect(() => {
+    const handler = (toast) => setActiveToast(toast);
+    toastListeners.add(handler);
+    return () => {
+      toastListeners.delete(handler);
+    };
+  }, []);
+
+  const showToast = (message, type = 'success') => {
+    emitAssistantToast(message, type);
+  };
 
   // Confirmation dialog
   const [confirmDialog, setConfirmDialog] = useState({
@@ -737,11 +764,6 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
     variant: 'primary',
     onConfirm: () => {}
   });
-
-  const showToast = (message, type = 'success') => {
-    setFeedback({ show: true, message, type });
-    setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 4000);
-  };
 
   const [detectingGpsDelivery, setDetectingGpsDelivery] = useState(false);
   const [detectingGpsPro, setDetectingGpsPro] = useState(false);
@@ -1290,7 +1312,7 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast('Task accepted! En route to pharmacy to collect medication package.', 'success');
+        showToast('Task accepted! On the way to pharmacy to collect medication package.', 'success');
         await fetchTasks(true);
         setTab('active');
         broadcastUpdate('ASSISTANT_TASK_ACCEPTED', { taskId });
@@ -1358,6 +1380,13 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
   const completedTasks = myTasks.filter(task => task.status === 'CONFIRMED');
   const primaryActiveTask = activeTasks[0];
 
+  // If assistant has active tasks, ensure view stays on 'active' rather than reverting to 'available'
+  useEffect(() => {
+    if (activeTasks.length > 0 && tab === 'available' && availableTasks.length === 0) {
+      setTab('active');
+    }
+  }, [activeTasks.length, availableTasks.length, tab, setTab]);
+
   const isRoleOnboarded = Boolean(profile && profile.onboardingCompleted === true && profile.assistantType);
   const isHealthcareRole = profile?.assistantType === 'HEALTHCARE_PROFESSIONAL';
 
@@ -1366,36 +1395,48 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
 
   return (
     <div className="portal-page" style={{ minHeight: '100vh', paddingBottom: '4rem' }}>
-      {/* Toast Feedback */}
-      {feedback.show && (
-        <div style={{
-          position: 'fixed',
-          top: '1.5rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 99999,
-          background: feedback.type === 'error' ? '#93000a' : feedback.type === 'warning' ? '#78350f' : '#032f28',
-          color: '#ffffff',
-          borderRadius: 99,
-          padding: '0.85rem 1.75rem',
-          boxShadow: '0 12px 36px rgba(0,0,0,0.28)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          fontSize: 14,
-          fontWeight: 700,
-          border: '1.5px solid rgba(255,255,255,0.25)',
-          maxWidth: '90vw',
-          pointerEvents: 'none'
-        }}>
+      {/* Universal Floating Toast (Portaled directly to document.body with max z-index) */}
+      {typeof document !== 'undefined' && activeToast?.visible && ReactDOM.createPortal(
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: 'fixed',
+            top: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 99999999,
+            background: activeToast.type === 'error'
+              ? 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)'
+              : activeToast.type === 'warning'
+              ? 'linear-gradient(135deg, #78350f 0%, #92400e 100%)'
+              : 'linear-gradient(135deg, #032f28 0%, #0d5c4d 100%)',
+            color: '#ffffff',
+            borderRadius: '9999px',
+            padding: '1rem 2.25rem',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.45), 0 0 0 1.5px rgba(255, 255, 255, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.85rem',
+            fontSize: '15px',
+            fontWeight: 700,
+            maxWidth: '92vw',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            pointerEvents: 'auto',
+            animation: 'assistantToastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
           <span className="material-symbols-outlined" style={{
-            fontSize: 22,
-            color: feedback.type === 'error' ? '#ffdad6' : feedback.type === 'warning' ? '#fde68a' : '#b0ecdd'
+            fontSize: '24px',
+            color: activeToast.type === 'error' ? '#fca5a5' : activeToast.type === 'warning' ? '#fde68a' : '#6ee7b7',
+            flexShrink: 0
           }}>
-            {feedback.type === 'error' ? 'error' : feedback.type === 'warning' ? 'warning' : 'check_circle'}
+            {activeToast.type === 'error' ? 'error' : activeToast.type === 'warning' ? 'warning' : 'check_circle'}
           </span>
-          <span>{feedback.message}</span>
-        </div>
+          <span style={{ lineHeight: 1.4, letterSpacing: '0.01em' }}>{activeToast.message}</span>
+        </div>,
+        document.body
       )}
 
       {/* ──────────────────────────────────────────────────────────────────────── */}
@@ -3347,10 +3388,10 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                 buttonLabel = 'Accept Task';
                 buttonAction = () => handleAcceptTask(primaryActiveTask.id);
               } else if (isAccepted) {
-                badgeText = 'Task Accepted • En Route to Pharmacy';
+                badgeText = 'Task Accepted • On the Way to Pharmacy';
                 badgeBg = '#0d9488';
                 iconName = 'storefront';
-                statusDesc = `Head to the dispensary to collect and verify patient's medication package.`;
+                statusDesc = `Heading to the dispensary to collect and verify patient's medication package.`;
                 buttonLabel = 'Arrived at Pharmacy • Collect Medicine';
                 buttonAction = () => handleProgressTask(primaryActiveTask.id, 'COLLECTING');
               } else if (isCollecting) {

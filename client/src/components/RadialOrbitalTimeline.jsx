@@ -64,7 +64,7 @@ const ASSISTANT_STAGES = [
     id: 2,
     key: 'ACCEPTED',
     title: 'Assistant Assigned',
-    desc: 'Delivery assistant assigned and en route to pharmacy',
+    desc: 'Delivery assistant assigned and on the way to pharmacy',
     icon: 'person_pin_circle',
     category: 'Assignment'
   },
@@ -79,7 +79,7 @@ const ASSISTANT_STAGES = [
   {
     id: 4,
     key: 'IN_TRANSIT',
-    title: 'En Route',
+    title: 'On the Way',
     desc: 'Active transit to patient delivery address',
     icon: 'local_shipping',
     category: 'Transit'

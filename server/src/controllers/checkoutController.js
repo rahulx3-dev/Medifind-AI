@@ -544,14 +544,14 @@ async function selectFulfillment(req, res) {
       where: { orderId }
     });
     if (existingTask) {
+      const isAlreadyProgressed = ['ACCEPTED', 'COLLECTING', 'IN_TRANSIT', 'DELIVERED', 'CONFIRMED'].includes(existingTask.status);
       await prisma.assistantTask.update({
         where: { id: existingTask.id },
         data: {
           serviceType: assistantServiceType || existingTask.serviceType,
           deliveryAddress: requiresAddress ? effectiveDeliveryAddress : null,
           assistantId: targetAssistantId || existingTask.assistantId,
-          status: 'ASSIGNED',
-          acceptedAt: null
+          ...(isAlreadyProgressed ? {} : { status: 'ASSIGNED', acceptedAt: null })
         }
       });
     }
@@ -742,14 +742,14 @@ async function selectPayment(req, res) {
               }
             });
           } else {
+            const isAlreadyProgressed = ['ACCEPTED', 'COLLECTING', 'IN_TRANSIT', 'DELIVERED', 'CONFIRMED'].includes(existingTask.status);
             assistantTask = await tx.assistantTask.update({
               where: { id: existingTask.id },
               data: {
-                status: 'ASSIGNED',
                 assistantId: order.selectedAssistantId,
-                acceptedAt: null,
                 deliveryAddress: order.deliveryAddress || null,
-                serviceType: order.assistantServiceType || null
+                serviceType: order.assistantServiceType || null,
+                ...(isAlreadyProgressed ? {} : { status: 'ASSIGNED', acceptedAt: null })
               }
             });
           }
@@ -1374,14 +1374,14 @@ async function verifyPayment(req, res) {
             }
           });
         } else {
+          const isAlreadyProgressed = ['ACCEPTED', 'COLLECTING', 'IN_TRANSIT', 'DELIVERED', 'CONFIRMED'].includes(existingTask.status);
           assistantTask = await tx.assistantTask.update({
             where: { id: existingTask.id },
             data: {
-              status: 'ASSIGNED',
               assistantId: order.selectedAssistantId,
-              acceptedAt: null,
               deliveryAddress: order.deliveryAddress || null,
-              serviceType: order.assistantServiceType || null
+              serviceType: order.assistantServiceType || null,
+              ...(isAlreadyProgressed ? {} : { status: 'ASSIGNED', acceptedAt: null })
             }
           });
         }

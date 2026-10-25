@@ -485,13 +485,13 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
       } else if (assistantStatus === 'IN_TRANSIT') {
         heroBadge = 'Medicines Collected • Out for Delivery';
         heroTitle = 'Medicines Collected • Out for Delivery';
-        heroDesc = `Your delivery partner (${assistantName}) collected your verified medicines from ${detailOrder.pharmacy?.name || 'the pharmacy'} and is currently en route to your doorstep.`;
+        heroDesc = `Your delivery partner (${assistantName}) collected your verified medicines from ${detailOrder.pharmacy?.name || 'the pharmacy'} and is currently on the way to your doorstep.`;
       } else if (assistantStatus === 'COLLECTING') {
         heroBadge = 'At Dispensary • Collecting Package';
         heroTitle = 'Collecting Medicines at Pharmacy';
         heroDesc = `Your delivery partner (${assistantName}) is at ${detailOrder.pharmacy?.name || 'the dispensary counter'} inspecting and securing your temperature-controlled medication package.`;
       } else if (assistantStatus === 'ACCEPTED') {
-        heroBadge = 'Task Accepted • En Route to Pharmacy';
+        heroBadge = 'Task Accepted • On the Way to Pharmacy';
         heroTitle = 'Partner Heading to Pharmacy';
         heroDesc = `Your delivery partner (${assistantName}) has accepted the dispatch request and is heading to the dispensary to pick up your order.`;
       } else if (assistantStatus === 'ASSIGNED' || !assistantStatus) {

@@ -1009,7 +1009,7 @@ async function acceptTask(req, res) {
     const isDelivery = effectiveServiceType === 'MEDICINE_DELIVERY';
     const isCollection = effectiveServiceType === 'MEDICINE_COLLECTION';
     const historyComment = isDelivery || isCollection
-      ? `Medicine Access Assistant ${req.user.name} accepted service task. En route to pharmacy.`
+      ? `Medicine Access Assistant ${req.user.name} accepted service task. On the way to pharmacy.`
       : `Medicine Access Assistant ${req.user.name} accepted service task. Initiating assistance service.`;
 
     try {
