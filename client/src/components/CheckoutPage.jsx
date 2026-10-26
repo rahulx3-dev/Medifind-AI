@@ -499,7 +499,29 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ includePlatformFee: true })
       });
-      const createData = await createRes.json();
+
+      if (!createRes.ok) {
+        let errText = '';
+        try {
+          const errData = await createRes.json();
+          errText = errData.error || errData.message;
+        } catch (_) {
+          errText = await createRes.text().catch(() => '');
+        }
+        setError(errText || `Unable to initiate payment (server returned status ${createRes.status}). Please try again or use Complete Test Payment.`);
+        setStep('payment');
+        return;
+      }
+
+      let createData;
+      try {
+        createData = await createRes.json();
+      } catch (parseErr) {
+        setError('Unexpected server response format. Please try again or use Complete Test Payment.');
+        setStep('payment');
+        return;
+      }
+
       if (!createData.success) {
         if (createData.configurationRequired) {
           setError('Online payment is not configured. Please contact the administrator to set up Razorpay test credentials.');
@@ -607,7 +629,27 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
           isTestSimulation: razorpayResponse.isTestSimulation
         })
       });
-      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) {
+        let errText = '';
+        try {
+          const errData = await verifyRes.json();
+          errText = errData.error || errData.message;
+        } catch (_) {
+          errText = await verifyRes.text().catch(() => '');
+        }
+        setError(errText || `Payment verification failed (status ${verifyRes.status}).`);
+        setStep('failed');
+        return;
+      }
+
+      let verifyData;
+      try {
+        verifyData = await verifyRes.json();
+      } catch (parseErr) {
+        setError('Unexpected verification response. Please refresh or contact support.');
+        setStep('failed');
+        return;
+      }
       if (verifyData.success) {
         paymentCompletedRef.current = true;
         setPaymentData(verifyData.payment);
