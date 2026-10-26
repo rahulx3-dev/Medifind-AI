@@ -204,6 +204,20 @@ export function identifyPrescriptionType(itemOrText, catalog) {
     return { isGeneric: false, isBrand: false, targetGeneric: '', matchedBrand: null };
   }
 
+  // If item has a medicineId linked, resolve its generic name
+  if (typeof itemOrText === 'object' && itemOrText !== null && (itemOrText.medicineId || itemOrText.matchedMedicineId)) {
+    const med = catalog.find(m => m.id === (itemOrText.medicineId || itemOrText.matchedMedicineId));
+    if (med && med.genericName) {
+      const tgt = med.genericName.trim();
+      return {
+        isGeneric: true,
+        isBrand: false,
+        targetGeneric: tgt,
+        detectedIngredients: extractActiveIngredients(tgt)
+      };
+    }
+  }
+
   // If item is already marked as generic
   if (typeof itemOrText === 'object') {
     if (itemOrText.isGeneric === true || itemOrText.isGenericPrescription === true) {
@@ -542,7 +556,7 @@ export function findMatchingBrands(item, catalog, options = {}) {
       }
     }
     if (prescribedIngredients.length === 0) {
-      const matchedMed = catalog.find(m => m.id === (item.matchedMedicineId || item.id) || m.brandName === item.matchedMedicineName || m.brandName === item.medicineName);
+      const matchedMed = catalog.find(m => m.id === (item.medicineId || item.matchedMedicineId || item.id) || m.brandName === item.matchedMedicineName || m.brandName === item.medicineName || m.brandName === item.prescribedName);
       if (matchedMed && matchedMed.genericName) {
         const ings = extractActiveIngredients(matchedMed.genericName);
         if (ings.length > 0) prescribedIngredients = ings;
@@ -580,11 +594,12 @@ export function findMatchingBrands(item, catalog, options = {}) {
       if (!isPrescribedCombo) {
         const p0 = prescribedIngredients[0];
         ingredientMatch = catIngredients.some(c =>
-          c === p0 || c.startsWith(p0) || p0.startsWith(c) || cleanText(catGeneric) === p0
+          c === p0 || c.startsWith(p0) || p0.startsWith(c) || cleanText(catGeneric) === p0 ||
+          calculateStringSimilarity(c, p0) >= 0.75
         );
       } else {
         ingredientMatch = prescribedIngredients.every(p =>
-          catIngredients.some(c => c === p || c.startsWith(p) || p.startsWith(c) || c.includes(p))
+          catIngredients.some(c => c === p || c.startsWith(p) || p.startsWith(c) || c.includes(p) || calculateStringSimilarity(c, p) >= 0.75)
         );
       }
     } else {

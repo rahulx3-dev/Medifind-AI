@@ -2,10 +2,93 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 import AuthenticatedPrescriptionImage from './AuthenticatedPrescriptionImage';
-import { findMatchingBrands, findMatchingCandidates } from '../utils/genericMedicineMatcher';
+import {
+  findMatchingBrands,
+  findMatchingCandidates,
+  identifyPrescriptionType,
+  cleanText,
+  calculateStringSimilarity
+} from '../utils/genericMedicineMatcher';
+
+/**
+ * Resolves certified formulations in the dispensary catalog that specifically
+ * match the prescribed generic active ingredient, annotated with real-time pharmacy stock & pricing.
+ */
+function getMatchingBrandFormulations(item, catalog, pharmacyInventory = [], order = null) {
+  if (!item || !catalog || !Array.isArray(catalog) || catalog.length === 0) return { targetGeneric: null, brandOptions: [] };
+
+  // 1. Resolve active generic name
+  let targetGeneric = null;
+  if (item.medicineId) {
+    const m = catalog.find(cat => cat.id === item.medicineId);
+    if (m?.genericName) targetGeneric = m.genericName.trim();
+  }
+  if (!targetGeneric && order?.items) {
+    const oi = (order.items || []).find(o => o.prescriptionItemId === item.id || o.medicineId === item.medicineId);
+    if (oi?.medicine?.genericName) targetGeneric = oi.medicine.genericName.trim();
+  }
+  if (!targetGeneric) {
+    const rxType = identifyPrescriptionType(item, catalog);
+    if (rxType?.targetGeneric) targetGeneric = rxType.targetGeneric.trim();
+  }
+  if (!targetGeneric) {
+    const clean = cleanText(item.prescribedName || item.rawName || '');
+    const words = clean.split(/\s+/).filter(w => w.length >= 4);
+    for (const w of words) {
+      for (const m of catalog) {
+        const g = (m.genericName || '').toLowerCase().trim();
+        if (g.includes(w) || w.includes(g) || calculateStringSimilarity(w, g) >= 0.75) {
+          targetGeneric = m.genericName.trim();
+          break;
+        }
+      }
+      if (targetGeneric) break;
+    }
+  }
+
+  // 2. Filter catalog exclusively to medicines matching targetGeneric
+  let candidates = [];
+  if (targetGeneric) {
+    const targetClean = targetGeneric.toLowerCase().trim();
+    candidates = catalog.filter(m => {
+      const g = (m.genericName || '').toLowerCase().trim();
+      return g === targetClean || g.includes(targetClean) || targetClean.includes(g) || calculateStringSimilarity(g, targetClean) >= 0.78;
+    });
+  }
+
+  // Fallback if no direct generic match: use generic medicine matcher discovery
+  if (candidates.length === 0) {
+    const cRes = findMatchingCandidates(item, catalog, { pharmacyInventory, includeAllStrengths: true, includeAllForms: true });
+    if (cRes.allCandidates.length > 0) {
+      candidates = cRes.allCandidates;
+    }
+  }
+
+  // 3. Annotate each option with real-time stock & pricing from the current pharmacy inventory
+  const brandOptions = candidates.map(m => {
+    const invItem = (pharmacyInventory || []).find(inv => inv.medicineId === m.id || inv.medicine?.id === m.id);
+    const stock = invItem ? (invItem.stock != null ? invItem.stock : 0) : 0;
+    const isInStock = stock > 0;
+    const price = invItem?.price != null ? invItem.price : m.price;
+    return {
+      ...m,
+      stock,
+      isInStock,
+      price: price != null ? price : null
+    };
+  }).sort((a, b) => {
+    // In-stock items first
+    if (a.isInStock && !b.isInStock) return -1;
+    if (!a.isInStock && b.isInStock) return 1;
+    return a.brandName.localeCompare(b.brandName);
+  });
+
+  return { targetGeneric, brandOptions };
+}
 
 export default function ClinicalPrescriptionReviewModal({
   order,
+  pharmacyInventory = [],
   isOpen,
   onClose,
   onOpenClarification,
@@ -338,9 +421,34 @@ export default function ClinicalPrescriptionReviewModal({
 
         {/* Feedback alerts */}
         {error && (
-          <div style={{ margin: '1rem 1.75rem 0', padding: '0.75rem 1rem', background: '#ffdad6', color: '#ba1a1a', borderRadius: 14, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>
-            <span>{error}</span>
+          <div style={{ margin: '1rem 1.75rem 0', padding: '0.75rem 1rem', background: '#ffdad6', color: '#ba1a1a', borderRadius: 14, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                fetchPrescriptionDetails();
+                fetchCatalog();
+              }}
+              style={{
+                background: '#ffffff',
+                color: '#ba1a1a',
+                border: '1px solid #ba1a1a',
+                borderRadius: 99,
+                padding: '0.25rem 0.75rem',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span>
+              <span>Retry Load</span>
+            </button>
           </div>
         )}
         {successMsg && (
@@ -678,109 +786,209 @@ export default function ClinicalPrescriptionReviewModal({
 
                             {/* Candidate Formulations Selection */}
                             {(() => {
-                              const candidateRes = findMatchingCandidates(it, catalog);
-                              const candidates = candidateRes.allCandidates;
-                              if (candidates.length === 0) return null;
+                              const { targetGeneric, brandOptions } = getMatchingBrandFormulations(it, catalog, pharmacyInventory, order);
+                              const selectedMed = (brandOptions.length > 0 ? brandOptions : catalog).find(b => b.id === editFormData.medicineId);
 
                               return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                  <div style={{ fontSize: 11, fontWeight: 700, color: '#2e685d' }}>
-                                    Matching Generic & Brand Formulations for "{it.prescribedName}":
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                  {/* Target Generic Information Banner */}
+                                  <div style={{
+                                    background: '#f0fdf4',
+                                    border: '1px solid #bbf7d0',
+                                    borderRadius: 12,
+                                    padding: '0.65rem 0.85rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: '0.5rem'
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#16a34a' }}>biotech</span>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: '#14532d' }}>
+                                        Active Generic Ingredient: <span style={{ textDecoration: 'underline' }}>{targetGeneric || it.prescribedName}</span>
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#166534' }}>
+                                      {brandOptions.length} matching formulation{brandOptions.length === 1 ? '' : 's'} in catalogue
+                                    </span>
                                   </div>
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '0.5rem' }}>
-                                    {candidates.map(b => {
-                                      const isChosen = editFormData.medicineId === b.id;
-                                      const isGen = Boolean(b.isGenericProduct);
-                                      return (
-                                        <div
-                                          key={b.id}
-                                          onClick={() => {
+
+                                  {/* Visual Candidate Formulation Cards */}
+                                  {brandOptions.length > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                      <div style={{ fontSize: 11, fontWeight: 700, color: '#2e685d' }}>
+                                        Matching Bioequivalent Brands at this Pharmacy:
+                                      </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.5rem' }}>
+                                        {brandOptions.map(b => {
+                                          const isChosen = editFormData.medicineId === b.id;
+                                          const inStock = Boolean(b.isInStock);
+
+                                          return (
+                                            <div
+                                              key={b.id}
+                                              onClick={() => {
+                                                if (!inStock) return;
+                                                setEditFormData(prev => ({
+                                                  ...prev,
+                                                  medicineId: b.id,
+                                                  prescribedName: b.brandName,
+                                                  dosage: b.strength || prev.dosage
+                                                }));
+                                              }}
+                                              style={{
+                                                background: isChosen ? '#b0ecdd' : inStock ? '#ffffff' : '#f9fafb',
+                                                border: isChosen ? '2px solid #2e685d' : inStock ? '1px solid #bbf7d0' : '1px dashed #d1d5db',
+                                                borderRadius: 12,
+                                                padding: '0.65rem 0.85rem',
+                                                cursor: inStock ? 'pointer' : 'not-allowed',
+                                                opacity: inStock ? 1 : 0.55,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '0.3rem',
+                                                transition: 'all 0.15s ease',
+                                                boxShadow: isChosen ? '0 2px 6px rgba(46,104,93,0.18)' : 'none'
+                                              }}
+                                              title={inStock ? `Select ${b.brandName}` : 'This formulation is currently out of stock at this pharmacy and cannot be selected'}
+                                            >
+                                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.25rem' }}>
+                                                <span style={{ fontSize: 13, fontWeight: 800, color: inStock ? '#032f28' : '#6b7280' }}>
+                                                  {b.brandName}
+                                                </span>
+                                                {inStock ? (
+                                                  <span style={{ fontSize: 10, fontWeight: 700, background: '#dcfce7', color: '#166534', padding: '1px 7px', borderRadius: 99 }}>
+                                                    In Stock ({b.stock})
+                                                  </span>
+                                                ) : (
+                                                  <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#991b1b', padding: '1px 7px', borderRadius: 99 }}>
+                                                    Out of Stock
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              <div style={{ fontSize: 11, color: inStock ? '#414846' : '#9ca3af' }}>
+                                                {b.strength} • {b.dosageForm} • {b.genericName}
+                                              </div>
+
+                                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: inStock ? '#032f28' : '#9ca3af' }}>
+                                                  {b.price != null ? `₹${Number(b.price).toFixed(2)}` : 'MRP'}
+                                                </span>
+                                                <span style={{ fontSize: 11, fontWeight: 700, color: isChosen ? '#032f28' : inStock ? '#2e685d' : '#9ca3af' }}>
+                                                  {isChosen ? '✓ Selected' : inStock ? 'Choose' : 'Unavailable'}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div style={{ padding: '0.75rem', background: '#fef3c7', borderRadius: 10, fontSize: 11, color: '#92400e' }}>
+                                      No bioequivalent brand formulations in the active catalogue matched this generic ingredient directly. You may choose a certified formulary from the list below.
+                                    </div>
+                                  )}
+
+                                  {/* Styled Dropdown & Dosage/Quantity Form */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.65rem' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 4 }}>
+                                        Formulary Brand Selection ({brandOptions.length > 0 ? 'Generic Matches' : 'Catalogue'}):
+                                      </label>
+                                      <div style={{ position: 'relative' }}>
+                                        <select
+                                          value={editFormData.medicineId || ''}
+                                          onChange={e => {
+                                            const list = brandOptions.length > 0 ? brandOptions : catalog;
+                                            const m = list.find(cat => cat.id === e.target.value);
+                                            if (!m) return;
+                                            if (m.isInStock === false) {
+                                              setError(`Cannot select ${m.brandName}: Currently out of stock at this pharmacy dispensary.`);
+                                              return;
+                                            }
                                             setEditFormData(prev => ({
                                               ...prev,
-                                              medicineId: b.id,
-                                              prescribedName: b.brandName,
-                                              dosage: b.strength || prev.dosage
+                                              medicineId: e.target.value,
+                                              prescribedName: m ? m.brandName : prev.prescribedName,
+                                              dosage: m?.strength || prev.dosage
                                             }));
                                           }}
                                           style={{
-                                            background: isChosen ? '#b0ecdd' : isGen ? '#f0fdf4' : '#ffffff',
-                                            border: isChosen ? '1.5px solid #2e685d' : isGen ? '1px solid #86efac' : '1px solid #c0c8c5',
+                                            width: '100%',
+                                            padding: '0.65rem 2.25rem 0.65rem 0.75rem',
                                             borderRadius: 10,
-                                            padding: '0.5rem 0.75rem',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '0.2rem'
+                                            border: '1.5px solid #2e685d',
+                                            background: '#ffffff',
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: '#032f28',
+                                            outline: 'none',
+                                            boxShadow: '0 1px 3px rgba(3,47,40,0.08)',
+                                            cursor: 'pointer'
                                           }}
                                         >
-                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <span style={{ fontSize: 12, fontWeight: 700, color: '#032f28' }}>{b.brandName}</span>
-                                            <span style={{ fontSize: 9, fontWeight: 700, background: isGen ? '#dcfce7' : '#e6f4ea', color: isGen ? '#166534' : '#2e685d', padding: '1px 6px', borderRadius: 99 }}>
-                                              {isGen ? 'Generic' : 'Brand'}
-                                            </span>
-                                          </div>
-                                          <div style={{ fontSize: 10, color: '#717976' }}>{b.strength} • {b.dosageForm} • {b.manufacturer}</div>
-                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#032f28' }}>₹{b.price != null ? b.price : '—'}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: isChosen ? '#032f28' : '#2e685d' }}>
-                                              {isChosen ? '✓ Selected' : 'Choose'}
-                                            </span>
-                                          </div>
+                                          <option value="">-- Choose certified formulation --</option>
+                                          {(brandOptions.length > 0 ? brandOptions : catalog).map(m => {
+                                            const inStock = m.isInStock !== false;
+                                            return (
+                                              <option
+                                                key={m.id}
+                                                value={m.id}
+                                                disabled={!inStock}
+                                                style={{
+                                                  color: inStock ? '#032f28' : '#9ca3af',
+                                                  background: inStock ? '#ffffff' : '#f9fafb',
+                                                  fontWeight: inStock ? 600 : 400
+                                                }}
+                                              >
+                                                {m.brandName} ({m.strength}) — {m.genericName} {inStock ? `• In Stock (${m.stock || 'Available'})` : '• [OUT OF STOCK - Not Available at this Pharmacy]'}
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                        <span className="material-symbols-outlined" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#2e685d', fontSize: 18 }}>
+                                          unfold_more
+                                        </span>
+                                      </div>
+                                      {selectedMed && (
+                                        <div style={{ fontSize: 10, marginTop: 4, color: selectedMed.isInStock !== false ? '#166534' : '#ba1a1a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                                            {selectedMed.isInStock !== false ? 'check_circle' : 'warning'}
+                                          </span>
+                                          <span>
+                                            {selectedMed.brandName}: {selectedMed.isInStock !== false ? `In Stock (${selectedMed.stock || 'Verified'} units)` : 'Out of Stock at this dispensary'}
+                                          </span>
                                         </div>
-                                      );
-                                    })}
+                                      )}
+                                    </div>
+
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 4 }}>Strength / Dosage</label>
+                                      <input
+                                        type="text"
+                                        value={editFormData.dosage || ''}
+                                        onChange={e => setEditFormData(prev => ({ ...prev, dosage: e.target.value }))}
+                                        placeholder="e.g. 200mg"
+                                        style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: 10, border: '1.5px solid #c0c8c5', fontSize: 12, fontWeight: 600, outline: 'none' }}
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#032f28', marginBottom: 4 }}>Dispense Qty</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="500"
+                                        value={editFormData.quantity || 1}
+                                        onChange={e => setEditFormData(prev => ({ ...prev, quantity: Number(e.target.value) }))}
+                                        style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: 10, border: '1.5px solid #c0c8c5', fontSize: 12, fontWeight: 600, outline: 'none' }}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               );
                             })()}
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
-                              <div>
-                                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#414846' }}>Formulary Drug / Brand Choice</label>
-                                <select
-                                  value={editFormData.medicineId || ''}
-                                  onChange={e => {
-                                    const m = catalog.find(cat => cat.id === e.target.value);
-                                    setEditFormData(prev => ({
-                                      ...prev,
-                                      medicineId: e.target.value,
-                                      prescribedName: m ? m.brandName : prev.prescribedName,
-                                      dosage: m?.strength || prev.dosage
-                                    }));
-                                  }}
-                                  style={{ width: '100%', padding: '0.45rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 12 }}
-                                >
-                                  <option value="">-- Choose certified formulary --</option>
-                                  {catalog.map(m => (
-                                    <option key={m.id} value={m.id}>
-                                      {m.brandName} ({m.strength}) — {m.genericName}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div>
-                                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#414846' }}>Strength / Dosage</label>
-                                <input
-                                  type="text"
-                                  value={editFormData.dosage || ''}
-                                  onChange={e => setEditFormData(prev => ({ ...prev, dosage: e.target.value }))}
-                                  style={{ width: '100%', padding: '0.45rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 12 }}
-                                />
-                              </div>
-
-                              <div>
-                                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#414846' }}>Quantity</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="500"
-                                  value={editFormData.quantity || 1}
-                                  onChange={e => setEditFormData(prev => ({ ...prev, quantity: Number(e.target.value) }))}
-                                  style={{ width: '100%', padding: '0.45rem', borderRadius: 8, border: '1px solid #c0c8c5', fontSize: 12 }}
-                                />
-                              </div>
-                            </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                               <button
@@ -846,17 +1054,17 @@ export default function ClinicalPrescriptionReviewModal({
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', paddingTop: '0.25rem' }}>
                             <div style={{ fontSize: 11, color: '#717976' }}>
                               {it.isVerified && it.verifiedAt && (
-                                <span>Verified by Pharmacist on {new Date(it.verifiedAt).toLocaleDateString()}</span>
+                                <span style={{ color: '#2e685d', fontWeight: 600 }}>✓ Verified by Pharmacist on {new Date(it.verifiedAt).toLocaleDateString()}</span>
                               )}
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              {isPendingBrand && !it.isVerified && (
+                              {isPendingBrand && !it.isVerified ? (
                                 <button
                                   onClick={() => {
                                     setEditingItemId(it.id);
-                                    const candidateRes = findMatchingCandidates(it, catalog);
-                                    const defaultMed = candidateRes.genericCandidate || (candidateRes.brandCandidates.length > 0 ? candidateRes.brandCandidates[0] : null);
+                                    const { brandOptions } = getMatchingBrandFormulations(it, catalog, pharmacyInventory, order);
+                                    const defaultMed = brandOptions.find(b => b.isInStock) || brandOptions[0];
                                     setEditFormData({
                                       medicineId: defaultMed ? defaultMed.id : (it.medicineId || it.matchedMedicineId),
                                       prescribedName: defaultMed ? defaultMed.brandName : it.prescribedName,
@@ -872,70 +1080,80 @@ export default function ClinicalPrescriptionReviewModal({
                                     color: '#ffffff',
                                     border: 'none',
                                     borderRadius: 99,
-                                    padding: '0.35rem 0.85rem',
-                                    fontSize: 11,
+                                    padding: '0.45rem 1rem',
+                                    fontSize: 12,
                                     fontWeight: 700,
                                     cursor: 'pointer',
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '0.25rem',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                                    gap: '0.35rem',
+                                    boxShadow: '0 2px 4px rgba(217, 119, 6, 0.25)',
+                                    transition: 'all 0.15s ease'
                                   }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#b45309'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = '#d97706'; }}
                                 >
-                                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>support_agent</span>
-                                  <span>Select Brand</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>support_agent</span>
+                                  <span>Select Brand Formulation</span>
                                 </button>
-                              )}
+                              ) : (
+                                <>
+                                  {!it.isVerified && (
+                                    <button
+                                      disabled={isActionSubmitting}
+                                      onClick={() => handleVerifyItem(it)}
+                                      style={{
+                                        background: '#2e685d',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: 99,
+                                        padding: '0.45rem 1rem',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
+                                        boxShadow: '0 2px 4px rgba(46, 104, 93, 0.2)'
+                                      }}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>
+                                      <span>Verify Item</span>
+                                    </button>
+                                  )}
 
-                              {!it.isVerified && !isPendingBrand && (
-                                <button
-                                  disabled={isActionSubmitting}
-                                  onClick={() => handleVerifyItem(it)}
-                                  style={{
-                                    background: '#2e685d',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    borderRadius: 99,
-                                    padding: '0.35rem 0.85rem',
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
-                                  }}
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
-                                  <span>Verify Item</span>
-                                </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingItemId(it.id);
+                                      setEditFormData({
+                                        medicineId: it.medicineId || it.matchedMedicineId,
+                                        prescribedName: it.prescribedName,
+                                        dosage: it.dosage,
+                                        frequency: it.frequency,
+                                        duration: it.duration,
+                                        quantity: it.quantity,
+                                        instructions: it.instructions
+                                      });
+                                    }}
+                                    style={{
+                                      background: '#f0fdf4',
+                                      color: '#032f28',
+                                      border: '1px solid #bbf7d0',
+                                      borderRadius: 99,
+                                      padding: '0.45rem 0.95rem',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.3rem'
+                                    }}
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#2e685d' }}>edit</span>
+                                    <span>Edit Details</span>
+                                  </button>
+                                </>
                               )}
-
-                              <button
-                                onClick={() => {
-                                  setEditingItemId(it.id);
-                                  setEditFormData({
-                                    medicineId: it.medicineId || it.matchedMedicineId,
-                                    prescribedName: it.prescribedName,
-                                    dosage: it.dosage,
-                                    frequency: it.frequency,
-                                    duration: it.duration,
-                                    quantity: it.quantity,
-                                    instructions: it.instructions
-                                  });
-                                }}
-                                style={{
-                                  background: '#e0f2eb',
-                                  color: '#032f28',
-                                  border: '1px solid #c0c8c5',
-                                  borderRadius: 99,
-                                  padding: '0.35rem 0.85rem',
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Edit &amp; Verify
-                              </button>
 
                               <button
                                 onClick={() => {

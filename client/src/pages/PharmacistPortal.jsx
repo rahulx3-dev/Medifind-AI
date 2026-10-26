@@ -1880,6 +1880,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
         {/* Clinical Prescription Review & Verification Modal (Gate 2B) */}
         <ClinicalPrescriptionReviewModal
           order={clinicalReviewOrder || (counterPinOrder ? counterPinOrder : null)}
+          pharmacyInventory={inventory}
           isOpen={Boolean(clinicalReviewOrder)}
           onClose={() => setClinicalReviewOrder(null)}
           onVerified={() => fetchPharmacyAndOrders(true)}
@@ -2562,69 +2563,21 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', paddingTop: '0.25rem', flexWrap: 'wrap' }}>
-                              <button
-                                type="button"
-                                disabled={updatingStatusId === order.id}
-                                onClick={() => {
-                                  setConfirmDialog({
-                                    isOpen: true,
-                                    title: 'Decline Reservation?',
-                                    message: 'Are you sure you want to decline this reservation? The patient will be notified immediately.',
-                                    confirmLabel: 'Decline Order',
-                                    variant: 'danger',
-                                    onConfirm: () => handleUpdateStatus(order.id, 'REJECTED')
-                                  });
-                                }}
-                                style={{
-                                  background: 'transparent',
-                                  color: '#ba1a1a',
-                                  border: '1.5px solid rgba(186, 26, 26, 0.4)',
-                                  borderRadius: 8,
-                                  padding: '0.45rem 0.95rem',
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  cursor: updatingStatusId === order.id ? 'not-allowed' : 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={e => {
-                                  if (updatingStatusId !== order.id) {
-                                    e.currentTarget.style.background = 'rgba(186, 26, 26, 0.08)';
-                                    e.currentTarget.style.borderColor = '#ba1a1a';
-                                  }
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = 'transparent';
-                                  e.currentTarget.style.borderColor = 'rgba(186, 26, 26, 0.4)';
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
-                                <span>Decline Reservation</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setClinicalReviewOrder(order)}
-                                style={{
-                                  background: '#d97706',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  borderRadius: 8,
-                                  padding: '0.45rem 1rem',
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>
-                                <span>Open Clinical Verification &amp; Select Brand</span>
-                              </button>
+                              <span style={{
+                                background: '#fef3c7',
+                                color: '#92400e',
+                                border: '1px solid #fcd34d',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: 99,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                              }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>info</span>
+                                Action Required: Click "Select Brand Formulation" Below
+                              </span>
                             </div>
                           </div>
                         );
@@ -2742,33 +2695,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
 
                         {/* Interactive Buttons by state */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          {/* Clinical OCR & Verification Button (Gate 2B) */}
-                          {(order.prescriptionId || order.prescription) && (
-                            <button
-                              type="button"
-                              onClick={() => setClinicalReviewOrder(order)}
-                              style={{
-                                background: '#e0f2eb',
-                                color: '#032f28',
-                                border: '1px solid #b0ecdd',
-                                borderRadius: 99,
-                                padding: '0.45rem 0.95rem',
-                                fontSize: 12,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.35rem'
-                              }}
-                              title="Clinical OCR Review & Pharmacist Verification"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>clinical_notes</span>
-                              <span>Review &amp; Verify Rx</span>
-                            </button>
-                          )}
-
-                          {isPending && (() => {
-                            const hasPendingBrandSelection = (order.items || []).some(it =>
+                          {(() => {
+                            const hasPendingBrandSelection = isPending && (order.items || []).some(it =>
                               it.status === 'PENDING_SELECTION' ||
                               it.unfulfilledReason === 'PHARMACIST_SELECTION_REQUESTED' ||
                               it.prescriptionItem?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
@@ -2776,34 +2704,61 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             );
 
                             return (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                {hasPendingBrandSelection && (
+                              <>
+                                {/* Show Review & Verify Rx only if NOT pending brand selection */}
+                                {(order.prescriptionId || order.prescription) && !hasPendingBrandSelection && (
                                   <button
                                     type="button"
                                     onClick={() => setClinicalReviewOrder(order)}
                                     style={{
-                                      background: '#d97706',
-                                      color: '#ffffff',
-                                      border: 'none',
+                                      background: '#e0f2eb',
+                                      color: '#032f28',
+                                      border: '1px solid #b0ecdd',
                                       borderRadius: 99,
-                                      padding: '0.45rem 1.15rem',
+                                      padding: '0.45rem 0.95rem',
                                       fontSize: 12,
                                       fontWeight: 700,
                                       cursor: 'pointer',
-                                      display: 'inline-flex',
+                                      display: 'flex',
                                       alignItems: 'center',
-                                      gap: '0.35rem',
-                                      boxShadow: '0 2px 4px rgba(217, 119, 6, 0.25)',
-                                      transition: 'all 0.15s ease'
+                                      gap: '0.35rem'
                                     }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#b45309'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = '#d97706'; }}
-                                    title="Open clinical review modal to confirm genuine formulation brand for this prescription"
+                                    title="Clinical OCR Review & Pharmacist Verification"
                                   >
-                                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>
-                                    <span>Select Brand Formulation</span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>clinical_notes</span>
+                                    <span>Review &amp; Verify Rx</span>
                                   </button>
                                 )}
+
+                                {isPending && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {hasPendingBrandSelection && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setClinicalReviewOrder(order)}
+                                        style={{
+                                          background: '#d97706',
+                                          color: '#ffffff',
+                                          border: 'none',
+                                          borderRadius: 99,
+                                          padding: '0.45rem 1.15rem',
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '0.35rem',
+                                          boxShadow: '0 2px 4px rgba(217, 119, 6, 0.25)',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#b45309'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = '#d97706'; }}
+                                        title="Open clinical review modal to confirm genuine formulation brand for this prescription"
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>support_agent</span>
+                                        <span>Select Brand Formulation</span>
+                                      </button>
+                                    )}
 
                                 <FlowButton
                                   size="sm"
@@ -2875,8 +2830,10 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                                   <span>Decline</span>
                                 </button>
                               </div>
-                            );
-                          })()}
+                            )}
+                          </>
+                        );
+                      })()}
 
                           {isConfirmed && (() => {
                             const isCounter = order.payment?.method === 'COUNTER' || order.payment?.method === 'PAY_AT_COUNTER';
@@ -3936,6 +3893,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
       {/* Clinical Prescription Review & Verification Modal (Gate 2B) */}
       <ClinicalPrescriptionReviewModal
         order={clinicalReviewOrder}
+        pharmacyInventory={inventory}
         isOpen={Boolean(clinicalReviewOrder)}
         onClose={() => setClinicalReviewOrder(null)}
         onVerified={() => fetchPharmacyAndOrders(true)}
