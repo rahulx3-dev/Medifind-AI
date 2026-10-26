@@ -66,10 +66,11 @@ export default function ReservationConfirmation({
     }));
   };
 
-  // Authoritative medicine pricing resolution helper (per-tablet / per-unit)
+  // Authoritative medicine pricing resolution helper (per-strip or per-tablet / per-unit)
   const resolveItemPrice = (item) => {
     const b = (item.brandName || item.name || '').toLowerCase().trim();
     const g = (item.genericName || '').toLowerCase().trim();
+    const isStrip = (item.saleUnit || '').toUpperCase().trim() === 'STRIP';
 
     // Look up in authoritative 50-medicine reference pricing catalogue
     const refMatch = referencePricingData.find(r => {
@@ -81,9 +82,15 @@ export default function ReservationConfirmation({
     let price = Number(item.unitPrice != null ? item.unitPrice : item.price);
 
     if (refMatch) {
-      // If price is missing or if price matches full strip publishedMrp, resolve to true per-tablet unitPrice
-      if (!price || isNaN(price) || price <= 0 || (refMatch.unitsPerPack > 1 && Math.abs(price - refMatch.publishedMrp) < 0.1)) {
-        price = refMatch.unitPrice;
+      if (isStrip) {
+        if (refMatch.publishedMrp != null) {
+          price = refMatch.publishedMrp;
+        }
+      } else {
+        // If price is missing or if price matches full strip publishedMrp, resolve to true per-tablet unitPrice
+        if (!price || isNaN(price) || price <= 0 || (refMatch.unitsPerPack > 1 && Math.abs(price - refMatch.publishedMrp) < 0.1)) {
+          price = refMatch.unitPrice;
+        }
       }
     }
 
@@ -102,6 +109,8 @@ export default function ReservationConfirmation({
   };
 
   const getItemPricingUnit = (item) => {
+    const isStrip = (item.saleUnit || '').toUpperCase().trim() === 'STRIP';
+    if (isStrip) return 'per strip';
     const b = (item.brandName || item.name || '').toLowerCase().trim();
     const refMatch = referencePricingData.find(r => r.brandName.toLowerCase() === b || b.includes(r.brandName.toLowerCase()));
     if (refMatch?.pricingUnit) return refMatch.pricingUnit;
@@ -136,7 +145,10 @@ export default function ReservationConfirmation({
         items: items.map(i => ({
           medicineId: i.medicineId || i.id,
           quantity: i.quantity || 1,
-          price: resolveItemPrice(i)
+          price: resolveItemPrice(i),
+          unitPrice: resolveItemPrice(i),
+          saleUnit: i.saleUnit || 'TABLET',
+          unitsPerPack: i.unitsPerPack || 1
         })),
         orderType: 'RESERVATION',
         fulfillmentType: 'PICKUP',
@@ -353,9 +365,15 @@ export default function ReservationConfirmation({
                             {item.strength && (
                               <span className="text-[11px] text-on-surface-variant">({item.strength})</span>
                             )}
-                            <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold">
-                              Rx Verified
-                            </span>
+                            {(item.saleUnit || '').toUpperCase().trim() === 'STRIP' ? (
+                              <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">
+                                Strip {item.unitsPerPack > 1 ? `(${item.unitsPerPack} tabs)` : ''}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold">
+                                Rx Verified
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-[11px] text-on-surface-variant">
                             <span className="flex items-center gap-1 text-secondary font-medium">

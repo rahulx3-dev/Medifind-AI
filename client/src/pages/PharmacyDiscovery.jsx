@@ -465,8 +465,11 @@ export default function PharmacyDiscovery({
         resolvedPrice = i.price;
       }
 
-      // If price happens to be the full strip MRP while pack has multiple units, convert to per-tablet unit price
-      if (ref && ref.unitsPerPack > 1 && resolvedPrice && Math.abs(resolvedPrice - ref.publishedMrp) < 0.1) {
+      const isStrip = (i.saleUnit || '').toUpperCase().trim() === 'STRIP';
+      if (isStrip && ref && ref.publishedMrp != null) {
+        resolvedPrice = ref.publishedMrp;
+      } else if (!isStrip && ref && ref.unitsPerPack > 1 && resolvedPrice && Math.abs(resolvedPrice - ref.publishedMrp) < 0.1) {
+        // If price happens to be the full strip MRP while item is a single tablet, convert to per-tablet unit price
         resolvedPrice = ref.unitPrice;
       }
 
@@ -478,7 +481,10 @@ export default function PharmacyDiscovery({
         quantity: i.quantity || i.requestedQuantity || i.requestedQty || 1,
         price: resolvedPrice,
         unitPrice: resolvedPrice,
-        pricingUnit: ref?.pricingUnit || matchAvail?.pricingUnit || 'per tablet'
+        saleUnit: i.saleUnit || (isStrip ? 'STRIP' : 'TABLET'),
+        unitsPerPack: i.unitsPerPack || ref?.unitsPerPack || 1,
+        packSize: i.packSize || ref?.packSize || null,
+        pricingUnit: isStrip ? 'per strip' : (ref?.pricingUnit || matchAvail?.pricingUnit || 'per tablet')
       };
     });
 

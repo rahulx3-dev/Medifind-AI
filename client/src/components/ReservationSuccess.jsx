@@ -411,17 +411,29 @@ export default function ReservationSuccess({
               <span className="text-[10px] font-bold text-outline uppercase tracking-wider">
                 Reserved Formulations ({items.length})
               </span>
-              {items.map((i, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low text-xs">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-primary">{i.brandName}</span>
-                    <span className="text-[11px] text-on-surface-variant">Qty: x{i.quantity || 1}</span>
+              {items.map((i, idx) => {
+                const isStrip = (i.saleUnit || '').toUpperCase().trim() === 'STRIP';
+                return (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low text-xs">
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-primary">{i.brandName}</span>
+                        {isStrip && (
+                          <span className="px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 text-[9px] font-bold">
+                            Strip
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-on-surface-variant">
+                        Qty: x{i.quantity || 1} {isStrip ? ((i.quantity || 1) > 1 ? 'strips' : 'strip') : ((i.quantity || 1) > 1 ? 'tablets' : 'tablet')}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold">
+                      Rx Verified
+                    </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold">
-                    Rx Verified
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* 24-hr Hold Notice */}

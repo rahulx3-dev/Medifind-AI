@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import FlowButton from './FlowButton';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
+import { getVerifiedMedicineDetails } from '../utils/referencePricing';
 
 const FULFILLMENT_OPTIONS = [
   {
@@ -994,19 +995,53 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 </div>
                 {checkout.items?.map((item, idx) => {
                   const bName = item.brandName || item.medicine?.brandName || item.medicine?.name || item.name || 'Prescription Medicine';
+                  const gName = item.genericName || item.medicine?.genericName || '';
+                  const refMatch = getVerifiedMedicineDetails(bName, gName);
+                  const unitsPerPack = item.unitsPerPack || refMatch?.unitsPerPack || 1;
+                  const dosageForm = (item.dosageForm || item.medicine?.dosageForm || refMatch?.dosageForm || 'Tablet').toLowerCase();
+                  const qty = Number(item.quantity || 1);
+
+                  // Detect whether item is a strip or individual unit
+                  const rawSaleUnit = (item.saleUnit || '').toUpperCase().trim();
+                  let isStrip = rawSaleUnit === 'STRIP';
+                  if (!rawSaleUnit && unitsPerPack > 1 && (dosageForm.includes('tablet') || dosageForm.includes('capsule'))) {
+                    if (refMatch?.publishedMrp && item.unitPrice != null && Math.abs(Number(item.unitPrice) - Number(refMatch.publishedMrp)) < 0.5) {
+                      isStrip = true;
+                    }
+                  }
+
                   const hasPrice = item.unitPrice != null && Number(item.unitPrice) > 0;
                   const uPrice = hasPrice ? Number(item.unitPrice) : null;
-                  const qty = Number(item.quantity || 1);
+
+                  const unitName = isStrip
+                    ? (qty > 1 ? 'strips' : 'strip')
+                    : (dosageForm.includes('capsule')
+                        ? (qty > 1 ? 'capsules' : 'capsule')
+                        : (dosageForm.includes('bottle')
+                            ? (qty > 1 ? 'bottles' : 'bottle')
+                            : (dosageForm.includes('inhaler')
+                                ? (qty > 1 ? 'inhalers' : 'inhaler')
+                                : (qty > 1 ? 'tablets' : 'tablet'))));
+
+                  const packSizeNote = isStrip && unitsPerPack > 1 ? ` (${unitsPerPack} tabs/strip)` : '';
+
                   return (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.75rem', background: '#e6f8f1', borderRadius: 10, marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#032f28' }}>pill</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#032f28' }}>
+                            {isStrip ? 'grid_view' : 'pill'}
+                          </span>
                         </div>
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#0f1e1b' }}>{bName}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: '#0f1e1b' }}>{bName}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: isStrip ? '#ccefe7' : '#dcfce7', color: '#032f28' }}>
+                              {isStrip ? `STRIP${unitsPerPack > 1 ? ` OF ${unitsPerPack}` : ''}` : 'UNIT'}
+                            </span>
+                          </div>
                           <div style={{ fontSize: 12, color: '#414846' }}>
-                            Qty: {qty} • {uPrice != null ? `₹${uPrice.toFixed(2)} each` : 'MRP / counter pricing at pharmacy'}
+                            Qty: {qty} {unitName}{packSizeNote} • {uPrice != null ? `₹${uPrice.toFixed(2)} per ${isStrip ? 'strip' : (dosageForm.includes('capsule') ? 'capsule' : 'tablet')}` : 'MRP / counter pricing at pharmacy'}
                           </div>
                         </div>
                       </div>
@@ -1498,11 +1533,36 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 <div style={{ fontFamily: 'var(--font-mono)', color: '#032f28', fontWeight: 700, fontSize: 18 }}>#{checkout.orderNumber}</div>
                 <div style={{ fontSize: 13, color: '#414846', marginTop: '0.25rem' }}>{checkout.pharmacy?.name}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.75rem' }}>
-                  {checkout.items?.map((item, idx) => (
-                    <span key={idx} style={{ fontSize: 12, padding: '2px 10px', background: '#b0ecdd', borderRadius: 99, color: '#336c61', fontWeight: 600 }}>
-                      {item.brandName} × {item.quantity}
-                    </span>
-                  ))}
+                  {checkout.items?.map((item, idx) => {
+                    const bName = item.brandName || item.medicine?.brandName || item.medicine?.name || item.name || 'Prescription Medicine';
+                    const gName = item.genericName || item.medicine?.genericName || '';
+                    const refMatch = getVerifiedMedicineDetails(bName, gName);
+                    const unitsPerPack = item.unitsPerPack || refMatch?.unitsPerPack || 1;
+                    const dosageForm = (item.dosageForm || item.medicine?.dosageForm || refMatch?.dosageForm || 'Tablet').toLowerCase();
+                    const qty = Number(item.quantity || 1);
+                    const rawSaleUnit = (item.saleUnit || '').toUpperCase().trim();
+                    let isStrip = rawSaleUnit === 'STRIP';
+                    if (!rawSaleUnit && unitsPerPack > 1 && (dosageForm.includes('tablet') || dosageForm.includes('capsule'))) {
+                      if (refMatch?.publishedMrp && item.unitPrice != null && Math.abs(Number(item.unitPrice) - Number(refMatch.publishedMrp)) < 0.5) {
+                        isStrip = true;
+                      }
+                    }
+                    const unitLabel = isStrip
+                      ? (qty > 1 ? 'strips' : 'strip')
+                      : (dosageForm.includes('capsule')
+                          ? (qty > 1 ? 'caps' : 'cap')
+                          : (dosageForm.includes('bottle')
+                              ? (qty > 1 ? 'bottles' : 'bottle')
+                              : (dosageForm.includes('inhaler')
+                                  ? 'inhaler'
+                                  : (qty > 1 ? 'tabs' : 'tab'))));
+
+                    return (
+                      <span key={idx} style={{ fontSize: 12, padding: '2px 10px', background: '#b0ecdd', borderRadius: 99, color: '#336c61', fontWeight: 600 }}>
+                        {item.brandName} × {item.quantity} {unitLabel}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 

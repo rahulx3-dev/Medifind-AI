@@ -11,6 +11,7 @@ import AnimatedStatCard from '../components/ui/AnimatedStatCard';
 import RollingNumber from '../components/ui/RollingNumber';
 import { useAuth } from '../context/AuthContext';
 import { usePortalGreeting } from '../utils/greetingUtils';
+import { getVerifiedMedicineDetails } from '../utils/referencePricing';
 const FulfillmentMapBox = React.lazy(() => import('../components/FulfillmentMapBox'));
 
 const STATUS_CONFIG = {
@@ -1678,22 +1679,51 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                       {/* Itemized Medicine List with Unit Price and Subtotal */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                         {(detailOrder.items || []).map((it, idx) => {
-                          const unitPrice = getItemUnitPrice(it);
+                          const bName = it.medicine?.brandName || it.medicine?.name || it.name || 'Prescription Medicine';
+                          const gName = it.medicine?.genericName || '';
+                          const refMatch = getVerifiedMedicineDetails(bName, gName);
+                          const unitsPerPack = it.unitsPerPack || refMatch?.unitsPerPack || 1;
+                          const dosageForm = (it.medicine?.dosageForm || refMatch?.dosageForm || 'Tablet').toLowerCase();
                           const qty = Number(it.quantity) || 1;
+                          const unitPrice = getItemUnitPrice(it);
                           const itemSubtotal = unitPrice != null ? unitPrice * qty : null;
+
+                          const rawSaleUnit = (it.saleUnit || '').toUpperCase().trim();
+                          let isStrip = rawSaleUnit === 'STRIP';
+                          if (!rawSaleUnit && unitsPerPack > 1 && (dosageForm.includes('tablet') || dosageForm.includes('capsule'))) {
+                            if (refMatch?.publishedMrp && unitPrice != null && Math.abs(unitPrice - refMatch.publishedMrp) < 0.5) {
+                              isStrip = true;
+                            }
+                          }
+
+                          const unitLabel = isStrip
+                            ? (qty > 1 ? 'strips' : 'strip')
+                            : (dosageForm.includes('capsule')
+                                ? (qty > 1 ? 'capsules' : 'capsule')
+                                : (dosageForm.includes('bottle')
+                                    ? (qty > 1 ? 'bottles' : 'bottle')
+                                    : (dosageForm.includes('inhaler')
+                                        ? (qty > 1 ? 'inhalers' : 'inhaler')
+                                        : (qty > 1 ? 'tablets' : 'tablet'))));
+
                           return (
                             <div key={idx} style={{ background: '#f8faf9', borderRadius: 14, padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', border: '1px solid #e2ece7' }}>
                               <div>
-                                <div style={{ fontSize: 13, fontWeight: 800, color: '#032f28' }}>
-                                  {it.medicine?.brandName || it.medicine?.name || it.name || 'Prescription Medicine'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: '#032f28' }}>{bName}</span>
+                                  {isStrip && (
+                                    <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ccefe7', color: '#032f28' }}>
+                                      STRIP {unitsPerPack > 1 ? `(${unitsPerPack} tabs)` : ''}
+                                    </span>
+                                  )}
                                 </div>
                                 <div style={{ fontSize: 11, color: '#52605c', marginTop: '2px' }}>
-                                  {it.medicine?.dosageForm || 'Oral'} • {unitPrice != null ? `₹${unitPrice.toFixed(2)} each` : 'MRP / counter pricing at pharmacy'} • Batch #MF-{it.id ? it.id.slice(0, 4).toUpperCase() : '57D4'}
+                                  {it.medicine?.dosageForm || 'Oral'} • {unitPrice != null ? `₹${unitPrice.toFixed(2)} per ${isStrip ? 'strip' : (dosageForm.includes('capsule') ? 'capsule' : 'tablet')}` : 'MRP / counter pricing at pharmacy'} • Batch #MF-{it.id ? it.id.slice(0, 4).toUpperCase() : '57D4'}
                                 </div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
                                 <span style={{ fontSize: 11, fontWeight: 700, background: '#e0f2eb', padding: '0.2rem 0.55rem', borderRadius: 99, color: '#032f28', marginRight: '0.5rem' }}>
-                                  Qty: {qty}
+                                  Qty: {qty} {unitLabel}
                                 </span>
                                 <span style={{ fontSize: 13, fontWeight: 800, color: '#032f28' }}>
                                   {itemSubtotal != null ? `₹${itemSubtotal.toFixed(2)}` : 'MRP at counter'}
