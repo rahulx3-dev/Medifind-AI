@@ -1758,14 +1758,19 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
               );
               if (match) medId = match.id;
             }
+            const isAskPharm = Boolean(i.pharmacistSelectionRequested);
+            const resolvedBrandName = isAskPharm
+              ? (i.prescribedGenericName || i.prescribedName || i.medicineName || i.rawName || i.genericName || 'Prescription Medicine')
+              : (i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine');
+
             return {
               medicineId: medId || i.id,
-              brandName: i.matchedMedicineName || i.medicineName || i.rawName || 'Prescription Medicine',
+              brandName: resolvedBrandName,
               genericName: i.rawName || i.genericName || '',
               dosageForm: i.dosageForm || 'Tablet',
               strength: i.strength || i.dosage || '',
               quantity: parseInt(i.quantity, 10) || 1,
-              pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
+              pharmacistSelectionRequested: isAskPharm
             };
           });
         if (verifiedItems.length > 0) {
@@ -4573,7 +4578,15 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                   // 1. Resolve Title
                   let title = '';
-                  if (item.selectedBrand?.brandName) {
+                  if (isPharmacist) {
+                    title = item.prescribedGenericName ||
+                      item.prescribedName ||
+                      cand?.matchedGeneric?.name ||
+                      item.rawName ||
+                      item.genericName ||
+                      item.medicineName ||
+                      'Prescribed Medicine';
+                  } else if (item.selectedBrand?.brandName) {
                     title = item.selectedBrand.brandName;
                   } else if (item.matchedMedicineName) {
                     title = item.matchedMedicineName;

@@ -362,24 +362,24 @@ export default function PharmacyMap({
 
           <!-- Action Buttons: Select & Directions -->
           <div style="display: flex; gap: 6px;">
-            <button id="stitch-popup-btn-${p.id}" style="
+            <button id="stitch-popup-btn-${p.id}" ${!isCurrentlyOpen ? 'disabled' : ''} style="
               flex: 1;
               padding: 8px 12px;
               border-radius: 99px;
-              background: #032f28;
+              background: ${!isCurrentlyOpen ? '#94a3b8' : '#032f28'};
               color: #ffffff;
               font-size: 11px;
               font-weight: 700;
               border: none;
-              cursor: pointer;
+              cursor: ${!isCurrentlyOpen ? 'not-allowed' : 'pointer'};
               display: flex;
               align-items: center;
               justify-content: center;
               gap: 4px;
-              box-shadow: 0 2px 8px rgba(3, 47, 40, 0.25);
+              box-shadow: ${!isCurrentlyOpen ? 'none' : '0 2px 8px rgba(3, 47, 40, 0.25)'};
             ">
-              <span>Select Pharmacy</span>
-              <span class="material-symbols-outlined" style="font-size: 14px;">arrow_forward</span>
+              <span>${!isCurrentlyOpen ? 'Dispensary Closed' : 'Select Pharmacy'}</span>
+              <span class="material-symbols-outlined" style="font-size: 14px;">${!isCurrentlyOpen ? 'lock' : 'arrow_forward'}</span>
             </button>
             <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" style="
               padding: 8px 10px;

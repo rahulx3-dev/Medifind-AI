@@ -309,12 +309,18 @@ export default function PharmacyDiscovery({
               const unitsPerPack = item.unitsPerPack || matchedReq?.unitsPerPack || 1;
               const pricingUnit = item.pricingUnit || (isStrip ? 'per strip' : 'per tablet');
 
+              const isAskPharm = Boolean(matchedReq?.pharmacistSelectionRequested || item.pharmacistSelectionRequested);
+              const displayName = isAskPharm
+                ? (matchedReq?.brandName || item.prescribedName || item.genericName || item.medicineName || 'Prescribed Medicine')
+                : (item.medicineName || item.brandName || 'Prescription Medicine');
+
               return {
                 medicineId: item.medicineId,
-                brandName: item.medicineName || item.brandName || 'Prescription Medicine',
+                brandName: displayName,
                 genericName: item.genericName,
                 strength: item.strength,
                 dosageForm: item.dosageForm,
+                pharmacistSelectionRequested: isAskPharm,
                 requestedQuantity: item.requestedQty || item.requestedQuantity || 1,
                 stock: item.availableStock != null ? item.availableStock : (item.stock != null ? item.stock : 0),
                 isAvailable: item.inStock ?? (item.availableStock > 0 || item.stock > 0),
@@ -424,6 +430,12 @@ export default function PharmacyDiscovery({
           if (Array.isArray(parsed) && parsed.length > 0) items = parsed;
         }
       } catch (_) {}
+    }
+
+    // STRICT GUARD: If dispensary is closed, strictly prevent initiating a reservation hold
+    if (pharmacy.computedOpenStatus?.isCurrentlyOpen === false || pharmacy.isOpen === false) {
+      alert(`Dispensary is currently closed. ${pharmacy.computedOpenStatus?.opensAt ? `Opens at ${pharmacy.computedOpenStatus.opensAt}. ` : ''}Reservations and purchases cannot be made while the store is closed.`);
+      return;
     }
 
     // STRICT GUARD: If patient has not selected any medicines, DO NOT create a 0-item reservation hold!
@@ -1527,11 +1539,15 @@ export default function PharmacyDiscovery({
                               <div className="text-right flex items-center gap-2">
                                 <div className="flex flex-col items-end gap-0.5">
                                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
-                                    isAvail
-                                      ? 'bg-secondary-container text-on-secondary-container'
-                                      : 'bg-[#ffdad6] text-error'
+                                    av.pharmacistSelectionRequested
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                      : isAvail
+                                        ? 'bg-secondary-container text-on-secondary-container'
+                                        : 'bg-[#ffdad6] text-error'
                                   }`}>
-                                    {av.status === 'CLINICAL_MISMATCH'
+                                    {av.pharmacistSelectionRequested
+                                      ? 'Awaiting Pharmacist Review'
+                                      : av.status === 'CLINICAL_MISMATCH'
                                       ? 'Non-Equivalent'
                                       : (isAvail
                                           ? (av.status === 'INSUFFICIENT_STOCK' ? `Low Stock (${av.stock})` : 'Available')
@@ -1592,14 +1608,17 @@ export default function PharmacyDiscovery({
                           variant="primary"
                           size="md"
                           fullWidth
+                          disabled={isClosed}
                           onClick={() => {
-                            setSelectedPharmacyForMap(p);
-                            setMedSelectorOpen(true);
+                            if (!isClosed) {
+                              setSelectedPharmacyForMap(p);
+                              setMedSelectorOpen(true);
+                            }
                           }}
-                          className="!py-2.5 !text-xs !font-bold"
-                          title="Select medicines from catalogue to reserve at this dispensary"
+                          className={`!py-2.5 !text-xs !font-bold ${isClosed ? '!opacity-50 !cursor-not-allowed' : ''}`}
+                          title={isClosed ? `Dispensary is closed. Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}.` : "Select medicines from catalogue to reserve at this dispensary"}
                         >
-                          Select Medicines to Reserve
+                          {isClosed ? `Closed • Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}` : 'Select Medicines to Reserve'}
                         </FlowButton>
                         <FlowButton
                           variant="secondary"

@@ -127,9 +127,15 @@ export default function ReservationConfirmation({
     return sum + resolveItemPrice(item) * Number(item.quantity || 1);
   }, 0);
 
+  const isPharmacyClosed = pharmacy.computedOpenStatus?.isCurrentlyOpen === false || pharmacy.isOpen === false;
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setLocalError('');
+    if (isPharmacyClosed) {
+      setLocalError(`Dispensary is currently closed. ${pharmacy.computedOpenStatus?.opensAt ? `Opens at ${pharmacy.computedOpenStatus.opensAt}. ` : ''}Reservations cannot be placed while closed.`);
+      return;
+    }
     if (!items || items.length === 0) {
       setLocalError('No medicines selected. Please add at least one formulation to reserve.');
       return;
@@ -300,13 +306,15 @@ export default function ReservationConfirmation({
 
               <div className="flex sm:flex-col items-center sm:items-end justify-between px-3 py-1.5 rounded-xl bg-surface-container-low shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-secondary"></span>
-                  <span className="text-xs font-bold text-secondary">
-                    {pharmacy.computedOpenStatus?.isCurrentlyOpen ? 'Open Now' : 'Open for Reservations'}
+                  <span className={`w-2 h-2 rounded-full ${isPharmacyClosed ? 'bg-error' : 'bg-secondary'}`}></span>
+                  <span className={`text-xs font-bold ${isPharmacyClosed ? 'text-error' : 'text-secondary'}`}>
+                    {isPharmacyClosed
+                      ? (pharmacy.computedOpenStatus?.badgeText || `Closed • Opens at ${pharmacy.computedOpenStatus?.opensAt || 'scheduled hours'}`)
+                      : (pharmacy.computedOpenStatus?.badgeText || 'Open Now')}
                   </span>
                 </div>
                 <span className="text-[11px] text-on-surface-variant">
-                  {pharmacy.is24x7 ? '24 Hours Daily' : '8:00 AM – 9:00 PM'}
+                  {pharmacy.openingHours || (pharmacy.is24x7 ? '24 Hours Daily' : '8:00 AM – 9:00 PM')}
                 </span>
               </div>
             </div>
@@ -554,11 +562,13 @@ export default function ReservationConfirmation({
               size="lg"
               fullWidth
               onClick={handleSubmit}
-              disabled={submitting || items.length === 0}
+              disabled={submitting || items.length === 0 || isPharmacyClosed}
               loading={submitting}
-              className="!py-3.5 !text-sm !font-bold"
+              className={`!py-3.5 !text-sm !font-bold ${isPharmacyClosed ? '!opacity-50 !cursor-not-allowed' : ''}`}
             >
-              {items.length === 0
+              {isPharmacyClosed
+                ? `Dispensary Closed • Opens at ${pharmacy.computedOpenStatus?.opensAt || 'scheduled hours'}`
+                : items.length === 0
                 ? 'Add Medicines to Enable Hold'
                 : 'Submit Dispensary Reservation Hold'}
             </FlowButton>

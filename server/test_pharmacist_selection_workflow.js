@@ -127,39 +127,15 @@ async function runTests() {
       }
     });
 
-    pharmacyA = await prisma.pharmacy.upsert({
-      where: { managerId: pharmacistUser.id },
-      update: { verificationStatus: 'VERIFIED', isVerified: true },
-      create: {
-        name: 'MediFind Kerala Central Pharmacy',
-        licenseNumber: 'KL-ALPY-TEST-001',
-        address: '100 Beach Road, Alappuzha, Kerala',
-        phone: '+919846011111',
-        latitude: 9.4981,
-        longitude: 76.3388,
-        managerId: pharmacistUser.id,
-        isVerified: true,
-        verificationStatus: 'VERIFIED',
-        openingHours: '8:00 AM - 10:00 PM'
-      }
+    pharmacyA = await prisma.pharmacy.findFirst({
+      where: { name: 'Karuna Medicals' }
     });
+    if (!pharmacyA) throw new Error('Karuna Medicals not found in DB');
 
-    pharmacyB = await prisma.pharmacy.upsert({
-      where: { managerId: otherPharmacistUser.id },
-      update: { verificationStatus: 'VERIFIED', isVerified: true },
-      create: {
-        name: 'Competitor Dispensary B',
-        licenseNumber: 'KL-KCHI-TEST-002',
-        address: '200 Main St, Kochi, Kerala',
-        phone: '+919846022222',
-        latitude: 9.9312,
-        longitude: 76.2673,
-        managerId: otherPharmacistUser.id,
-        isVerified: true,
-        verificationStatus: 'VERIFIED',
-        openingHours: '8:00 AM - 10:00 PM'
-      }
+    pharmacyB = await prisma.pharmacy.findFirst({
+      where: { name: 'Max Care Pharmacy' }
     });
+    if (!pharmacyB) throw new Error('Max Care Pharmacy not found in DB');
 
     async function upsertMedicine(data) {
       const existing = await prisma.medicine.findFirst({

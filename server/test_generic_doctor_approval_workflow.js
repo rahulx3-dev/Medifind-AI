@@ -90,28 +90,13 @@ async function runTestSuite() {
     }
   });
 
-  pharmacyA = await prisma.pharmacy.upsert({
-    where: { managerId: pharmacistUser.id },
-    update: {
-      verificationStatus: 'VERIFIED',
-      isVerified: true,
-      openingHours: '24 Hours',
-      is24x7: true
-    },
-    create: {
-      name: 'MediFind Kerala Hub Pharmacy (24x7)',
-      licenseNumber: 'KL-GENERIC-TEST-001',
-      address: '24 Healthcare Ave, Kochi, Kerala',
-      phone: '+919846099999',
-      latitude: 9.9312,
-      longitude: 76.2673,
-      managerId: pharmacistUser.id,
-      isVerified: true,
-      verificationStatus: 'VERIFIED',
-      openingHours: '24 Hours',
-      is24x7: true
-    }
+  // Use verified local pharmacy Karuna Medicals
+  pharmacyA = await prisma.pharmacy.findFirst({
+    where: { name: 'Karuna Medicals' }
   });
+  if (!pharmacyA) {
+    throw new Error('Karuna Medicals not found in DB');
+  }
 
   pharmacistUser.pharmacyId = pharmacyA.id;
 

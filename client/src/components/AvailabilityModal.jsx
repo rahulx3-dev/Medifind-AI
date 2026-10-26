@@ -107,6 +107,11 @@ export default function AvailabilityModal({
   // Standard Single Pharmacy Order
   const handlePlaceOrder = async (result) => {
     setErrorMessage(null);
+    const isClosed = result.pharmacy?.computedOpenStatus?.isCurrentlyOpen === false || result.pharmacy?.isOpen === false;
+    if (isClosed) {
+      setErrorMessage(`Dispensary is currently closed. ${result.pharmacy?.computedOpenStatus?.opensAt ? `Opens at ${result.pharmacy.computedOpenStatus.opensAt}. ` : ''}Reservations cannot be placed while closed.`);
+      return;
+    }
     if (orderType === 'ASSISTED_DELIVERY' && (!deliveryAddress || !deliveryAddress.trim())) {
       setErrorMessage('Please enter your doorstep delivery address for assistant dispatch.');
       return;
@@ -831,23 +836,30 @@ export default function AvailabilityModal({
                           ) : (
                             <span style={{ fontSize: 12, color: '#717976', fontStyle: 'italic' }}>Contact not available</span>
                           )}
-                          <button
-                            onClick={() => handlePlaceOrder(result)}
-                            disabled={submitting}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '0.5rem',
-                              padding: '0.55rem 1.25rem', borderRadius: 99,
-                              background: submitting ? '#e0f2eb' : '#032f28',
-                              color: submitting ? '#414846' : '#fff',
-                              border: 'none', cursor: submitting ? 'not-allowed' : 'pointer',
-                              fontSize: 13, fontWeight: 700, transition: 'all 0.15s'
-                            }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                              {orderType === 'ASSISTED_DELIVERY' ? 'electric_moped' : 'store'}
-                            </span>
-                            {orderType === 'ASSISTED_DELIVERY' ? 'Dispatch Assistant Here' : 'Reserve at this Pharmacy'}
-                          </button>
+                          {(() => {
+                            const isClosed = p.computedOpenStatus?.isCurrentlyOpen === false || p.isOpen === false;
+                            return (
+                              <button
+                                onClick={() => handlePlaceOrder(result)}
+                                disabled={submitting || isClosed}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                  padding: '0.55rem 1.25rem', borderRadius: 99,
+                                  background: (submitting || isClosed) ? '#e2e8f0' : '#032f28',
+                                  color: (submitting || isClosed) ? '#64748b' : '#fff',
+                                  border: 'none', cursor: (submitting || isClosed) ? 'not-allowed' : 'pointer',
+                                  fontSize: 13, fontWeight: 700, transition: 'all 0.15s'
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                                  {isClosed ? 'lock_clock' : (orderType === 'ASSISTED_DELIVERY' ? 'electric_moped' : 'store')}
+                                </span>
+                                {isClosed
+                                  ? `Dispensary Closed • Opens at ${p.computedOpenStatus?.opensAt || 'scheduled hours'}`
+                                  : (orderType === 'ASSISTED_DELIVERY' ? 'Dispatch Assistant Here' : 'Reserve at this Pharmacy')}
+                              </button>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
