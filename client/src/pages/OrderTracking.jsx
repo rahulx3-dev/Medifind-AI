@@ -459,14 +459,49 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
     const pinStr = (!isTerminal && activeCode) ? activeCode : '';
     const pinDigits = pinStr ? pinStr.padEnd(4, '0').slice(0, 4).split('') : ['—', '—', '—', '—'];
 
-    let heroBadge = isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Action Required by You' : isPending ? 'Review In Progress' : 'Live Clinical Status';
-    let heroTitle = isCancelled ? 'Reservation Cancelled' : isRejected ? 'Reservation Rejected' : isReady ? 'Ready for Pickup' : isPending ? 'Awaiting Pharmacy Confirmation' : (isConfirmed && !isPaid && !isCounterPay) ? 'Reservation Approved: Choose Mode & Pay' : isCompleted ? 'Dispensation Completed' : 'Medicines Staged & Packing';
+    const hasPendingBrandSelection = (detailOrder.items || []).some(it =>
+      it.status === 'PENDING_SELECTION' ||
+      it.unfulfilledReason === 'PHARMACIST_SELECTION_REQUESTED' ||
+      it.prescriptionItem?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+      (detailOrder.notes && detailOrder.notes.includes(`[PENDING_SELECTION:${it.prescriptionItemId || it.medicineId}:`))
+    );
+
+    let heroBadge = isCancelled
+      ? 'Reservation Cancelled'
+      : isRejected
+      ? 'Reservation Rejected'
+      : isReady
+      ? 'Action Required by You'
+      : (isPending && hasPendingBrandSelection)
+      ? 'Pharmacist Selecting Brand'
+      : isPending
+      ? 'Review In Progress'
+      : 'Live Clinical Status';
+
+    let heroTitle = isCancelled
+      ? 'Reservation Cancelled'
+      : isRejected
+      ? 'Reservation Rejected'
+      : isReady
+      ? 'Ready for Pickup'
+      : (isPending && hasPendingBrandSelection)
+      ? 'Attending Pharmacist Selecting Brand'
+      : isPending
+      ? 'Awaiting Pharmacy Confirmation'
+      : (isConfirmed && !isPaid && !isCounterPay)
+      ? 'Reservation Approved: Choose Mode & Pay'
+      : isCompleted
+      ? 'Dispensation Completed'
+      : 'Medicines Staged & Packing';
+
     let heroDesc = isCancelled
       ? 'This order reservation has been cancelled. No medicines are reserved or staged for pickup.'
       : isRejected
       ? 'This reservation request could not be fulfilled by the dispensary and has been marked rejected.'
       : isReady
       ? 'Your prescription medicines have been verified, packaged, and quarantined at the dispensary counter. You can collect your order now.'
+      : (isPending && hasPendingBrandSelection)
+      ? 'You requested the attending pharmacist to choose the optimal formulary brand for your prescribed medicine. The licensed pharmacist is selecting an authentic, compatible in-stock brand.'
       : isPending
       ? 'The licensed pharmacist is reviewing your prescription and confirming stock allocation.'
       : (isConfirmed && !isPaid && !isCounterPay)
@@ -1706,27 +1741,51 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
                                         ? (qty > 1 ? 'inhalers' : 'inhaler')
                                         : (qty > 1 ? 'tablets' : 'tablet'))));
 
+                          const isItemPendingBrand = it.status === 'PENDING_SELECTION' ||
+                            it.unfulfilledReason === 'PHARMACIST_SELECTION_REQUESTED' ||
+                            it.prescriptionItem?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+                            (detailOrder.notes && detailOrder.notes.includes(`[PENDING_SELECTION:${it.prescriptionItemId || it.medicineId}:`));
+
                           return (
-                            <div key={idx} style={{ background: '#f8faf9', borderRadius: 14, padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', border: '1px solid #e2ece7' }}>
+                            <div key={idx} style={{ background: isItemPendingBrand ? '#fffbeb' : '#f8faf9', borderRadius: 14, padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', border: isItemPendingBrand ? '1.5px solid #fde68a' : '1px solid #e2ece7' }}>
                               <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                  <span style={{ fontSize: 13, fontWeight: 800, color: '#032f28' }}>{bName}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: isItemPendingBrand ? '#92400e' : '#032f28' }}>{bName}</span>
                                   {isStrip && (
                                     <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#ccefe7', color: '#032f28' }}>
                                       STRIP {unitsPerPack > 1 ? `(${unitsPerPack} tabs)` : ''}
                                     </span>
                                   )}
+                                  {isItemPendingBrand && (
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontWeight: 800,
+                                      background: '#fef3c7',
+                                      color: '#b45309',
+                                      padding: '2px 8px',
+                                      borderRadius: 99,
+                                      border: '1px solid #fcd34d',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.2rem'
+                                    }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>support_agent</span>
+                                      Pharmacist Selecting Brand
+                                    </span>
+                                  )}
                                 </div>
-                                <div style={{ fontSize: 11, color: '#52605c', marginTop: '2px' }}>
-                                  {it.medicine?.dosageForm || 'Oral'} • {unitPrice != null ? `₹${unitPrice.toFixed(2)} per ${isStrip ? 'strip' : (dosageForm.includes('capsule') ? 'capsule' : 'tablet')}` : 'MRP / counter pricing at pharmacy'} • Batch #MF-{it.id ? it.id.slice(0, 4).toUpperCase() : '57D4'}
+                                <div style={{ fontSize: 11, color: isItemPendingBrand ? '#78350f' : '#52605c', marginTop: '2px' }}>
+                                  {isItemPendingBrand
+                                    ? 'Awaiting licensed pharmacist formulation confirmation • Final brand price updated upon acceptance'
+                                    : `${it.medicine?.dosageForm || 'Oral'} • ${unitPrice != null ? `₹${unitPrice.toFixed(2)} per ${isStrip ? 'strip' : (dosageForm.includes('capsule') ? 'capsule' : 'tablet')}` : 'MRP / counter pricing at pharmacy'} • Batch #MF-${it.id ? it.id.slice(0, 4).toUpperCase() : '57D4'}`}
                                 </div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: 11, fontWeight: 700, background: '#e0f2eb', padding: '0.2rem 0.55rem', borderRadius: 99, color: '#032f28', marginRight: '0.5rem' }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, background: isItemPendingBrand ? '#fde68a' : '#e0f2eb', padding: '0.2rem 0.55rem', borderRadius: 99, color: isItemPendingBrand ? '#92400e' : '#032f28', marginRight: '0.5rem' }}>
                                   Qty: {qty} {unitLabel}
                                 </span>
-                                <span style={{ fontSize: 13, fontWeight: 800, color: '#032f28' }}>
-                                  {itemSubtotal != null ? `₹${itemSubtotal.toFixed(2)}` : 'MRP at counter'}
+                                <span style={{ fontSize: 13, fontWeight: 800, color: isItemPendingBrand ? '#92400e' : '#032f28' }}>
+                                  {itemSubtotal != null && itemSubtotal > 0 ? `₹${itemSubtotal.toFixed(2)}` : (isItemPendingBrand ? 'Pricing upon selection' : 'MRP at counter')}
                                 </span>
                               </div>
                             </div>
@@ -2375,16 +2434,47 @@ export default function OrderTracking({ initialOrderId = null, initialCheckoutOr
 
                           {/* Items Preview */}
                           <div style={{ background: '#f5faf8', borderRadius: 14, padding: '0.75rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                            {(ord.items || []).map((it, idx) => (
-                              <div key={idx} style={{ background: '#ffffff', border: '1px solid #c0c8c5', borderRadius: 99, padding: '0.25rem 0.75rem', fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span style={{ fontWeight: 700, color: '#032f28' }}>
-                                  {it.medicine?.brandName || it.medicine?.name || it.name || 'Medicine'}
-                                </span>
-                                <span style={{ color: '#717976', display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
-                                  ×<RollingNumber value={it.quantity} />
-                                </span>
-                              </div>
-                            ))}
+                            {(ord.items || []).map((it, idx) => {
+                              const isItemPendingBrand = it.status === 'PENDING_SELECTION' ||
+                                it.unfulfilledReason === 'PHARMACIST_SELECTION_REQUESTED' ||
+                                it.prescriptionItem?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+                                (ord.notes && ord.notes.includes(`[PENDING_SELECTION:${it.prescriptionItemId || it.medicineId}:`));
+
+                              return (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    background: isItemPendingBrand ? '#fef3c7' : '#ffffff',
+                                    border: isItemPendingBrand ? '1.5px solid #f59e0b' : '1px solid #c0c8c5',
+                                    borderRadius: 99,
+                                    padding: '0.25rem 0.75rem',
+                                    fontSize: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem'
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 700, color: isItemPendingBrand ? '#92400e' : '#032f28' }}>
+                                    {it.medicine?.brandName || it.medicine?.name || it.name || 'Medicine'}
+                                  </span>
+                                  <span style={{ color: isItemPendingBrand ? '#b45309' : '#717976', display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
+                                    ×<RollingNumber value={it.quantity} />
+                                  </span>
+                                  {isItemPendingBrand && (
+                                    <span style={{
+                                      fontSize: 9,
+                                      fontWeight: 800,
+                                      background: '#fde68a',
+                                      color: '#92400e',
+                                      padding: '1px 6px',
+                                      borderRadius: 99
+                                    }}>
+                                      Brand Pending
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </>
                       )}

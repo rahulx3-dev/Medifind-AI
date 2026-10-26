@@ -9,8 +9,11 @@ export default function ClinicalPrescriptionReviewModal({
   isOpen,
   onClose,
   onOpenClarification,
-  onPrescriptionVerified
+  onPrescriptionVerified,
+  onVerified,
+  onAcceptOrder
 }) {
+  const handleVerifiedCallback = onPrescriptionVerified || onVerified;
   const [prescription, setPrescription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,6 +21,7 @@ export default function ClinicalPrescriptionReviewModal({
   const [selectedImageId, setSelectedImageId] = useState(null);
   const [isComparingOriginal, setIsComparingOriginal] = useState(false);
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
 
   // Pharmacist editing state
   const [editingItemId, setEditingItemId] = useState(null);
@@ -110,7 +114,7 @@ export default function ClinicalPrescriptionReviewModal({
         setSuccessMsg(`✓ Item "${payload.prescribedName}" clinically verified.`);
         setEditingItemId(null);
         await fetchPrescriptionDetails();
-        if (onPrescriptionVerified) onPrescriptionVerified();
+        if (handleVerifiedCallback) handleVerifiedCallback();
         broadcastUpdate('PRESCRIPTION_VERIFIED', { prescriptionId: rxId, orderId: order.id });
       } else {
         setError(data.error || 'Failed to verify prescription item.');
@@ -148,7 +152,7 @@ export default function ClinicalPrescriptionReviewModal({
         setRejectingItemId(null);
         setRejectReason('');
         await fetchPrescriptionDetails();
-        if (onPrescriptionVerified) onPrescriptionVerified();
+        if (handleVerifiedCallback) handleVerifiedCallback();
       } else {
         setError(data.error || 'Failed to reject prescription item.');
       }
@@ -200,7 +204,7 @@ export default function ClinicalPrescriptionReviewModal({
       if (data.success) {
         setSuccessMsg('✓ All prescription items verified successfully by pharmacist.');
         await fetchPrescriptionDetails();
-        if (onPrescriptionVerified) onPrescriptionVerified();
+        if (handleVerifiedCallback) handleVerifiedCallback();
         broadcastUpdate('PRESCRIPTION_VERIFIED', { prescriptionId: rxId, orderId: order.id });
       } else {
         setError(data.error || 'Failed to complete batch verification.');
@@ -970,28 +974,67 @@ export default function ClinicalPrescriptionReviewModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
           background: '#f8fdfb',
           borderBottomLeftRadius: 24,
           borderBottomRightRadius: 24
         }}>
-          <div style={{ fontSize: 11, color: '#717976' }}>
+          <div style={{ fontSize: 11, color: '#717976', maxWidth: 460 }}>
             Gate 2B Clinical Verification Standard: Pharmacists must confirm all formulations against physical prescription slip evidence before release.
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: '#032f28',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 99,
-              padding: '0.55rem 1.5rem',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            Close Clinical Viewer
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            {order?.status === 'PENDING' && onAcceptOrder && (
+              <button
+                type="button"
+                disabled={isAcceptingOrder}
+                onClick={async () => {
+                  try {
+                    setIsAcceptingOrder(true);
+                    await onAcceptOrder(order.id);
+                    onClose();
+                  } catch (e) {
+                    setError('Failed to accept order.');
+                  } finally {
+                    setIsAcceptingOrder(false);
+                  }
+                }}
+                style={{
+                  background: '#032f28',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 99,
+                  padding: '0.55rem 1.25rem',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: isAcceptingOrder ? 'not-allowed' : 'pointer',
+                  opacity: isAcceptingOrder ? 0.7 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  boxShadow: '0 2px 4px rgba(3,47,40,0.15)'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check_circle</span>
+                <span>{isAcceptingOrder ? 'Accepting...' : 'Accept & Stage Reservation'}</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: '#e0f2eb',
+                color: '#032f28',
+                border: '1px solid #b0ecdd',
+                borderRadius: 99,
+                padding: '0.55rem 1.25rem',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
 

@@ -2561,7 +2561,49 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                               })}
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', paddingTop: '0.25rem', flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                disabled={updatingStatusId === order.id}
+                                onClick={() => {
+                                  setConfirmDialog({
+                                    isOpen: true,
+                                    title: 'Decline Reservation?',
+                                    message: 'Are you sure you want to decline this reservation? The patient will be notified immediately.',
+                                    confirmLabel: 'Decline Order',
+                                    variant: 'danger',
+                                    onConfirm: () => handleUpdateStatus(order.id, 'REJECTED')
+                                  });
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  color: '#ba1a1a',
+                                  border: '1.5px solid rgba(186, 26, 26, 0.4)',
+                                  borderRadius: 8,
+                                  padding: '0.45rem 0.95rem',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: updatingStatusId === order.id ? 'not-allowed' : 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={e => {
+                                  if (updatingStatusId !== order.id) {
+                                    e.currentTarget.style.background = 'rgba(186, 26, 26, 0.08)';
+                                    e.currentTarget.style.borderColor = '#ba1a1a';
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.borderColor = 'rgba(186, 26, 26, 0.4)';
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                                <span>Decline Reservation</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => setClinicalReviewOrder(order)}
@@ -2574,7 +2616,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                                   fontSize: 12,
                                   fontWeight: 700,
                                   cursor: 'pointer',
-                                  display: 'flex',
+                                  display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '0.35rem',
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
@@ -2725,74 +2767,110 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             </button>
                           )}
 
-                          {isPending && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <FlowButton
-                                size="sm"
-                                variant="primary"
-                                loading={updatingStatusId === order.id}
-                                disabled={updatingStatusId === order.id}
-                                onClick={() => {
-                                  setConfirmDialog({
-                                    isOpen: true,
-                                    title: 'Accept & Stage Reservation?',
-                                    message: `Confirm acceptance of prescription reservation #${order.id.slice(0, 8)}? Inventory stock will be earmarked for staging.`,
-                                    confirmLabel: 'Accept & Stage',
-                                    variant: 'primary',
-                                    impactPoints: [
-                                      'Prescription items will be earmarked in dispensary stock.',
-                                      'Patient will receive notification to proceed with pickup schedule.'
-                                    ],
-                                    onConfirm: () => handleUpdateStatus(order.id, 'CONFIRMED')
-                                  });
-                                }}
-                              >
-                                Accept &amp; Stage
-                              </FlowButton>
+                          {isPending && (() => {
+                            const hasPendingBrandSelection = (order.items || []).some(it =>
+                              it.status === 'PENDING_SELECTION' ||
+                              it.unfulfilledReason === 'PHARMACIST_SELECTION_REQUESTED' ||
+                              it.prescriptionItem?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+                              (order.notes && order.notes.includes(`[PENDING_SELECTION:${it.prescriptionItemId || it.medicineId}:`))
+                            );
 
-                              <button
-                                disabled={updatingStatusId === order.id}
-                                onClick={() => {
-                                  setConfirmDialog({
-                                    isOpen: true,
-                                    title: 'Decline Reservation?',
-                                    message: 'Are you sure you want to decline this reservation? The patient will be notified immediately.',
-                                    confirmLabel: 'Decline Order',
-                                    variant: 'danger',
-                                    onConfirm: () => handleUpdateStatus(order.id, 'REJECTED')
-                                  });
-                                }}
-                                style={{
-                                  background: 'transparent',
-                                  color: '#ba1a1a',
-                                  border: '1.5px solid rgba(186, 26, 26, 0.35)',
-                                  borderRadius: 99,
-                                  padding: '0.5rem 1rem',
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  cursor: updatingStatusId === order.id ? 'not-allowed' : 'pointer',
-                                  opacity: updatingStatusId === order.id ? 0.6 : 1,
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={e => {
-                                  if (updatingStatusId !== order.id) {
-                                    e.currentTarget.style.background = 'rgba(186, 26, 26, 0.08)';
-                                    e.currentTarget.style.borderColor = '#ba1a1a';
-                                  }
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = 'transparent';
-                                  e.currentTarget.style.borderColor = 'rgba(186, 26, 26, 0.35)';
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
-                                <span>Decline</span>
-                              </button>
-                            </div>
-                          )}
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {hasPendingBrandSelection ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setClinicalReviewOrder(order)}
+                                    style={{
+                                      background: '#d97706',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      borderRadius: 99,
+                                      padding: '0.45rem 1.15rem',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.35rem',
+                                      boxShadow: '0 2px 4px rgba(217, 119, 6, 0.25)',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = '#b45309'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = '#d97706'; }}
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>
+                                    <span>Select Brand Formulation &amp; Accept</span>
+                                  </button>
+                                ) : (
+                                  <FlowButton
+                                    size="sm"
+                                    variant="primary"
+                                    loading={updatingStatusId === order.id}
+                                    disabled={updatingStatusId === order.id}
+                                    onClick={() => {
+                                      setConfirmDialog({
+                                        isOpen: true,
+                                        title: 'Accept & Stage Reservation?',
+                                        message: `Confirm acceptance of prescription reservation #${order.id.slice(0, 8)}? Inventory stock will be earmarked for staging.`,
+                                        confirmLabel: 'Accept & Stage',
+                                        variant: 'primary',
+                                        impactPoints: [
+                                          'Prescription items will be earmarked in dispensary stock.',
+                                          'Patient will receive notification to proceed with pickup schedule.'
+                                        ],
+                                        onConfirm: () => handleUpdateStatus(order.id, 'CONFIRMED')
+                                      });
+                                    }}
+                                  >
+                                    Accept &amp; Stage
+                                  </FlowButton>
+                                )}
+
+                                <button
+                                  disabled={updatingStatusId === order.id}
+                                  onClick={() => {
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: 'Decline Reservation?',
+                                      message: 'Are you sure you want to decline this reservation? The patient will be notified immediately.',
+                                      confirmLabel: 'Decline Order',
+                                      variant: 'danger',
+                                      onConfirm: () => handleUpdateStatus(order.id, 'REJECTED')
+                                    });
+                                  }}
+                                  style={{
+                                    background: 'transparent',
+                                    color: '#ba1a1a',
+                                    border: '1.5px solid rgba(186, 26, 26, 0.35)',
+                                    borderRadius: 99,
+                                    padding: '0.45rem 1rem',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    cursor: updatingStatusId === order.id ? 'not-allowed' : 'pointer',
+                                    opacity: updatingStatusId === order.id ? 0.6 : 1,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (updatingStatusId !== order.id) {
+                                      e.currentTarget.style.background = 'rgba(186, 26, 26, 0.08)';
+                                      e.currentTarget.style.borderColor = '#ba1a1a';
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.borderColor = 'rgba(186, 26, 26, 0.35)';
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
+                                  <span>Decline</span>
+                                </button>
+                              </div>
+                            );
+                          })()}
 
                           {isConfirmed && (() => {
                             const isCounter = order.payment?.method === 'COUNTER' || order.payment?.method === 'PAY_AT_COUNTER';
@@ -3855,6 +3933,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
         isOpen={Boolean(clinicalReviewOrder)}
         onClose={() => setClinicalReviewOrder(null)}
         onVerified={() => fetchPharmacyAndOrders(true)}
+        onAcceptOrder={(orderId) => handleUpdateStatus(orderId, 'CONFIRMED')}
         onOpenClarification={(ord) => {
           setClinicalReviewOrder(null);
           setClarificationOrder(ord);
