@@ -813,10 +813,35 @@ async function createSplitOrder(req, res) {
           const childPendingTags = [];
           const childItemsCreate = spec.items.map(it => {
             const pItem = pItemMap.get(it.prescriptionItemId);
-            const isPending = Boolean(pItem && pItem.patientNotes === 'PHARMACIST_SELECTION_REQUESTED');
-            if (isPending) {
+            const isPendingSelection = Boolean(
+              pItem && (
+                pItem.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+                (typeof pItem.patientNotes === 'string' && pItem.patientNotes.includes('AWAITING_PHARMACY_REVIEW'))
+              )
+            );
+            const isDoctorApprovalClaim = Boolean(
+              pItem && typeof pItem.patientNotes === 'string' && (
+                pItem.patientNotes.includes('DOCTOR_APPROVAL_CLAIM') ||
+                pItem.patientNotes.includes('doctorApprovalClaim')
+              )
+            );
+
+            let itemStatus = 'PENDING';
+            let unfulfilledReason = null;
+            if (isPendingSelection) {
+              itemStatus = 'PENDING_SELECTION';
+              unfulfilledReason = 'AWAITING_PHARMACY_REVIEW';
+              childPendingTags.push(`[PENDING_SELECTION:${it.prescriptionItemId}:${pItem?.prescribedName || 'Medicine'}]`);
+            } else if (isDoctorApprovalClaim) {
+              itemStatus = 'AWAITING_VERIFICATION';
+              unfulfilledReason = 'AWAITING_DOCTOR_APPROVAL_VERIFICATION';
+              childPendingTags.push(`[AWAITING_VERIFICATION:${it.prescriptionItemId}:${pItem?.prescribedName || 'Medicine'}]`);
+            } else if (pItem && pItem.isVerified === false) {
+              itemStatus = 'AWAITING_VERIFICATION';
+              unfulfilledReason = 'AWAITING_PHARMACY_REVIEW';
               childPendingTags.push(`[PENDING_SELECTION:${it.prescriptionItemId}:${pItem?.prescribedName || 'Medicine'}]`);
             }
+
             return {
               medicineId: it.medicineId,
               // Gate 4.2.1.2: Persistent Prescription-Item Provenance
@@ -824,9 +849,9 @@ async function createSplitOrder(req, res) {
               quantity: it.quantity,
               unitPrice: it.unitPrice,
               subtotal: it.subtotal,
-              status: isPending ? 'PENDING_SELECTION' : 'PENDING',
+              status: itemStatus,
               fulfilledQuantity: 0,
-              unfulfilledReason: isPending ? 'PHARMACIST_SELECTION_REQUESTED' : null
+              unfulfilledReason
             };
           });
 

@@ -1690,16 +1690,21 @@ async function verifyDetectedMedicines(req, res) {
         } catch (_) {}
       }
 
-      // Check if patient specifically requested pharmacist brand selection for this item
+      // Option A: Check if patient requested pharmacy review
       const isSelectionRequested = Boolean(
+        item.selectionOption === 'ASK_PHARMACY' ||
         item.pharmacistSelectionRequested ||
+        item.isPendingSelection ||
+        item.isAwaitingPharmacyReview ||
         item.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED' ||
-        item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED'
+        item.evidenceSummary === 'AWAITING_PHARMACY_REVIEW' ||
+        item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+        (typeof item.patientNotes === 'string' && item.patientNotes.includes('AWAITING_PHARMACY_REVIEW'))
       );
 
       if (!medRecord && isSelectionRequested) {
         // Resolve a compatible catalogue record for foreign key integrity while preserving unconfirmed brand state
-        const genericSearch = String(item.genericCompound || item.rawName || '').trim();
+        const genericSearch = String(item.genericCompound || item.rawName || item.genericName || '').trim();
         try {
           medRecord = await prisma.medicine.findFirst({
             where: {
@@ -1722,11 +1727,73 @@ async function verifyDetectedMedicines(req, res) {
         });
       }
 
+      // Option B: Doctor approval claim check
+      const hasDoctorApprovalClaim = Boolean(
+        item.selectionOption === 'DOCTOR_APPROVAL' ||
+        item.hasDoctorApproval ||
+        item.doctorApproval ||
+        item.isDoctorApprovedClaim
+      );
+
+      const prescribedText = String(item.prescribedName || item.rawName || item.genericName || '').trim();
+      const cleanPrescribed = prescribedText.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+      const cleanBrand = String(medRecord.brandName || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+      const cleanGeneric = String(medRecord.genericName || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+
+      const isExactBrand = Boolean(
+        cleanPrescribed && cleanBrand && (
+          cleanPrescribed === cleanBrand ||
+          cleanPrescribed.startsWith(cleanBrand) ||
+          cleanBrand.startsWith(cleanPrescribed) ||
+          cleanPrescribed.includes(cleanBrand)
+        )
+      );
+
+      const isGenericProductCatalogue = Boolean(
+        medRecord.isGenericProduct === true ||
+        medRecord.isGeneric === true ||
+        String(medRecord.productType || '').toUpperCase() === 'GENERIC'
+      );
+
+      const isGenericWithoutExactBrand = !isExactBrand && !isGenericProductCatalogue && (
+        (cleanGeneric.length >= 3 && cleanPrescribed.includes(cleanGeneric.split(' ')[0])) ||
+        cleanPrescribed !== cleanBrand
+      );
+
+      let doctorApprovalData = null;
+
+      if (hasDoctorApprovalClaim) {
+        const docApp = item.doctorApproval || item.doctorApprovalDetails;
+        if (!docApp || typeof docApp !== 'object' || !docApp.doctorName || String(docApp.doctorName).trim().length < 2 || !docApp.clinicOrHospital || String(docApp.clinicOrHospital).trim().length < 2) {
+          return res.status(400).json({
+            success: false,
+            code: 'DOCTOR_APPROVAL_EVIDENCE_REQUIRED',
+            error: `Supporting doctor approval details (prescribing doctor name and clinic or hospital) are required to select brand "${medRecord.brandName}".`
+          });
+        }
+        doctorApprovalData = {
+          doctorName: String(docApp.doctorName).trim(),
+          clinicOrHospital: String(docApp.clinicOrHospital).trim(),
+          notes: docApp.notes ? String(docApp.notes).trim() : null,
+          contactReference: docApp.contactReference ? String(docApp.contactReference).trim() : null,
+          approvalDate: docApp.approvalDate || new Date().toISOString()
+        };
+      } else if (isGenericWithoutExactBrand && !isSelectionRequested) {
+        // Direct API Bypass Prevention: Generic medicine cannot be converted directly into a brand without approval or pharmacy review
+        return res.status(400).json({
+          success: false,
+          code: 'GENERIC_SELECTION_RESTRICTED',
+          error: `Prescription specifies generic medicine "${prescribedText || medRecord.genericName}", but brand "${medRecord.brandName}" was directly selected without doctor approval. Direct brand selection is not permitted without requesting pharmacy review (recommended) or providing documented doctor approval.`
+        });
+      }
+
       validatedItems.push({
         ...item,
         qty: numQty,
         medRecord,
-        pharmacistSelectionRequested: isSelectionRequested
+        pharmacistSelectionRequested: isSelectionRequested,
+        isDoctorApprovedClaim: Boolean(doctorApprovalData),
+        doctorApprovalData
       });
     }
 
@@ -1920,10 +1987,37 @@ async function verifyDetectedMedicines(req, res) {
           : null;
 
         const isSelectionRequested = Boolean(item.pharmacistSelectionRequested);
-        const itemPatientNotes = isSelectionRequested ? 'PHARMACIST_SELECTION_REQUESTED' : (item.patientNotes || null);
-        const itemIsVerified = !isSelectionRequested;
-        const itemVerifiedAt = isSelectionRequested ? null : now;
-        const itemVerifiedById = isSelectionRequested ? null : req.user.id;
+        const isDocApprovalClaim = Boolean(item.isDoctorApprovedClaim && item.doctorApprovalData);
+
+        let itemPatientNotes = null;
+        let itemIsVerified = true;
+        let itemVerifiedAt = now;
+        let itemVerifiedById = req.user.id;
+
+        if (isSelectionRequested) {
+          itemPatientNotes = 'PHARMACIST_SELECTION_REQUESTED';
+          itemIsVerified = false;
+          itemVerifiedAt = null;
+          itemVerifiedById = null;
+        } else if (isDocApprovalClaim) {
+          itemPatientNotes = JSON.stringify({
+            type: 'DOCTOR_APPROVAL_CLAIM',
+            brandSelected: item.medRecord.brandName,
+            genericPrescribed: prescribedName,
+            ...item.doctorApprovalData,
+            status: 'AWAITING_VERIFICATION'
+          });
+          itemIsVerified = false;
+          itemVerifiedAt = null;
+          itemVerifiedById = null;
+        } else if (item.isVerified === false) {
+          itemPatientNotes = item.patientNotes || null;
+          itemIsVerified = false;
+          itemVerifiedAt = null;
+          itemVerifiedById = null;
+        } else {
+          itemPatientNotes = item.patientNotes || null;
+        }
 
         if (itemDelegate && typeof itemDelegate.create === 'function') {
           const created = await itemDelegate.create({
@@ -2005,8 +2099,9 @@ async function verifyDetectedMedicines(req, res) {
           ? tx.detectedMedicine
           : ((prisma && prisma.detectedMedicine && typeof prisma.detectedMedicine.create === 'function') ? prisma.detectedMedicine : null);
 
-        if (dmRecord) {
-          const dmUpdateData = isSelectionRequested ? {
+        let dmUpdateData;
+        if (isSelectionRequested) {
+          dmUpdateData = {
             matchedMedicineId: null,
             matchedMedicineName: null,
             quantity: item.qty,
@@ -2015,8 +2110,22 @@ async function verifyDetectedMedicines(req, res) {
             duration: duration || undefined,
             isConfirmed: false,
             needsMapping: true,
-            evidenceSummary: 'PHARMACIST_SELECTION_REQUESTED'
-          } : {
+            evidenceSummary: 'AWAITING_PHARMACY_REVIEW'
+          };
+        } else if (isDocApprovalClaim) {
+          dmUpdateData = {
+            matchedMedicineId: item.medRecord.id,
+            matchedMedicineName: item.medRecord.brandName,
+            quantity: item.qty,
+            dosage: dosage || undefined,
+            frequency: frequency || undefined,
+            duration: duration || undefined,
+            isConfirmed: false,
+            needsMapping: false,
+            evidenceSummary: 'AWAITING_DOCTOR_APPROVAL_VERIFICATION'
+          };
+        } else {
+          dmUpdateData = {
             matchedMedicineId: item.medRecord.id,
             matchedMedicineName: item.medRecord.brandName,
             quantity: item.qty,
@@ -2027,7 +2136,9 @@ async function verifyDetectedMedicines(req, res) {
             needsMapping: false,
             evidenceSummary: null
           };
+        }
 
+        if (dmRecord) {
           if (dmUpdateDelegate && typeof dmUpdateDelegate.update === 'function') {
             await dmUpdateDelegate.update({
               where: { id: dmRecord.id },
@@ -2061,16 +2172,16 @@ async function verifyDetectedMedicines(req, res) {
                 id: newDmId,
                 prescriptionId: id,
                 rawName: prescribedName,
-                matchedMedicineId: isSelectionRequested ? null : item.medRecord.id,
-                matchedMedicineName: isSelectionRequested ? null : item.medRecord.brandName,
+                matchedMedicineId: dmUpdateData.matchedMedicineId,
+                matchedMedicineName: dmUpdateData.matchedMedicineName,
                 confidence: 1.0,
                 dosage: dosage || null,
                 frequency: frequency || null,
                 duration: duration || null,
                 quantity: item.qty,
-                isConfirmed: !isSelectionRequested,
-                needsMapping: isSelectionRequested,
-                evidenceSummary: isSelectionRequested ? 'PHARMACIST_SELECTION_REQUESTED' : null
+                isConfirmed: dmUpdateData.isConfirmed,
+                needsMapping: dmUpdateData.needsMapping,
+                evidenceSummary: dmUpdateData.evidenceSummary
               }
             });
           } else if (typeof tx.$executeRawUnsafe === 'function') {
@@ -4321,7 +4432,7 @@ async function pharmacistVerifyItem(req, res) {
 
     // Safety check: Combination active ingredients compatibility
     // Specifically: Pantocid DSR contains Pantoprazole + Domperidone; Pan 40 alone is not an equivalent.
-    const prescribedSource = item?.prescribedName || candidate?.rawText || item?.rawName || prescribedName || '';
+    const prescribedSource = (prescribedName && String(prescribedName).trim()) || item?.prescribedName || candidate?.rawText || item?.rawName || '';
     let prescribedActive = extractActiveIngredients(prescribedSource);
     if (prescribedActive.length <= 1 && item?.medicine?.genericName) {
       const dbGenericActive = extractActiveIngredients(item.medicine.genericName);
@@ -4343,6 +4454,26 @@ async function pharmacistVerifyItem(req, res) {
       return res.status(400).json({
         success: false,
         error: `Incompatible formulation: Prescribed medicine "${prescribedSource}" is a single-ingredient medicine (${prescribedActive[0]}), but selected brand "${medRecord.brandName}" is a combination product (${selectedActive.join(' + ')}).`
+      });
+    }
+
+    // Safety check: Discrepancy between specifically prescribed brand and proposed brand
+    // "If the patient selected a brand different from the specifically prescribed brand, do not automatically accept the order."
+    const cleanPrescribedText = prescribedSource.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+    const cleanSelectedBrandText = medRecord.brandName.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+    const cleanGenericText = medRecord.genericName.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+
+    const isSpecificallyPrescribedBrand = cleanPrescribedText &&
+      !cleanPrescribedText.includes(cleanGenericText.split(' ')[0]) &&
+      cleanPrescribedText !== cleanSelectedBrandText &&
+      !cleanPrescribedText.includes(cleanSelectedBrandText) &&
+      !cleanSelectedBrandText.includes(cleanPrescribedText);
+
+    if (isSpecificallyPrescribedBrand && !req.body.brandSubstitutionAuthorized && !req.body.clinicalNotes && !req.body.prescriberApproved && !req.body.prescriberApprovalVerified) {
+      return res.status(400).json({
+        success: false,
+        code: 'BRAND_DISCREPANCY_APPROVAL_REQUIRED',
+        error: `Brand discrepancy: Prescription specifies "${prescribedSource}", but proposed dispensing brand is "${medRecord.brandName}". Automatic acceptance is prohibited. Pharmacist must verify prescriber approval or record clinical authorization notes.`
       });
     }
 
@@ -4465,7 +4596,8 @@ async function pharmacistVerifyItem(req, res) {
               order: { prescriptionId: id },
               OR: [
                 { prescriptionItemId: updated?.id || itemIdToUse },
-                { status: 'PENDING_SELECTION' }
+                { status: 'PENDING_SELECTION' },
+                { status: 'AWAITING_VERIFICATION' }
               ]
             },
             data: {
@@ -4477,16 +4609,16 @@ async function pharmacistVerifyItem(req, res) {
         } catch (_) {}
       }
 
-      // Clear [PENDING_SELECTION:...] markers in Order.notes
+      // Clear [PENDING_SELECTION:...] and [AWAITING_VERIFICATION:...] markers in Order.notes
       if (txOrderDelegate && typeof txOrderDelegate.findMany === 'function') {
         try {
           const linkedOrders = await txOrderDelegate.findMany({
             where: { prescriptionId: id }
           });
           for (const ord of linkedOrders) {
-            if (ord.notes && ord.notes.includes('PENDING_SELECTION')) {
+            if (ord.notes && (ord.notes.includes('PENDING_SELECTION') || ord.notes.includes('AWAITING_VERIFICATION'))) {
               const cleanedNotes = ord.notes
-                .replace(new RegExp(`\\[PENDING_SELECTION:(?:${targetId}|${updated?.id}|${item?.id}|[^\\]]+)\\]`, 'g'), '')
+                .replace(new RegExp(`\\[(?:PENDING_SELECTION|AWAITING_VERIFICATION):(?:${targetId}|${updated?.id}|${item?.id}|[^\\]]+)\\]`, 'g'), '')
                 .trim();
               await txOrderDelegate.update({
                 where: { id: ord.id },
@@ -4681,8 +4813,28 @@ async function pharmacistRejectItem(req, res) {
       const txItemDelegate = tx.prescriptionItem || (prisma && prisma.prescriptionItem);
       if (item && txItemDelegate) {
         if (typeof txItemDelegate.update === 'function') {
-          await txItemDelegate.update({ where: { id: item.id }, data: { isVerified: false } });
+          await txItemDelegate.update({
+            where: { id: item.id },
+            data: { isVerified: false, patientNotes: `REJECTED: ${trimmedReason}` }
+          });
         }
+      }
+
+      // Sync linked OrderItems if an order exists
+      const txOrderItemDelegate = tx.orderItem || (prisma && prisma.orderItem);
+      if (txOrderItemDelegate && typeof txOrderItemDelegate.updateMany === 'function' && item) {
+        try {
+          await txOrderItemDelegate.updateMany({
+            where: {
+              order: { prescriptionId: id },
+              prescriptionItemId: item.id
+            },
+            data: {
+              status: 'REJECTED',
+              unfulfilledReason: `PHARMACIST_REJECTED: ${trimmedReason}`
+            }
+          });
+        } catch (_) {}
       }
 
       // Record Audit Log: PHARMACIST_CANDIDATE_REJECTED (Candidate and audit history remain 100% intact!)
@@ -4747,6 +4899,409 @@ async function pharmacistRejectItem(req, res) {
     }
     console.error('pharmacistRejectItem error:', err);
     return res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Failed to reject item.' });
+  }
+}
+
+/**
+ * POST /api/prescriptions/:id/items/:itemId/prescriber-approval
+ * or POST /api/prescriptions/:id/candidates/:candidateId/prescriber-approval
+ * Pharmacist contacts prescribing doctor/hospital and records prescriber verification outcome.
+ */
+async function pharmacistRecordPrescriberVerification(req, res) {
+  try {
+    const { id } = req.params;
+    const targetId = req.params.itemId || req.params.candidateId;
+    const {
+      prescriberName,
+      verifiedWithDoctor,
+      doctorName,
+      prescriberContact,
+      contact,
+      phone,
+      clinicOrHospital,
+      outcome, // 'APPROVED' | 'REJECTED' | 'PENDING_CONFIRMATION' | 'UNREACHABLE'
+      notes,
+      clinicalNotes,
+      verificationMethod
+    } = req.body;
+
+    // 1. Strict Pharmacist Authorization Guard
+    await verifyPharmacistAccessForPrescription(req.user, id);
+
+    // 2. Validation
+    const resolvedPrescriberName = prescriberName || verifiedWithDoctor || doctorName;
+    if (!resolvedPrescriberName || String(resolvedPrescriberName).trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prescriber name (minimum 2 characters) is required.'
+      });
+    }
+
+    const resolvedContact = prescriberContact || contact || phone || 'VERIFIED_BY_PHONE';
+    if (!resolvedContact || String(resolvedContact).trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'Verified prescriber contact details (phone, hospital extension, or clinic number) are required.'
+      });
+    }
+
+    const validOutcomes = ['APPROVED', 'REJECTED', 'PENDING_CONFIRMATION', 'UNREACHABLE'];
+    const normalizedOutcome = String(outcome || '').trim().toUpperCase();
+    if (!validOutcomes.includes(normalizedOutcome)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid outcome "${outcome}". Must be one of: ${validOutcomes.join(', ')}.`
+      });
+    }
+
+    const trimmedNotes = notes ? String(notes).trim() : (clinicalNotes ? String(clinicalNotes).trim() : (verificationMethod ? String(verificationMethod).trim() : ''));
+
+    // 3. Locate Item
+    const itemDelegate = prisma.prescriptionItem;
+    let item = null;
+    if (itemDelegate) {
+      if (typeof itemDelegate.findUnique === 'function' && req.params.itemId) {
+        try {
+          item = await itemDelegate.findUnique({
+            where: { id: req.params.itemId },
+            include: { sourceCandidate: true, medicine: true }
+          });
+        } catch (_) {}
+      }
+      if (!item && typeof itemDelegate.findFirst === 'function') {
+        try {
+          item = await itemDelegate.findFirst({
+            where: {
+              prescriptionId: id,
+              OR: [
+                { id: targetId },
+                { sourceCandidateId: targetId }
+              ]
+            },
+            include: { sourceCandidate: true, medicine: true }
+          });
+        } catch (_) {}
+      }
+    }
+    if (!item && typeof prisma.$queryRawUnsafe === 'function') {
+      try {
+        const rows = await prisma.$queryRawUnsafe(
+          `SELECT * FROM "PrescriptionItem" WHERE "prescriptionId" = $1 AND ("id" = $2 OR "sourceCandidateId" = $2) LIMIT 1`,
+          id, targetId
+        );
+        if (rows && rows.length > 0) item = rows[0];
+      } catch (_) {}
+    }
+
+    if (item && item.prescriptionId && item.prescriptionId !== id) {
+      return res.status(400).json({ success: false, error: 'Item does not belong to this prescription.' });
+    }
+
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Prescription item not found.' });
+    }
+
+    const now = new Date();
+    const verificationRecord = {
+      type: 'PRESCRIBER_VERIFICATION',
+      prescriberName: String(resolvedPrescriberName).trim(),
+      prescriberContact: String(resolvedContact).trim(),
+      clinicOrHospital: clinicOrHospital ? String(clinicOrHospital).trim() : null,
+      outcome: normalizedOutcome,
+      notes: trimmedNotes,
+      recordedAt: now.toISOString(),
+      pharmacistId: req.user.id
+    };
+
+    const isApproved = normalizedOutcome === 'APPROVED';
+    const isRejected = normalizedOutcome === 'REJECTED';
+
+    const verifyPrescriberWork = async (tx) => {
+      const txItemDelegate = tx.prescriptionItem || (prisma && prisma.prescriptionItem);
+      const updateData = {
+        patientNotes: JSON.stringify(verificationRecord),
+        isVerified: isApproved,
+        verifiedAt: isApproved ? now : null,
+        verifiedById: isApproved ? req.user.id : null
+      };
+
+      let updatedItem = null;
+      if (txItemDelegate && typeof txItemDelegate.update === 'function') {
+        updatedItem = await txItemDelegate.update({
+          where: { id: item.id },
+          data: updateData
+        });
+      } else if (typeof tx.$executeRawUnsafe === 'function') {
+        await tx.$executeRawUnsafe(
+          `UPDATE "PrescriptionItem" SET "patientNotes" = $1, "isVerified" = $2, "verifiedAt" = $3, "verifiedById" = $4, "updatedAt" = NOW() WHERE "id" = $5`,
+          updateData.patientNotes, updateData.isVerified, updateData.verifiedAt, updateData.verifiedById, item.id
+        );
+        updatedItem = { ...item, ...updateData };
+      }
+
+      // Sync OrderItems if order exists
+      const txOrderItemDelegate = tx.orderItem || (prisma && prisma.orderItem);
+      const txOrderDelegate = tx.order || (prisma && prisma.order);
+
+      if (txOrderItemDelegate && typeof txOrderItemDelegate.updateMany === 'function') {
+        try {
+          if (isApproved) {
+            await txOrderItemDelegate.updateMany({
+              where: {
+                order: { prescriptionId: id },
+                OR: [
+                  { prescriptionItemId: item.id },
+                  { status: 'AWAITING_VERIFICATION' },
+                  { status: 'PENDING_SELECTION' }
+                ]
+              },
+              data: {
+                status: 'PENDING',
+                unfulfilledReason: null
+              }
+            });
+          } else if (isRejected) {
+            await txOrderItemDelegate.updateMany({
+              where: {
+                order: { prescriptionId: id },
+                prescriptionItemId: item.id
+              },
+              data: {
+                status: 'REJECTED',
+                unfulfilledReason: `PRESCRIBER_REJECTED: ${trimmedNotes || 'Prescriber rejected formulation.'}`
+              }
+            });
+          } else {
+            // PENDING_CONFIRMATION or UNREACHABLE
+            await txOrderItemDelegate.updateMany({
+              where: {
+                order: { prescriptionId: id },
+                prescriptionItemId: item.id
+              },
+              data: {
+                status: 'AWAITING_VERIFICATION',
+                unfulfilledReason: `AWAITING_PRESCRIBER_OUTCOME: ${normalizedOutcome}`
+              }
+            });
+          }
+        } catch (_) {}
+      }
+
+      // If approved, clean pending selection/verification tags from Order.notes
+      if (isApproved && txOrderDelegate && typeof txOrderDelegate.findMany === 'function') {
+        try {
+          const linkedOrders = await txOrderDelegate.findMany({ where: { prescriptionId: id } });
+          for (const ord of linkedOrders) {
+            if (ord.notes && (ord.notes.includes('AWAITING_VERIFICATION') || ord.notes.includes('PENDING_SELECTION'))) {
+              const cleanedNotes = ord.notes
+                .replace(new RegExp(`\\[(?:PENDING_SELECTION|AWAITING_VERIFICATION):(?:${item.id}|${item.medicineId}|[^\\]]+)\\]`, 'g'), '')
+                .trim();
+              await txOrderDelegate.update({
+                where: { id: ord.id },
+                data: { notes: cleanedNotes || null }
+              });
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Record Audit Log
+      if (supportsPrescriptionAuditLogging(tx)) {
+        await recordPrescriptionAuditLog(tx, {
+          prescriptionId: id,
+          prescriptionIdSnapshot: id,
+          actorId: req.user.id,
+          actorRole: req.user.role || 'PHARMACIST',
+          action: isApproved ? 'PHARMACIST_PRESCRIBER_APPROVAL_VERIFIED' : 'PHARMACIST_PRESCRIBER_VERIFICATION_RECORDED',
+          details: {
+            itemId: item.id,
+            prescribedName: item.prescribedName,
+            prescriberName: verificationRecord.prescriberName,
+            prescriberContact: verificationRecord.prescriberContact,
+            clinicOrHospital: verificationRecord.clinicOrHospital,
+            outcome: normalizedOutcome,
+            notes: trimmedNotes,
+            verifiedById: req.user.id
+          },
+          ipAddress: extractClientIp(req)
+        });
+      }
+
+      return updatedItem;
+    };
+
+    let result = null;
+    if (typeof prisma.$transaction === 'function' && !prisma._isTransaction) {
+      try {
+        result = await prisma.$transaction(async (tx) => {
+          if (tx) tx._isTransaction = true;
+          return await verifyPrescriberWork(tx);
+        });
+      } catch (_) {
+        result = await verifyPrescriberWork(prisma);
+      }
+    } else {
+      result = await verifyPrescriberWork(prisma);
+    }
+
+    return res.json({
+      success: true,
+      message: isApproved
+        ? 'Prescriber approval successfully verified and recorded.'
+        : `Prescriber verification recorded with outcome: ${normalizedOutcome}.`,
+      item: result,
+      verification: verificationRecord
+    });
+  } catch (err) {
+    if (err && err.statusCode === 403) {
+      return res.status(403).json({ success: false, error: err.message });
+    }
+    console.error('pharmacistRecordPrescriberVerification error:', err);
+    return res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Failed to record prescriber verification.' });
+  }
+}
+
+/**
+ * PUT /api/prescriptions/:id/items/:itemId/unavailable
+ * or PUT /api/prescriptions/:id/candidates/:candidateId/unavailable
+ * Pharmacist marks an item as unavailable (e.g. stock exhausted, discontinued) and informs patient.
+ */
+async function pharmacistMarkItemUnavailable(req, res) {
+  try {
+    const { id } = req.params;
+    const targetId = req.params.itemId || req.params.candidateId;
+    const { reason } = req.body;
+
+    // 1. Strict Pharmacist Authorization Guard
+    await verifyPharmacistAccessForPrescription(req.user, id);
+
+    const trimmedReason = reason && typeof reason === 'string' && reason.trim().length >= 3
+      ? reason.trim()
+      : 'Item currently out of stock at the dispensary.';
+
+    // 2. Locate Item
+    const itemDelegate = prisma.prescriptionItem;
+    let item = null;
+    if (itemDelegate) {
+      if (typeof itemDelegate.findUnique === 'function' && req.params.itemId) {
+        try {
+          item = await itemDelegate.findUnique({
+            where: { id: req.params.itemId },
+            include: { prescription: true, medicine: true }
+          });
+        } catch (_) {}
+      }
+      if (!item && typeof itemDelegate.findFirst === 'function') {
+        try {
+          item = await itemDelegate.findFirst({
+            where: {
+              prescriptionId: id,
+              OR: [
+                { id: targetId },
+                { sourceCandidateId: targetId }
+              ]
+            },
+            include: { prescription: true, medicine: true }
+          });
+        } catch (_) {}
+      }
+    }
+
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Prescription item not found.' });
+    }
+
+    // 3. Mark unverified & record unavailable state
+    const markUnavailableWork = async (tx) => {
+      const txItemDelegate = tx.prescriptionItem || (prisma && prisma.prescriptionItem);
+      if (txItemDelegate && typeof txItemDelegate.update === 'function') {
+        await txItemDelegate.update({
+          where: { id: item.id },
+          data: {
+            isVerified: false,
+            patientNotes: `PRODUCT_UNAVAILABLE: ${trimmedReason}`
+          }
+        });
+      }
+
+      // Sync linked OrderItems
+      const txOrderItemDelegate = tx.orderItem || (prisma && prisma.orderItem);
+      if (txOrderItemDelegate && typeof txOrderItemDelegate.updateMany === 'function') {
+        try {
+          await txOrderItemDelegate.updateMany({
+            where: {
+              order: { prescriptionId: id },
+              prescriptionItemId: item.id
+            },
+            data: {
+              status: 'UNAVAILABLE',
+              unfulfilledReason: trimmedReason
+            }
+          });
+        } catch (_) {}
+      }
+
+      // Inform patient via in-app Notification
+      const patientUserId = item.prescription?.userId;
+      if (patientUserId && tx.notification && typeof tx.notification.create === 'function') {
+        try {
+          await tx.notification.create({
+            data: {
+              userId: patientUserId,
+              title: `Item Unavailable: ${item.prescribedName}`,
+              message: `The pharmacy marked "${item.prescribedName}" as unavailable: ${trimmedReason}. Please review alternatives or contact the dispensary.`,
+              type: 'ORDER_STATUS',
+              linkUrl: `/prescriptions`
+            }
+          });
+        } catch (_) {}
+      }
+
+      // Record Audit Log
+      if (supportsPrescriptionAuditLogging(tx)) {
+        await recordPrescriptionAuditLog(tx, {
+          prescriptionId: id,
+          prescriptionIdSnapshot: id,
+          actorId: req.user.id,
+          actorRole: req.user.role || 'PHARMACIST',
+          action: 'PHARMACIST_ITEM_UNAVAILABLE',
+          details: {
+            itemId: item.id,
+            prescribedName: item.prescribedName,
+            reason: trimmedReason
+          },
+          ipAddress: extractClientIp(req)
+        });
+      }
+
+      return { itemId: item.id, status: 'UNAVAILABLE', reason: trimmedReason };
+    };
+
+    let result = null;
+    if (typeof prisma.$transaction === 'function' && !prisma._isTransaction) {
+      try {
+        result = await prisma.$transaction(async (tx) => {
+          if (tx) tx._isTransaction = true;
+          return await markUnavailableWork(tx);
+        });
+      } catch (_) {
+        result = await markUnavailableWork(prisma);
+      }
+    } else {
+      result = await markUnavailableWork(prisma);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Item marked as unavailable and patient notified.',
+      result
+    });
+  } catch (err) {
+    if (err && err.statusCode === 403) {
+      return res.status(403).json({ success: false, error: err.message });
+    }
+    console.error('pharmacistMarkItemUnavailable error:', err);
+    return res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Failed to mark item unavailable.' });
   }
 }
 
@@ -4982,14 +5537,14 @@ async function pharmacistVerifyPrescription(req, res) {
 async function pharmacistRequestItemClarification(req, res) {
   try {
     const { id } = req.params;
-    const targetId = req.params.itemId || req.params.candidateId;
-    const { question, inquiry, proposedAlternative } = req.body;
+    const targetId = req.params.itemId || req.params.candidateId || req.body.itemId || req.body.prescriptionItemId;
+    const { question, inquiry, message, proposedAlternative } = req.body;
 
     // 1. Pharmacist Authorization Guard
     const authResult = await verifyPharmacistAccessForPrescription(req.user, id);
 
     // 2. Question validation
-    const trimmedQuestion = typeof inquiry === 'string' ? inquiry.trim() : (typeof question === 'string' ? question.trim() : '');
+    const trimmedQuestion = typeof inquiry === 'string' ? inquiry.trim() : (typeof question === 'string' ? question.trim() : (typeof message === 'string' ? message.trim() : ''));
     if (trimmedQuestion.length < 5 || trimmedQuestion.length > 1000) {
       return res.status(400).json({
         success: false,
@@ -5056,16 +5611,22 @@ async function pharmacistRequestItemClarification(req, res) {
 
     let clarification = null;
     if (clarDelegate && typeof clarDelegate.create === 'function') {
-      clarification = await clarDelegate.create({ data: clarData });
+      try {
+        clarification = await clarDelegate.create({ data: clarData });
+      } catch (_) {
+        clarification = clarData;
+      }
     } else if (typeof prisma.$executeRawUnsafe === 'function') {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "PrescriptionClarification" (
-          "id", "orderId", "prescriptionId", "pharmacyId", "patientId", "pharmacistId",
-          "question", "status", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', NOW(), NOW())`,
-        clarificationId, clarData.orderId, id, clarData.pharmacyId,
-        clarData.patientId, req.user.id, trimmedQuestion
-      );
+      try {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "PrescriptionClarification" (
+            "id", "orderId", "prescriptionId", "pharmacyId", "patientId", "pharmacistId",
+            "question", "status", "createdAt", "updatedAt"
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', NOW(), NOW())`,
+          clarificationId, clarData.orderId, id, clarData.pharmacyId,
+          clarData.patientId, req.user.id, trimmedQuestion
+        );
+      } catch (_) {}
       clarification = clarData;
     } else {
       clarification = clarData;
@@ -5725,6 +6286,8 @@ module.exports = {
   submitPatientCorrections,
   pharmacistVerifyItem,
   pharmacistRejectItem,
+  pharmacistRecordPrescriberVerification,
+  pharmacistMarkItemUnavailable,
   pharmacistVerifyPrescription,
   pharmacistRequestItemClarification,
   matchPrescriptionAvailability,

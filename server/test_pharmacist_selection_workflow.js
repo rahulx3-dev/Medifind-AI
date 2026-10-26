@@ -313,6 +313,11 @@ async function runTests() {
             matchedMedicineId: singleMed.id,
             quantity: 10,
             dosage: '200mg',
+            selectionOption: 'DOCTOR_APPROVAL',
+            doctorApproval: {
+              doctorName: 'Dr. Joseph',
+              clinicOrHospital: 'City General Hospital'
+            },
             pharmacistSelectionRequested: false
           }
         ]

@@ -652,8 +652,38 @@ export function findMatchingBrands(item, catalog, options = {}) {
     });
   }
 
+  // Deduplicate brand candidates by normalized base brand name + strength
+  const dedupedBrands = [];
+  const brandKeyMap = new Map();
+  for (const b of matchingBrands) {
+    const rootName = (b.brandName || '')
+      .toLowerCase()
+      .replace(/\s*(?:tablet|tablets|tab|capsule|capsules|cap|syrup|syr|suspension|inj|injection)\b/gi, '')
+      .replace(/[^a-z0-9]/g, '');
+    const strengthKey = (b.strength || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = `${rootName}_${strengthKey}`;
+
+    if (!brandKeyMap.has(key)) {
+      brandKeyMap.set(key, b);
+      dedupedBrands.push(b);
+    } else {
+      const existing = brandKeyMap.get(key);
+      // Prefer in-stock over out-of-stock
+      if (!existing.inStock && b.inStock) {
+        const idx = dedupedBrands.indexOf(existing);
+        if (idx !== -1) dedupedBrands[idx] = b;
+        brandKeyMap.set(key, b);
+      } else if (existing.inStock === b.inStock && (b.brandName || '').length < (existing.brandName || '').length) {
+        // Prefer shorter, canonical brand name (e.g. "Taxim-O 200" over "Taxim-O 200 Tablet")
+        const idx = dedupedBrands.indexOf(existing);
+        if (idx !== -1) dedupedBrands[idx] = b;
+        brandKeyMap.set(key, b);
+      }
+    }
+  }
+
   const currentId = item.matchedMedicineId;
-  return matchingBrands.sort((a, b) => {
+  return dedupedBrands.sort((a, b) => {
     if (currentId && a.id === currentId) return -1;
     if (currentId && b.id === currentId) return 1;
     if (a.inStock === true && b.inStock === false) return -1;

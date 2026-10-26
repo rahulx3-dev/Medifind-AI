@@ -20,6 +20,8 @@ const {
   submitPatientCorrections,
   pharmacistVerifyItem,
   pharmacistRejectItem,
+  pharmacistRecordPrescriberVerification,
+  pharmacistMarkItemUnavailable,
   pharmacistVerifyPrescription,
   pharmacistRequestItemClarification,
   matchPrescriptionAvailability,
@@ -183,9 +185,16 @@ router.put('/:id/items/:itemId/pharmacist-verify', authenticateToken, pharmacist
 router.put('/:id/candidates/:candidateId/pharmacist-verify', authenticateToken, pharmacistVerifyItem);
 router.put('/:id/items/:itemId/reject', authenticateToken, pharmacistRejectItem);
 router.put('/:id/candidates/:candidateId/reject', authenticateToken, pharmacistRejectItem);
+router.post('/:id/items/:itemId/prescriber-approval', authenticateToken, pharmacistRecordPrescriberVerification);
+router.post('/:id/candidates/:candidateId/prescriber-approval', authenticateToken, pharmacistRecordPrescriberVerification);
+router.put('/:id/items/:itemId/unavailable', authenticateToken, pharmacistMarkItemUnavailable);
+router.put('/:id/candidates/:candidateId/unavailable', authenticateToken, pharmacistMarkItemUnavailable);
 router.put('/:id/pharmacist-verify', authenticateToken, pharmacistVerifyPrescription);
+router.post('/:id/clarifications', authenticateToken, pharmacistRequestItemClarification);
 router.post('/:id/items/:itemId/clarification', authenticateToken, pharmacistRequestItemClarification);
+router.post('/:id/items/:itemId/clarifications', authenticateToken, pharmacistRequestItemClarification);
 router.post('/:id/candidates/:candidateId/clarification', authenticateToken, pharmacistRequestItemClarification);
+router.post('/:id/candidates/:candidateId/clarifications', authenticateToken, pharmacistRequestItemClarification);
 
 // ─── Gate 3: Universal Medicine Availability Matching ─────────────────────────
 // Match pharmacist-verified prescription items against participating pharmacies' live inventory

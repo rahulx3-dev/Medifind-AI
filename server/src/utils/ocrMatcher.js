@@ -500,13 +500,46 @@ function matchPrescriptionLine(rawLine, options = {}) {
 
   // High confidence if:
   // - Exact brand match (e.g. "Dolo 650", "Pan 40")
-  // - OR top match >= 0.85 with decisive lead (>= 0.08)
+  // - OR exact generic catalogue product match (e.g. "Paracetamol 500mg", "Cetirizine 10")
+  // When a generic active ingredient is prescribed (e.g. Cefixime 200mg) and catalogue only has
+  // proprietary brands (e.g. Taxim-O, Zifi), DO NOT auto-match Taxim-O or Zifi as the prescribed product!
   const isExactBrand = topPrimary && (
     (topPrimary.evidence && topPrimary.evidence.brandSim >= 0.95) ||
     topPrimary.medicine.brandName.toLowerCase() === cleanName.toLowerCase()
   );
+  const isGenericProd = topPrimary && (
+    topPrimary.medicine.isGenericProduct === true ||
+    topPrimary.medicine.isGeneric === true ||
+    String(topPrimary.medicine.productType || '').toUpperCase() === 'GENERIC'
+  );
   const hasDecisiveLead = !secondPrimary || (topPrimary.confidence - secondPrimary.confidence) >= 0.08;
-  const isHighConfidencePrimary = topPrimary && (isExactBrand || (topPrimary.confidence >= 0.85 && hasDecisiveLead));
+
+  // Check if there are competing trade brands in the catalogue for the same generic active compound and strength
+  // E.g. Taxim-O 200 vs Zifi 200 for Cefixime 200mg, or Crocin 650 vs Dolo 650 for Paracetamol 650mg
+  const competingGenericBrands = primaryMatches.filter(m =>
+    m.medicine.id !== topPrimary.medicine.id &&
+    m.confidence >= 0.85 &&
+    m.evidence && m.evidence.genericSim >= 0.80 &&
+    (topPrimary.confidence - m.confidence) < 0.08
+  );
+  const hasMultipleCompetingBrands = competingGenericBrands.length > 0;
+
+  // Single decisive formulation match:
+  // When a generic medicine is prescribed (e.g. "Pantoprazole 40mg") and the catalogue contains
+  // a single, unambiguous matching formulation (e.g. "Pan 40") with NO competing brands,
+  // it is an authoritative auto-match and does not require pharmacist brand review or doctor approval.
+  const isSingleDecisiveFormulation = topPrimary &&
+    topPrimary.confidence >= 0.85 &&
+    topPrimary.evidence &&
+    topPrimary.evidence.genericSim >= 0.85 &&
+    !hasMultipleCompetingBrands &&
+    hasDecisiveLead;
+
+  const isHighConfidencePrimary = topPrimary && (
+    isExactBrand ||
+    (isGenericProd && topPrimary.confidence >= 0.85 && hasDecisiveLead) ||
+    isSingleDecisiveFormulation
+  );
 
   if (isHighConfidencePrimary) {
     return {
@@ -527,6 +560,8 @@ function matchPrescriptionLine(rawLine, options = {}) {
 
   // If primary matches exist and top is >= 0.70, it is in the authoritative 50-item catalogue (e.g. ambiguous brand options)
   if (topPrimary && topPrimary.confidence >= 0.70) {
+    const brandList = primaryMatches.map(c => c.medicine.brandName).slice(0, 3).join(', ');
+    const isGenericPrescription = !isExactBrand;
     return {
       source: 'PRIMARY_CATALOGUE',
       status: 'AMBIGUOUS',
@@ -539,7 +574,10 @@ function matchPrescriptionLine(rawLine, options = {}) {
       needsMapping: true,
       isNonCatalogue: false,
       requiresConfirmation: true,
-      evidenceSummary: `Multiple brand formulations available in catalogue (${primaryMatches.map(c => c.medicine.brandName).slice(0, 3).join(', ')}). Please confirm preferred brand.`
+      isGenericPrescription,
+      evidenceSummary: isGenericPrescription
+        ? `Generic medicine prescribed without exact catalogue-product match. Available formulations in catalogue: ${brandList}. Pharmacy review is recommended.`
+        : `Multiple brand formulations available in catalogue (${brandList}). Please confirm preferred brand.`
     };
   }
 

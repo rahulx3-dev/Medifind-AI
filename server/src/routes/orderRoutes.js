@@ -25,6 +25,7 @@ router.post('/', authenticateToken, createOrder);
 router.get('/', authenticateToken, getOrders);
 router.get('/:id', authenticateToken, getOrderById);
 router.put('/:id/status', authenticateToken, updateOrderStatus);
+router.patch('/:id/status', authenticateToken, updateOrderStatus);
 router.post('/:id/verify-pin', authenticateToken, verifyOrderPin);
 router.post('/:id/verify-collection', authenticateToken, verifyCollection);
 router.post('/:id/confirm-receipt', authenticateToken, confirmReceipt);

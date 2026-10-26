@@ -861,42 +861,73 @@ function processPrescriptionText(rawText, medicinesCatalog) {
             }))
           : matches.slice(0, 5);
 
-        // When a generic medicine name is detected, preserve patient choice:
-        // Do NOT automatically lock into a brand! Both generic product (if present)
-        // and brand alternatives are presented.
-        // The item requires patient confirmation / selection.
-        detectedItems.push({
-          rawName: rawRow,
-          medicineName,
-          strength: strength || null,
-          dosageForm: dosageForm || null,
-          matchedMedicineId: null, // Patient selects from generic product or brand alternatives
-          matchedMedicineName: null,
-          matchedMedicine: null,
-          genericCandidate: genericCandidate || null,
-          brandCandidates: brandCandidates || [],
-          hasGenericInCatalogue: candidateDiscovery.hasGenericInCatalogue,
-          isGeneric: true,
-          prescribedGenericName: rxType.targetGeneric || medicineName,
-          allMatches: candidateMatches,
-          confidence: (genericCandidate || brandCandidates.length > 0) ? 0.90 : (top ? top.confidence : 0.85),
-          needsMapping: true,
-          isNonCatalogue: allCandidates.length === 0,
-          status: 'AMBIGUOUS',
-          extractedQuantity: extractedQty,
-          quantity: extractedQty || 1,
-          dosage,
-          frequency: freq,
-          duration: dur,
-          evidenceSummary: genericCandidate && brandCandidates.length > 0
-            ? `Prescribed as generic "${medicineName}". Matching generic product and ${brandCandidates.length} brand option(s) available. Choose preferred option or ask pharmacist.`
-            : genericCandidate
-              ? `Prescribed as generic "${medicineName}". Matching generic catalogue product available. Patient confirmation required.`
-              : brandCandidates.length > 0
-                ? `Prescribed as generic "${medicineName}". ${brandCandidates.length} brand option(s) available (generic formulation not in catalogue). Patient confirmation required.`
-                : `Prescribed as generic active ingredient "${medicineName}". No matching formulation found in catalogue. Pharmacist review recommended.`,
-          isConfirmed: false
-        });
+        // When a single decisive formulation exists in catalogue (e.g. Pan 40 for Pantoprazole 40mg)
+        // or a matching generic product exists, auto-match directly without requiring patient brand selection.
+        // Only require patient brand confirmation (Option A / Option B) when MULTIPLE competing brands exist
+        // in catalogue (e.g. Taxim-O vs Zifi for Cefixime 200mg).
+        const singleBrand = (!genericCandidate && brandCandidates.length === 1) ? brandCandidates[0] : null;
+        const autoResolvedProduct = genericCandidate || singleBrand;
+
+        if (autoResolvedProduct) {
+          detectedItems.push({
+            rawName: rawRow,
+            medicineName,
+            strength: strength || autoResolvedProduct.strength || null,
+            dosageForm: dosageForm || autoResolvedProduct.dosageForm || null,
+            matchedMedicineId: autoResolvedProduct.id,
+            matchedMedicineName: autoResolvedProduct.brandName,
+            matchedMedicine: autoResolvedProduct,
+            genericCandidate: genericCandidate || null,
+            brandCandidates: brandCandidates || [],
+            hasGenericInCatalogue: candidateDiscovery.hasGenericInCatalogue,
+            isGeneric: true,
+            prescribedGenericName: rxType.targetGeneric || medicineName,
+            allMatches: candidateMatches,
+            confidence: 0.99,
+            needsMapping: false,
+            isNonCatalogue: false,
+            status: 'AUTO_MATCHED',
+            extractedQuantity: extractedQty,
+            quantity: extractedQty || 1,
+            dosage,
+            frequency: freq,
+            duration: dur,
+            evidenceSummary: genericCandidate
+              ? `Prescribed as generic "${medicineName}". Authoritative generic product match: "${genericCandidate.brandName}".`
+              : `Prescribed as generic "${medicineName}". Direct catalogue formulation match: "${singleBrand.brandName}" (${singleBrand.strength || 'standard'}).`,
+            isConfirmed: true
+          });
+        } else {
+          // Multiple competing brands exist (e.g. Taxim-O vs Zifi for Cefixime) or none in catalogue
+          detectedItems.push({
+            rawName: rawRow,
+            medicineName,
+            strength: strength || null,
+            dosageForm: dosageForm || null,
+            matchedMedicineId: null, // Patient/pharmacist chooses between competing brands
+            matchedMedicineName: null,
+            matchedMedicine: null,
+            genericCandidate: null,
+            brandCandidates: brandCandidates || [],
+            hasGenericInCatalogue: candidateDiscovery.hasGenericInCatalogue,
+            isGeneric: true,
+            prescribedGenericName: rxType.targetGeneric || medicineName,
+            allMatches: candidateMatches,
+            confidence: brandCandidates.length > 0 ? 0.90 : (top ? top.confidence : 0.85),
+            needsMapping: true,
+            isNonCatalogue: allCandidates.length === 0,
+            status: 'AMBIGUOUS',
+            extractedQuantity: extractedQty,
+            quantity: extractedQty || 1,
+            dosage,
+            frequency: freq,
+            duration: dur,
+            evidenceSummary: brandCandidates.length > 1
+              ? `Prescribed as generic "${medicineName}". Multiple brand options available (${brandCandidates.map(b => b.brandName).join(', ')}). Brand choice or pharmacist review required.`
+              : `Prescribed as generic active ingredient "${medicineName}". No matching formulation found in catalogue. Pharmacist review recommended.`,
+            isConfirmed: false
+          });
+        }
       } else if (isConfident && !hasCloseCompetitor) {
         // 2. High confidence, decisive single match — AUTO-MATCHED
         detectedItems.push({

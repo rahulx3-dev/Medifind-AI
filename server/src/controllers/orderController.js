@@ -443,6 +443,12 @@ async function createOrder(req, res) {
 
       orderItemsData.push({
         medicineId: validMedicineId,
+        prescriptionItemId: item.prescriptionItemId || item.prescriptionItem?.id || null,
+        pharmacistSelectionRequested: Boolean(item.pharmacistSelectionRequested),
+        isAwaitingPharmacyReview: Boolean(item.isAwaitingPharmacyReview),
+        isDoctorApprovedClaim: Boolean(item.isDoctorApprovedClaim),
+        doctorApprovalClaim: item.doctorApprovalClaim || null,
+        prescribedName: item.prescribedName || item.brandName || item.name || null,
         quantity: qty,
         unitPrice: effectiveUnitPrice,
         subtotal
@@ -546,34 +552,34 @@ async function createOrder(req, res) {
         const allocatedInThisTxByItemId = new Map();
         for (const itemData of orderItemsData) {
           const rxList = rxItemsByMedId.get(itemData.medicineId);
-          if (rxList && rxList.length > 0) {
-            if (itemData.prescriptionItemId && rxItemById.has(itemData.prescriptionItemId)) {
-              // Explicit prescriptionItemId supplied: validate against specific item's outstanding balance
-              const pItem = rxItemById.get(itemData.prescriptionItemId);
+          if (itemData.prescriptionItemId && rxItemById.has(itemData.prescriptionItemId)) {
+            // Explicit prescriptionItemId supplied: validate against specific item's outstanding balance
+            const pItem = rxItemById.get(itemData.prescriptionItemId);
+            const itemPrevAllocated = (previouslyAllocatedByItemId.get(pItem.id) || 0) + (allocatedInThisTxByItemId.get(pItem.id) || 0);
+            const itemOutstanding = Math.max(0, pItem.quantity - itemPrevAllocated);
+            if (itemData.quantity > itemOutstanding && itemOutstanding > 0) {
+              const err = new Error(`Requested quantity (${itemData.quantity}) exceeds outstanding quantity (${itemOutstanding}) for prescription item "${pItem.prescribedName || pItem.id}".`);
+              err.statusCode = 400;
+              err.code = 'ALLOCATION_EXCEEDS_OUTSTANDING_QUANTITY';
+              throw err;
+            }
+            allocatedInThisTxByItemId.set(pItem.id, itemPrevAllocated + itemData.quantity);
+          } else if (rxList && rxList.length > 0) {
+            // Allocate against available prescription items sequentially to preserve provenance
+            for (const pItem of rxList) {
               const itemPrevAllocated = (previouslyAllocatedByItemId.get(pItem.id) || 0) + (allocatedInThisTxByItemId.get(pItem.id) || 0);
-              const itemOutstanding = Math.max(0, pItem.quantity - itemPrevAllocated);
-              if (itemData.quantity > itemOutstanding) {
-                const err = new Error(`Requested quantity (${itemData.quantity}) exceeds outstanding quantity (${itemOutstanding}) for prescription item "${pItem.prescribedName || pItem.id}".`);
-                err.statusCode = 400;
-                err.code = 'ALLOCATION_EXCEEDS_OUTSTANDING_QUANTITY';
-                throw err;
-              }
-              allocatedInThisTxByItemId.set(pItem.id, itemPrevAllocated + itemData.quantity);
-            } else {
-              // Allocate against available prescription items sequentially to preserve provenance
-              for (const pItem of rxList) {
-                const itemPrevAllocated = (previouslyAllocatedByItemId.get(pItem.id) || 0) + (allocatedInThisTxByItemId.get(pItem.id) || 0);
-                const itemRemaining = Math.max(0, pItem.quantity - itemPrevAllocated);
-                if (itemRemaining > 0) {
-                  itemData.prescriptionItemId = pItem.id;
-                  allocatedInThisTxByItemId.set(pItem.id, itemPrevAllocated + Math.min(itemData.quantity, itemRemaining));
-                  break;
-                }
-              }
-              if (!itemData.prescriptionItemId) {
-                itemData.prescriptionItemId = rxList[0].id;
+              const itemRemaining = Math.max(0, pItem.quantity - itemPrevAllocated);
+              if (itemRemaining > 0) {
+                itemData.prescriptionItemId = pItem.id;
+                allocatedInThisTxByItemId.set(pItem.id, itemPrevAllocated + Math.min(itemData.quantity, itemRemaining));
+                break;
               }
             }
+            if (!itemData.prescriptionItemId) {
+              itemData.prescriptionItemId = rxList[0].id;
+            }
+          } else if (rxItems.length === 1 && !itemData.prescriptionItemId) {
+            itemData.prescriptionItemId = rxItems[0].id;
           }
         }
 
@@ -582,23 +588,54 @@ async function createOrder(req, res) {
 
         const createdOrderItems = orderItemsData.map(it => {
           const pItem = it.prescriptionItemId ? rxItemById.get(it.prescriptionItemId) : null;
-          const isPending = Boolean(
+          const isPendingSelection = Boolean(
             it.pharmacistSelectionRequested ||
-            (pItem && pItem.patientNotes === 'PHARMACIST_SELECTION_REQUESTED')
+            it.isAwaitingPharmacyReview ||
+            (pItem && (
+              pItem.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+              (typeof pItem.patientNotes === 'string' && (
+                pItem.patientNotes.includes('PHARMACIST_SELECTION_REQUESTED') ||
+                pItem.patientNotes.includes('AWAITING_PHARMACY_REVIEW')
+              ))
+            ))
           );
-          if (isPending) {
-            const label = pItem?.prescribedName || it.prescribedName || it.name || 'Medicine';
-            const itemIdRef = it.prescriptionItemId || it.medicineId;
+          const isDoctorApprovalClaim = Boolean(
+            it.isDoctorApprovedClaim ||
+            it.doctorApprovalClaim ||
+            (pItem && typeof pItem.patientNotes === 'string' && (
+              pItem.patientNotes.includes('DOCTOR_APPROVAL_CLAIM') ||
+              pItem.patientNotes.includes('DOCTOR_APPROVAL_CLAIMED') ||
+              pItem.patientNotes.includes('doctorApprovalClaim')
+            ))
+          );
+
+          let itemStatus = 'PENDING';
+          let unfulfilledReason = null;
+          const label = pItem?.prescribedName || it.prescribedName || it.name || 'Medicine';
+          const itemIdRef = it.prescriptionItemId || it.medicineId;
+
+          if (isPendingSelection) {
+            itemStatus = 'PENDING_SELECTION';
+            unfulfilledReason = 'AWAITING_PHARMACY_REVIEW';
+            pendingSelectionTags.push(`[PENDING_SELECTION:${itemIdRef}:${label}]`);
+          } else if (isDoctorApprovalClaim) {
+            itemStatus = 'AWAITING_VERIFICATION';
+            unfulfilledReason = 'AWAITING_DOCTOR_APPROVAL_VERIFICATION';
+            pendingSelectionTags.push(`[AWAITING_VERIFICATION:${itemIdRef}:${label}]`);
+          } else if (pItem && pItem.isVerified === false) {
+            itemStatus = 'AWAITING_VERIFICATION';
+            unfulfilledReason = 'AWAITING_PHARMACY_REVIEW';
             pendingSelectionTags.push(`[PENDING_SELECTION:${itemIdRef}:${label}]`);
           }
+
           return {
             medicineId: it.medicineId,
             prescriptionItemId: it.prescriptionItemId || null,
             quantity: it.quantity,
             unitPrice: it.unitPrice,
             subtotal: it.subtotal,
-            status: isPending ? 'PENDING_SELECTION' : 'PENDING',
-            unfulfilledReason: isPending ? 'PHARMACIST_SELECTION_REQUESTED' : null
+            status: itemStatus,
+            unfulfilledReason
           };
         });
 
@@ -785,7 +822,12 @@ async function updateOrderStatus(req, res) {
 
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { pharmacy: true, user: true, items: { include: { medicine: true } }, payment: true }
+      include: {
+        pharmacy: true,
+        user: true,
+        items: { include: { medicine: true, prescriptionItem: true } },
+        payment: true
+      }
     });
 
     if (!order) {
@@ -927,6 +969,53 @@ async function updateOrderStatus(req, res) {
       }
     } else {
       return res.status(403).json({ success: false, error: 'Unauthorized role.' });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CLINICAL VERIFICATION GUARDS (Phase 6.1E.2 / Doctor Approval & Pharmacy Review)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Items requiring pharmacy review or doctor approval verification cannot proceed to fulfillment!
+    if (['CONFIRMED', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'COMPLETED'].includes(status)) {
+      const unverifiedItem = (order.items || []).find(it => {
+        if (it.status === 'PENDING_SELECTION' || it.status === 'AWAITING_VERIFICATION') return true;
+        if (it.unfulfilledReason && (
+          it.unfulfilledReason.includes('AWAITING_PHARMACY_REVIEW') ||
+          it.unfulfilledReason.includes('AWAITING_DOCTOR_APPROVAL_VERIFICATION') ||
+          it.unfulfilledReason.includes('PHARMACIST_SELECTION_REQUESTED')
+        )) return true;
+        if (it.prescriptionItem && it.prescriptionItem.isVerified === false) return true;
+        return false;
+      });
+
+      if (unverifiedItem) {
+        const medName = unverifiedItem.medicine?.brandName || unverifiedItem.prescriptionItem?.prescribedName || 'Medicine';
+        const isDocApproval = unverifiedItem.status === 'AWAITING_VERIFICATION' || (unverifiedItem.unfulfilledReason && unverifiedItem.unfulfilledReason.includes('AWAITING_DOCTOR_APPROVAL_VERIFICATION'));
+        const reasonText = isDocApproval
+          ? 'claimed doctor approval requires clinical verification by the licensed pharmacist'
+          : 'requires pharmacist brand selection and clinical review';
+        return res.status(400).json({
+          success: false,
+          code: 'ITEM_VERIFICATION_REQUIRED',
+          error: `Cannot advance Order #${order.orderNumber} to ${status}: Item "${medName}" ${reasonText}. Please complete verification in the pharmacist clinical review portal before advancing this order.`
+        });
+      }
+
+      // If order has a linked prescription, ensure all prescription items are verified
+      if (order.prescriptionId) {
+        const unverifiedRxItem = await prisma.prescriptionItem.findFirst({
+          where: {
+            prescriptionId: order.prescriptionId,
+            isVerified: false
+          }
+        });
+        if (unverifiedRxItem) {
+          return res.status(400).json({
+            success: false,
+            code: 'ITEM_VERIFICATION_REQUIRED',
+            error: `Cannot advance Order #${order.orderNumber} to ${status}: Prescription item "${unverifiedRxItem.prescribedName}" requires pharmacist clinical verification before this order can be confirmed or fulfilled.`
+          });
+        }
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
