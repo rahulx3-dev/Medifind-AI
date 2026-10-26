@@ -771,9 +771,79 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
+  // Today's Operating Schedule & Hours Override Modal
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedScheduleMode, setSelectedScheduleMode] = useState('STANDARD'); // 'STANDARD' | 'EXTEND' | 'EARLY' | 'CLOSED'
+  const [overrideCloseTime, setOverrideCloseTime] = useState('23:00');
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
   const showToast = (message, type = 'success') => {
     setFeedback({ show: true, message, type });
     setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 4000);
+  };
+
+  const handleSaveScheduleOverride = async () => {
+    if (!pharmacy?.id) return;
+    setSavingSchedule(true);
+    const token = localStorage.getItem('medifind_token');
+
+    let currentHours = pharmacy.openingHours || '08:00 AM - 10:00 PM';
+    let newHours = currentHours;
+    let newIsOpen = true;
+
+    // Extract base opening time (e.g. "8:00 AM" or "09:30")
+    const m = currentHours.match(/^(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
+    const baseOpenTime = m ? m[1].trim() : '08:00 AM';
+
+    if (selectedScheduleMode === 'STANDARD') {
+      newHours = `${baseOpenTime} - 10:00 PM`;
+      newIsOpen = true;
+    } else if (selectedScheduleMode === 'EXTEND') {
+      const [hStr, mStr] = overrideCloseTime.split(':');
+      let h = parseInt(hStr, 10);
+      const period = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      const formattedClose = `${h}:${mStr} ${period}`;
+      newHours = `${baseOpenTime} - ${formattedClose} (Extended Hours Today)`;
+      newIsOpen = true;
+    } else if (selectedScheduleMode === 'EARLY') {
+      const [hStr, mStr] = overrideCloseTime.split(':');
+      let h = parseInt(hStr, 10);
+      const period = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      const formattedClose = `${h}:${mStr} ${period}`;
+      newHours = `${baseOpenTime} - ${formattedClose} (Closing Early Today)`;
+      newIsOpen = true;
+    } else if (selectedScheduleMode === 'CLOSED') {
+      newHours = 'Closed Today';
+      newIsOpen = false;
+    }
+
+    try {
+      const res = await fetch(`/api/pharmacies/${pharmacy.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ openingHours: newHours, isOpen: newIsOpen })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("Today's operating schedule override saved.", 'success');
+        setPharmacy(prev => ({ ...prev, ...data.pharmacy, openingHours: newHours, isOpen: newIsOpen }));
+        setShowScheduleModal(false);
+        broadcastUpdate('PHARMACY_STATUS_UPDATED', { pharmacyId: pharmacy.id });
+        await fetchPharmacyAndOrders(true);
+      } else {
+        showToast(data.error || 'Failed to update schedule override.', 'error');
+      }
+    } catch (err) {
+      console.error('Error saving schedule override:', err);
+      showToast('Network error saving schedule override.', 'error');
+    } finally {
+      setSavingSchedule(false);
+    }
   };
 
   const inFlightStatusOrdersRef = useRef(new Set());
@@ -1965,7 +2035,32 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
             <span style={{ color: '#2e685d', fontWeight: 600 }}>Stock Registry Verified</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Dispensary Schedule & Today's Hours Override Trigger */}
+            <button
+              onClick={() => setShowScheduleModal(true)}
+              style={{
+                background: '#ffffff',
+                color: '#032f28',
+                border: '1.5px solid #2e685d',
+                padding: '0.25rem 0.85rem',
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 1px 3px rgba(3,47,40,0.08)',
+                transition: 'all 0.15s ease'
+              }}
+              title="Configure today's operational schedule, extend hours, or mark closed"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#2e685d' }}>schedule</span>
+              <span>Today: {pharmacy?.openingHours || '08:00 AM - 10:00 PM'}</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 13, color: '#717976' }}>edit_calendar</span>
+            </button>
+
             <span style={{
               background: pharmacy?.isTestRecord ? '#d5e6e0' : '#b0ecdd',
               color: pharmacy?.isTestRecord ? '#414846' : '#032f28',
@@ -2730,6 +2825,31 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                                   </button>
                                 )}
 
+                                {/* Dedicated Ask Clarification button for pharmacist */}
+                                {(order.prescriptionId || order.prescription) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setClarificationOrder(order)}
+                                    style={{
+                                      background: '#fef3c7',
+                                      color: '#92400e',
+                                      border: '1px solid #fde68a',
+                                      borderRadius: 99,
+                                      padding: '0.45rem 0.95rem',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.35rem'
+                                    }}
+                                    title="Ask patient a prescription clarification question"
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#b45309' }}>help_outline</span>
+                                    <span>Ask Clarification</span>
+                                  </button>
+                                )}
+
                                 {isPending && (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     {hasPendingBrandSelection && (
@@ -2878,6 +2998,59 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                             const isUpdatingThisOrder = updatingStatusId === order.id;
 
                             if (isDelivery) {
+                              const deliveryTask = order.assistantTasks?.[0] || order.assistantTask;
+                              const isTaskAssigned = !deliveryTask || deliveryTask.status === 'ASSIGNED';
+                              const isTaskCancelled = deliveryTask?.status === 'CANCELLED';
+
+                              if (isTaskCancelled) {
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <span style={{
+                                      background: '#fef2f2',
+                                      color: '#991b1b',
+                                      border: '1.5px solid #fecaca',
+                                      borderRadius: 99,
+                                      padding: '0.45rem 1rem',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.35rem'
+                                    }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>cancel</span>
+                                      <span>Delivery Partner Declined Task</span>
+                                    </span>
+                                  </div>
+                                );
+                              }
+
+                              if (isTaskAssigned) {
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <button
+                                      disabled
+                                      title="Please wait: The assigned delivery partner has not yet accepted this delivery task."
+                                      style={{
+                                        background: '#fffbeb',
+                                        color: '#92400e',
+                                        border: '1.5px solid #fde68a',
+                                        borderRadius: 99,
+                                        padding: '0.45rem 1.15rem',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        cursor: 'not-allowed',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem'
+                                      }}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>schedule</span>
+                                      <span>Waiting for Delivery Partner to Accept</span>
+                                    </button>
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <FlowButton
                                   variant="primary"
@@ -3903,6 +4076,162 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
           setClarificationOrder(ord);
         }}
       />
+
+      {/* Dispensary Operating Schedule Override Modal */}
+      {showScheduleModal && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(3,47,40,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: 24, width: '100%', maxWidth: 520, padding: '2rem', boxShadow: '0 24px 64px rgba(3,47,40,0.25)', border: '1px solid #e0f2eb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#e0f2eb', color: '#2e685d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 24 }}>more_time</span>
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#032f28', margin: 0 }}>Dispensary Daily Schedule</h3>
+                  <p style={{ fontSize: 12, color: '#717976', margin: '2px 0 0 0' }}>Configure today's operational hours or mark early/holiday closure</p>
+                </div>
+              </div>
+              <button onClick={() => setShowScheduleModal(false)} style={{ background: 'none', border: 'none', color: '#717976', cursor: 'pointer', padding: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
+              </button>
+            </div>
+
+            {/* Current Recorded Schedule Banner */}
+            <div style={{ background: '#f8faf9', border: '1px solid #e0f2eb', borderRadius: 14, padding: '0.75rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <span style={{ fontSize: 11, textTransform: 'uppercase', color: '#717976', fontWeight: 700 }}>Active Schedule on File</span>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#032f28' }}>{pharmacy?.openingHours || '08:00 AM - 10:00 PM'}</div>
+              </div>
+              <span style={{
+                background: pharmacy?.isOpen !== false ? '#dcfce7' : '#fee2e2',
+                color: pharmacy?.isOpen !== false ? '#166534' : '#991b1b',
+                padding: '2px 10px',
+                borderRadius: 99,
+                fontSize: 11,
+                fontWeight: 700
+              }}>
+                {pharmacy?.isOpen !== false ? 'Operating Normal' : 'Closed'}
+              </span>
+            </div>
+
+            {/* Mode Selectors */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              {[
+                { id: 'STANDARD', title: 'Standard Hours', desc: 'Standard operating daily timing', icon: 'schedule', color: '#2e685d', bg: '#e0f2eb' },
+                { id: 'EXTEND', title: 'Extend Hours Today', desc: 'Open late tonight for emergencies', icon: 'nightlight', color: '#0284c7', bg: '#e0f2fe' },
+                { id: 'EARLY', title: 'Close Early Today', desc: 'Closing earlier than standard', icon: 'bedtime', color: '#d97706', bg: '#fef3c7' },
+                { id: 'CLOSED', title: 'Closed Today', desc: 'Full day closure / stock audit', icon: 'block', color: '#dc2626', bg: '#fee2e2' }
+              ].map(opt => {
+                const isSelected = selectedScheduleMode === opt.id;
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => setSelectedScheduleMode(opt.id)}
+                    style={{
+                      border: isSelected ? `2px solid ${opt.color}` : '1.5px solid #e2e8f0',
+                      background: isSelected ? opt.bg : '#ffffff',
+                      borderRadius: 14,
+                      padding: '0.85rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.25rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: opt.color }}>{opt.icon}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>{opt.title}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.35 }}>{opt.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Time Picker for Extend or Early Closing */}
+            {(selectedScheduleMode === 'EXTEND' || selectedScheduleMode === 'EARLY') && (
+              <div style={{ background: '#f8faf9', border: '1px solid #e0f2eb', borderRadius: 14, padding: '1rem', marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#032f28', marginBottom: '0.45rem' }}>
+                  {selectedScheduleMode === 'EXTEND' ? 'Set Tonight\'s Extended Closing Time' : 'Set Today\'s Early Closing Time'}
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    type="time"
+                    value={overrideCloseTime}
+                    onChange={e => setOverrideCloseTime(e.target.value)}
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      padding: '0.55rem 0.85rem',
+                      borderRadius: 10,
+                      border: '1.5px solid #2e685d',
+                      background: '#ffffff',
+                      color: '#032f28',
+                      flex: 1
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {(selectedScheduleMode === 'EXTEND' ? ['22:30', '23:00', '23:30', '00:00'] : ['17:00', '18:00', '19:00']).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setOverrideCloseTime(t)}
+                        style={{
+                          background: overrideCloseTime === t ? '#032f28' : '#e0f2eb',
+                          color: overrideCloseTime === t ? '#ffffff' : '#032f28',
+                          border: 'none',
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Patient Preview readout */}
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '0.65rem 0.85rem', marginBottom: '1.25rem', fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>visibility</span>
+              <span>
+                <strong>Patient View:</strong> {selectedScheduleMode === 'CLOSED'
+                  ? 'Will show "Closed Today" badge and prevent new reservations.'
+                  : selectedScheduleMode === 'EXTEND'
+                    ? `Will show "Extended Hours Today" badge until ${overrideCloseTime}.`
+                    : selectedScheduleMode === 'EARLY'
+                      ? `Will show "Closing Early Today" badge until ${overrideCloseTime}.`
+                      : 'Will show regular operating hours.'}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                disabled={savingSchedule}
+                style={{ background: '#e0f2eb', color: '#414846', border: 'none', borderRadius: 99, padding: '0.55rem 1.25rem', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <FlowButton
+                variant="primary"
+                size="md"
+                loading={savingSchedule}
+                disabled={savingSchedule}
+                onClick={handleSaveScheduleOverride}
+              >
+                Save Schedule Override
+              </FlowButton>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Verify Assistant Collection Code Modal */}
       {collectionModalOrder && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(3,47,40,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>

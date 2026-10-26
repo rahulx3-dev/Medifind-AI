@@ -421,7 +421,8 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         if (isMounted && data.success && Array.isArray(data.assistants)) {
           setAvailableAssistants(data.assistants);
           if (data.assistants.length > 0 && !selectedAssistantId) {
-            setSelectedAssistantId(data.assistants[0].id);
+            const firstActive = data.assistants.find(a => a.isAvailable !== false);
+            setSelectedAssistantId(firstActive ? firstActive.id : data.assistants[0].id);
           }
         }
       } catch (e) {
@@ -446,6 +447,11 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       const activePartnerId = selectedAssistantId || availableAssistants[0]?.id;
       if (!activePartnerId || availableAssistants.length === 0) {
         setError('No delivery partner is currently available in this area. Please select In-Pharmacy Pickup.');
+        return;
+      }
+      const chosenPartner = availableAssistants.find(a => a.id === activePartnerId);
+      if (chosenPartner && chosenPartner.isAvailable === false) {
+        setError(`${chosenPartner.name} has paused duty and is currently not delivering. Please select an active delivery partner or choose In-Pharmacy Pickup.`);
         return;
       }
     }
@@ -1223,69 +1229,111 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
               {/* Assigned Delivery Partner Card for Doorstep Delivery */}
               {selectedFulfillment === 'ASSISTANT_DELIVERY' && availableAssistants.length > 0 && (() => {
                 const assignedPartner = availableAssistants.find(a => a.id === selectedAssistantId) || availableAssistants[0];
+                const isPartnerPaused = assignedPartner?.isAvailable === false || assignedPartner?.isDutyPaused;
+                const allPartnersPaused = availableAssistants.every(a => a.isAvailable === false || a.isDutyPaused);
+
                 return (
-                  <div style={{
-                    background: 'linear-gradient(135deg, #f0fdf4 0%, #e6f8f1 100%)',
-                    border: '1.5px solid #a7f3d0',
-                    borderRadius: 14,
-                    padding: '0.85rem 1.15rem',
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div>
+                    {allPartnersPaused && (
                       <div style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: '50%',
-                        background: '#032f28',
-                        color: '#ffffff',
+                        background: '#fef2f2',
+                        border: '1.5px solid #fecaca',
+                        borderRadius: 12,
+                        padding: '0.75rem 1rem',
+                        marginBottom: '0.85rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 15,
-                        flexShrink: 0
+                        gap: '0.65rem',
+                        color: '#991b1b',
+                        fontSize: 12.5,
+                        fontWeight: 600
                       }}>
-                        {assignedPartner?.name?.charAt(0) || 'D'}
+                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#dc2626' }}>error</span>
+                        <span>All delivery partners in this area currently have duty paused. Please select In-Pharmacy Pickup to collect your medicines.</span>
                       </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 700, fontSize: 13.5, color: '#032f28' }}>
-                            {assignedPartner?.name || 'Verified Delivery Partner'}
-                          </span>
-                          <span style={{ fontSize: 10.5, fontWeight: 700, background: '#dcfce7', color: '#166534', padding: '1px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>verified</span>
-                            Verified Partner in {assignedPartner?.operatingCity || checkout?.pharmacy?.city || 'Chengannur'}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 11.5, color: '#414846', marginTop: 2 }}>
-                          Medicine will be securely collected from {checkout?.pharmacy?.name} and delivered to your doorstep with 4-digit PIN verification.
-                        </div>
-                      </div>
-                    </div>
-                    {availableAssistants.length > 1 && (
-                      <select
-                        value={selectedAssistantId || ''}
-                        onChange={e => setSelectedAssistantId(e.target.value)}
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          padding: '0.4rem 0.65rem',
-                          borderRadius: 8,
-                          border: '1.5px solid #2e685d',
-                          background: '#ffffff',
-                          color: '#032f28',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {availableAssistants.map(a => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                      </select>
                     )}
+
+                    <div style={{
+                      background: isPartnerPaused
+                        ? 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)'
+                        : 'linear-gradient(135deg, #f0fdf4 0%, #e6f8f1 100%)',
+                      border: isPartnerPaused ? '1.5px solid #fdba74' : '1.5px solid #a7f3d0',
+                      borderRadius: 14,
+                      padding: '0.85rem 1.15rem',
+                      marginBottom: '1rem',
+                      opacity: isPartnerPaused ? 0.8 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      transition: 'all 0.2s ease'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: '50%',
+                          background: isPartnerPaused ? '#7c2d12' : '#032f28',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 15,
+                          flexShrink: 0
+                        }}>
+                          {assignedPartner?.name?.charAt(0) || 'D'}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, fontSize: 13.5, color: isPartnerPaused ? '#7c2d12' : '#032f28' }}>
+                              {assignedPartner?.name || 'Verified Delivery Partner'}
+                            </span>
+                            {isPartnerPaused ? (
+                              <span style={{ fontSize: 10.5, fontWeight: 700, background: '#fee2e2', color: '#991b1b', padding: '1px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>pause_circle</span>
+                                Duty Paused • Currently Not Delivering
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10.5, fontWeight: 700, background: '#dcfce7', color: '#166534', padding: '1px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>verified</span>
+                                Verified Partner in {assignedPartner?.operatingCity || checkout?.pharmacy?.city || 'Chengannur'}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11.5, color: isPartnerPaused ? '#9a3412' : '#414846', marginTop: 2 }}>
+                            {isPartnerPaused
+                              ? 'This partner is currently off-duty/paused. Please select another available delivery partner or choose In-Pharmacy Pickup.'
+                              : `Medicine will be securely collected from ${checkout?.pharmacy?.name} and delivered to your doorstep with 4-digit PIN verification.`}
+                          </div>
+                        </div>
+                      </div>
+                      {availableAssistants.length > 1 && (
+                        <select
+                          value={selectedAssistantId || ''}
+                          onChange={e => setSelectedAssistantId(e.target.value)}
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: '0.4rem 0.65rem',
+                            borderRadius: 8,
+                            border: isPartnerPaused ? '1.5px solid #ea580c' : '1.5px solid #2e685d',
+                            background: '#ffffff',
+                            color: '#032f28',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {availableAssistants.map(a => {
+                            const paused = a.isAvailable === false || a.isDutyPaused;
+                            return (
+                              <option key={a.id} value={a.id} style={{ color: paused ? '#991b1b' : '#032f28' }}>
+                                {a.name} {paused ? '(Duty Paused • Not Delivering)' : '• Available'}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
@@ -1576,7 +1624,15 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                 </button>
                 <FlowButton
                   onClick={handleFulfillmentSelect}
-                  disabled={isSubmitting || !selectedFulfillment || (selectedFulfillment === 'ASSISTANT_DELIVERY' && availableAssistants.length === 0)}
+                  disabled={
+                    isSubmitting ||
+                    !selectedFulfillment ||
+                    (selectedFulfillment === 'ASSISTANT_DELIVERY' && (
+                      availableAssistants.length === 0 ||
+                      availableAssistants.every(a => a.isAvailable === false || a.isDutyPaused) ||
+                      (availableAssistants.find(a => a.id === (selectedAssistantId || availableAssistants[0]?.id))?.isAvailable === false)
+                    ))
+                  }
                   loading={isSubmitting}
                   fullWidth
                   style={{ flex: 1 }}

@@ -1436,6 +1436,18 @@ export default function PharmacyDiscovery({
                       <span className="material-symbols-outlined text-xs">navigation</span>
                       <span>{p.distanceKm != null ? `${p.distanceKm} km` : 'Chengannur'}</span>
                     </span>
+                    {p.computedOpenStatus?.isExtendedHours && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-cyan-100 text-cyan-900 border border-cyan-300 text-xs font-bold shadow-2xs">
+                        <span className="material-symbols-outlined text-xs text-cyan-700">nightlight</span>
+                        <span>Extended Hours Today</span>
+                      </span>
+                    )}
+                    {p.computedOpenStatus?.isClosingEarly && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold shadow-2xs">
+                        <span className="material-symbols-outlined text-xs text-amber-700">bedtime</span>
+                        <span>Closing Early Today</span>
+                      </span>
+                    )}
                     {isClosed ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold shadow-2xs">
                         <span className="material-symbols-outlined text-xs text-rose-600 animate-pulse">lock_clock</span>

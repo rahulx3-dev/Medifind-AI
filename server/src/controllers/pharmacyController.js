@@ -691,7 +691,7 @@ async function updateInventory(req, res) {
 async function toggleStatus(req, res) {
   try {
     const { pharmacyId } = req.params;
-    const { isOpen, is24x7 } = req.body;
+    const { isOpen, is24x7, openingHours } = req.body;
 
     if (req.user.role !== 'ADMIN') {
       const managedPharmacy = await prisma.pharmacy.findUnique({
@@ -710,6 +710,9 @@ async function toggleStatus(req, res) {
     const data = {};
     if (isOpen !== undefined) data.isOpen = Boolean(isOpen);
     if (is24x7 !== undefined) data.is24x7 = Boolean(is24x7);
+    if (openingHours !== undefined && typeof openingHours === 'string') {
+      data.openingHours = openingHours.trim();
+    }
 
     const updated = await prisma.pharmacy.update({
       where: { id: pharmacyId },
@@ -717,10 +720,15 @@ async function toggleStatus(req, res) {
     });
 
     invalidateManagedPharmacyCache();
+    const computedOpenStatus = computeOpenStatus(updated.openingHours, updated.isOpen);
+
     return res.json({
       success: true,
-      message: 'Pharmacy status updated.',
-      pharmacy: updated
+      message: 'Pharmacy status and schedule updated.',
+      pharmacy: {
+        ...updated,
+        computedOpenStatus
+      }
     });
   } catch (err) {
     console.error('toggleStatus error:', err);

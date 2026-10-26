@@ -1328,6 +1328,36 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
     }
   };
 
+  const handleDeclineTask = async (taskId, reason = 'Unavailable to deliver at this time') => {
+    const token = localStorage.getItem('medifind_token');
+    setActionLoading(true);
+    setProgressingTaskId(taskId);
+    try {
+      const res = await fetch(`/api/assistant/tasks/${taskId}/decline`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showToast('Task declined. Pharmacy and central dispatch have been notified.', 'info');
+        await fetchTasks(true);
+        broadcastUpdate('ASSISTANT_TASK_DECLINED', { taskId });
+      } else {
+        showToast(data.error || `Failed to decline task (Server ${res.status})`, 'error');
+      }
+    } catch (err) {
+      console.error('Error declining task:', err);
+      showToast('Network error declining task. Please retry.', 'error');
+    } finally {
+      setProgressingTaskId(null);
+      setActionLoading(false);
+    }
+  };
+
   const handleProgressTask = async (taskId, nextStatus) => {
     const token = localStorage.getItem('medifind_token');
     const handoverPin = handoverPinMap[taskId];
@@ -3455,16 +3485,41 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
                     </div>
                   </div>
 
-                  <FlowButton
-                    onClick={buttonAction}
-                    loading={actionLoading && (acceptingTaskId === primaryActiveTask.id || progressingTaskId === primaryActiveTask.id)}
-                    disabled={actionLoading}
-                    variant="secondary"
-                    size="md"
-                    style={{ background: '#b0ecdd', color: '#00201b', '--fb-circle-bg': '#032f28', '--fb-color': '#00201b', '--fb-border': 'rgba(3,47,40,0.25)', fontWeight: 700 }}
-                  >
-                    {buttonLabel}
-                  </FlowButton>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                    <FlowButton
+                      onClick={buttonAction}
+                      loading={actionLoading && (acceptingTaskId === primaryActiveTask.id || progressingTaskId === primaryActiveTask.id)}
+                      disabled={actionLoading}
+                      variant="secondary"
+                      size="md"
+                      style={{ background: '#b0ecdd', color: '#00201b', '--fb-circle-bg': '#032f28', '--fb-color': '#00201b', '--fb-border': 'rgba(3,47,40,0.25)', fontWeight: 700 }}
+                    >
+                      {buttonLabel}
+                    </FlowButton>
+                    {isAssigned && (
+                      <button
+                        onClick={() => handleDeclineTask(primaryActiveTask.id)}
+                        disabled={actionLoading}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: '#fca5a5',
+                          border: '1.5px solid rgba(239, 68, 68, 0.45)',
+                          borderRadius: 99,
+                          padding: '0.55rem 1.15rem',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: actionLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>cancel</span>
+                        <span>Decline Task</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -3923,16 +3978,39 @@ export default function AssistantPortal({ currentTab, onTabChange }) {
 
                         {/* Milestone Action Progression Buttons */}
                         {task.status === 'ASSIGNED' && (
-                          <FlowButton
-                            fullWidth
-                            size="md"
-                            variant="primary"
-                            loading={actionLoading && acceptingTaskId === task.id}
-                            disabled={actionLoading}
-                            onClick={() => handleAcceptTask(task.id)}
-                          >
-                            Accept Task
-                          </FlowButton>
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <FlowButton
+                              size="md"
+                              variant="primary"
+                              loading={actionLoading && acceptingTaskId === task.id}
+                              disabled={actionLoading}
+                              onClick={() => handleAcceptTask(task.id)}
+                              style={{ flex: 1 }}
+                            >
+                              Accept Task
+                            </FlowButton>
+                            <button
+                              onClick={() => handleDeclineTask(task.id)}
+                              disabled={actionLoading}
+                              style={{
+                                background: '#fef2f2',
+                                color: '#b91c1c',
+                                border: '1.5px solid #fca5a5',
+                                borderRadius: 12,
+                                padding: '0.65rem 1.15rem',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>cancel</span>
+                              <span>Decline</span>
+                            </button>
+                          </div>
                         )}
 
                         {/* Dispensary Pharmacy Collection Code Display for Assistant to show at Counter */}

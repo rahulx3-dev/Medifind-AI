@@ -6,6 +6,7 @@ const {
   getAvailableTasks,
   getMyTasks,
   acceptTask,
+  declineTask,
   progressTaskStatus,
   getAssistantProfile,
   updateAssistantProfile,
@@ -85,6 +86,8 @@ router.get('/documents/:id', authenticateToken, requireRole('ASSISTANT', 'ADMIN'
 router.get('/available', authenticateToken, requireRole('ASSISTANT', 'ADMIN'), getAvailableTasks);
 router.get('/my-tasks', authenticateToken, requireRole('ASSISTANT', 'ADMIN'), getMyTasks);
 router.put('/tasks/:id/accept', authenticateToken, requireRole('ASSISTANT', 'ADMIN'), acceptTask);
+router.put('/tasks/:id/decline', authenticateToken, requireRole('ASSISTANT', 'ADMIN'), declineTask);
+router.put('/tasks/:id/cancel', authenticateToken, requireRole('ASSISTANT', 'ADMIN'), declineTask);
 router.put('/tasks/:id/progress', authenticateToken, requireRole('ASSISTANT', 'ADMIN'), progressTaskStatus);
 
 module.exports = router;

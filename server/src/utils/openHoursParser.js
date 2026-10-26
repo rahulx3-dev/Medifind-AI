@@ -141,14 +141,15 @@ function computeOpenStatus(openingHours, isOpenOverride) {
     };
   }
 
-  if (normalized === 'closed') {
+  if (normalized === 'closed' || normalized.includes('closed today')) {
     return {
       isCurrentlyOpen: false,
       status: 'CLOSED',
       allowsReservations: false,
-      note: 'Closed',
-      badgeText: 'Closed',
-      source: 'hours'
+      isClosedToday: true,
+      note: 'Closed Today (Schedule Override)',
+      badgeText: 'Closed Today',
+      source: 'override'
     };
   }
 
@@ -163,23 +164,36 @@ function computeOpenStatus(openingHours, isOpenOverride) {
       const opensAtFormatted = formatMinutesTo12Hour(openMins);
       const closesAtFormatted = formatMinutesTo12Hour(closeMins);
 
+      const isExtended = normalized.includes('extended');
+      const isClosingEarly = normalized.includes('closing early') || normalized.includes('close early') || normalized.includes('closes early');
+
       const isOpen = currentMins >= openMins && currentMins < closeMins;
 
       if (isOpen) {
         const minsUntilClose = closeMins - currentMins;
         const timeRemainingFormatted = formatDuration(minsUntilClose);
+
+        let badgeText = `Open Now • Closes at ${closesAtFormatted} (in ${timeRemainingFormatted})`;
+        if (isExtended) {
+          badgeText = `Extended Hours Today • Closes at ${closesAtFormatted} (in ${timeRemainingFormatted})`;
+        } else if (isClosingEarly) {
+          badgeText = `Closing Early Today • Closes at ${closesAtFormatted} (in ${timeRemainingFormatted})`;
+        }
+
         return {
           isCurrentlyOpen: true,
           status: 'OPEN',
           allowsReservations: true,
           opensAt: opensAtFormatted,
           closesAt: closesAtFormatted,
+          isExtendedHours: isExtended,
+          isClosingEarly,
           nextAction: 'CLOSES',
           targetTime: closesAtFormatted,
           minutesUntilNext: minsUntilClose,
           timeRemainingFormatted,
           timerSeconds: minsUntilClose * 60,
-          badgeText: `Open Now • Closes at ${closesAtFormatted} (in ${timeRemainingFormatted})`,
+          badgeText,
           note: `Open now (${openingHours})`,
           source: 'hours'
         };
@@ -194,18 +208,25 @@ function computeOpenStatus(openingHours, isOpenOverride) {
         }
         const timeRemainingFormatted = formatDuration(minsUntilOpen);
 
+        let badgeText = `Closed • Opens at ${opensAtFormatted} (in ${timeRemainingFormatted})`;
+        if (isClosingEarly) {
+          badgeText = `Closed Early Today • Opens at ${opensAtFormatted}`;
+        }
+
         return {
           isCurrentlyOpen: false,
           status: 'CLOSED',
           allowsReservations: false,
           opensAt: opensAtFormatted,
           closesAt: closesAtFormatted,
+          isExtendedHours: isExtended,
+          isClosingEarly,
           nextAction: 'OPENS',
           targetTime: opensAtFormatted,
           minutesUntilNext: minsUntilOpen,
           timeRemainingFormatted,
           timerSeconds: minsUntilOpen * 60,
-          badgeText: `Closed • Opens at ${opensAtFormatted} (in ${timeRemainingFormatted})`,
+          badgeText,
           note: `Closed now (${openingHours})`,
           source: 'hours'
         };

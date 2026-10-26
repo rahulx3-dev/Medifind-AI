@@ -1024,6 +1024,21 @@ async function updateOrderStatus(req, res) {
         });
       }
 
+      // Pharmacy must wait until the delivery partner has accepted the task
+      if (existingTask.status === 'ASSIGNED') {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot mark ready for dispatch: The assigned delivery partner has not yet accepted this task. Please wait for the assistant to accept.'
+        });
+      }
+
+      if (existingTask.status === 'CANCELLED') {
+        return res.status(400).json({
+          success: false,
+          error: 'Cannot mark ready for dispatch: The assigned delivery partner declined or cancelled this delivery task. A new delivery partner must be selected.'
+        });
+      }
+
       // Generate separate Collection Code and Delivery OTP (guaranteed distinct)
       generatedDeliveryCodes = generateSeparateDeliveryCodes();
     }

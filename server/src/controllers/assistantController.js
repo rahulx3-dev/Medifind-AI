@@ -1131,8 +1131,8 @@ async function progressTaskStatus(req, res) {
 
     // Strict sequential state transitions
     const VALID_TRANSITIONS = {
-      'ASSIGNED': ['ACCEPTED'],
-      'ACCEPTED': ['COLLECTING'],
+      'ASSIGNED': ['ACCEPTED', 'CANCELLED'],
+      'ACCEPTED': ['COLLECTING', 'CANCELLED'],
       'COLLECTING': ['IN_TRANSIT'],
       'IN_TRANSIT': ['DELIVERED'],
       'DELIVERED': ['CONFIRMED']
@@ -1195,6 +1195,8 @@ async function progressTaskStatus(req, res) {
     const updateData = { status };
     if (status === 'ACCEPTED') {
       updateData.acceptedAt = new Date();
+    } else if (status === 'CANCELLED') {
+      updateData.cancellationReason = req.body.reason || req.body.cancellationReason || 'Declined by delivery partner';
     } else if (status === 'COLLECTING') {
       updateData.collectedAt = task.collectedAt || new Date();
     } else if (status === 'DELIVERED') {
@@ -1214,6 +1216,43 @@ async function progressTaskStatus(req, res) {
         }
       }
     });
+
+    // If cancelled, record history comment and notify patient
+    if (status === 'CANCELLED') {
+      try {
+        await prisma.orderStatusHistory.create({
+          data: {
+            orderId: task.orderId,
+            status: task.order?.status || 'CONFIRMED',
+            comment: `Delivery task declined by delivery partner ${req.user.name || 'Assistant'}: ${updateData.cancellationReason}`
+          }
+        });
+      } catch (histErr) {
+        console.warn('Non-fatal orderStatusHistory create warning:', histErr.message);
+      }
+
+      try {
+        if (task.order?.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: task.order.userId,
+              title: `Delivery Partner Update: #${task.order.orderNumber || ''}`,
+              message: `Delivery partner ${req.user.name || 'Assistant'} was unable to accept your delivery task (${updateData.cancellationReason}).`,
+              type: 'ASSISTANT',
+              linkUrl: `/orders/${task.orderId}`
+            }
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Non-fatal notification create warning:', notifErr.message);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Task cancelled successfully.',
+        task: sanitizeTaskForAssistant(updated, { includeHandoverPin: false, isAssigned: true })
+      });
+    }
 
     // Update child order status if confirmed
     if (status === 'CONFIRMED') {
@@ -1288,7 +1327,103 @@ async function progressTaskStatus(req, res) {
 }
 
 /**
- * Discover active + available assistants filtered by requested capability.
+ * Decline/cancel an assigned delivery task
+ * Can be called by the assigned assistant if they cannot fulfill the task.
+ */
+async function declineTask(req, res) {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const assistantId = req.user.id;
+
+    const task = await prisma.assistantTask.findUnique({
+      where: { id },
+      include: {
+        order: {
+          include: { pharmacy: true, user: true }
+        }
+      }
+    });
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found.' });
+    }
+
+    if (task.assistantId !== assistantId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Unauthorized: You can only decline your own assigned tasks.' });
+    }
+
+    if (task.status === 'CANCELLED') {
+      return res.status(400).json({ success: false, error: 'Task has already been declined/cancelled.' });
+    }
+
+    if (task.status !== 'ASSIGNED' && task.status !== 'ACCEPTED') {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot decline task that is already ${task.status}. Task has already commenced.`
+      });
+    }
+
+    const cancellationReason = reason && typeof reason === 'string' && reason.trim() ? reason.trim() : 'Declined by delivery partner';
+
+    const updated = await prisma.assistantTask.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        cancellationReason
+      },
+      include: {
+        order: {
+          include: { pharmacy: true, user: true }
+        }
+      }
+    });
+
+    if (task.orderId) {
+      try {
+        await prisma.orderStatusHistory.create({
+          data: {
+            orderId: task.orderId,
+            status: task.order?.status || 'CONFIRMED',
+            comment: `Delivery task declined by partner ${req.user.name || 'Assistant'}: ${cancellationReason}`
+          }
+        });
+      } catch (histErr) {
+        console.warn('Non-fatal orderStatusHistory create warning:', histErr.message);
+      }
+
+      // Notify patient
+      try {
+        if (task.order?.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: task.order.userId,
+              title: `Delivery Partner Update: #${task.order.orderNumber || ''}`,
+              message: `Delivery partner ${req.user.name || 'Assistant'} was unable to take your delivery task (${cancellationReason}).`,
+              type: 'ASSISTANT',
+              linkUrl: `/orders/${task.orderId}`
+            }
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Non-fatal notification create warning:', notifErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Task declined successfully.',
+      task: sanitizeTaskForAssistant(updated, { includeHandoverPin: false, isAssigned: true })
+    });
+  } catch (err) {
+    console.error('declineTask error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to decline task.' });
+  }
+}
+
+/**
+ * Discover active assistants filtered by requested capability.
+ * Includes paused assistants (with isDutyPaused: true, isAvailable: false) so users are informed.
  * Exposes only safe public profile data (name, bio, capabilities, availability).
  */
 async function discoverAssistants(req, res) {
@@ -1309,9 +1444,10 @@ async function discoverAssistants(req, res) {
 
     const targetArea = (city || area || '').trim().toLowerCase();
 
+    // Show registered active assistants in this area, including duty paused so patients know status
     const matching = assistantUsers.filter(u => {
       const prof = u.assistantProfile;
-      if (!prof || !prof.isActive || !prof.isAvailable) return false;
+      if (!prof || !prof.isActive) return false;
       const caps = parseCapabilities(prof.capabilities);
       if (serviceType && !caps.includes(serviceType)) return false;
       if (targetArea) {
@@ -1328,7 +1464,8 @@ async function discoverAssistants(req, res) {
       operatingCity: u.assistantProfile?.operatingCity || 'Chengannur',
       capabilities: parseCapabilities(u.assistantProfile?.capabilities),
       isActive: u.assistantProfile?.isActive ?? false,
-      isAvailable: u.assistantProfile?.isAvailable ?? false
+      isAvailable: u.assistantProfile?.isAvailable ?? false,
+      isDutyPaused: !(u.assistantProfile?.isAvailable ?? false)
     }));
 
     return res.json({
@@ -1399,6 +1536,7 @@ module.exports = {
   getAvailableTasks,
   getMyTasks,
   acceptTask,
+  declineTask,
   progressTaskStatus,
   discoverAssistants,
   validateAssistantSelection,
