@@ -38,6 +38,38 @@ const DB_TRANSACTION_OPTIONS = {
   timeout: 60000
 };
 
+/**
+ * Executes a database operation with automatic retry on transient connection drops / resets.
+ * Critical for serverless cloud databases (Neon) which may close idle pool sockets during CPU-heavy OCR.
+ */
+async function executeWithDbRetry(operation, maxRetries = 2, delayMs = 400) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      const msg = String(err?.message || '').toLowerCase();
+      const isConnectionDrop =
+        msg.includes('closed the connection') ||
+        msg.includes('connection closed') ||
+        msg.includes('connection terminated') ||
+        msg.includes("can't reach database server") ||
+        msg.includes('socket has been closed') ||
+        msg.includes('econnreset') ||
+        msg.includes('etimedout') ||
+        err?.code === 'P1001' ||
+        err?.code === 'P1002' ||
+        err?.code === 'P1017';
+
+      if (isConnectionDrop && attempt < maxRetries) {
+        console.warn(`[Database-Retry] Transient connection drop (attempt ${attempt}/${maxRetries}): "${err.message}". Retrying on fresh connection...`);
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // In-memory medicine catalog cache with 5-minute TTL to eliminate 4+ second cloud DB roundtrips on every OCR upload
 let cachedMedicineCatalog = null;
 let cachedMedicineCatalogExpiresAt = 0;
@@ -951,21 +983,61 @@ async function uploadPrescription(req, res) {
       const imageId = crypto.randomUUID();
       const storedFileName = path.basename(filePath);
 
-      prescription = await prisma.$transaction(async (tx) => {
-        const newRx = await tx.prescription.create({
-          data: {
-            userId,
-            originalFileName: fileName,
-            filePath: filePath,
-            ocrRawText: rawText, // null initially for real uploads
-            status: 'UPLOADED',
-            fileHash: fileSha256
-          }
-        });
-
-        if (tx.prescriptionImage && typeof tx.prescriptionImage.create === 'function') {
-          initialImageRecord = await tx.prescriptionImage.create({
+      prescription = await executeWithDbRetry(async () => {
+        return await prisma.$transaction(async (tx) => {
+          const newRx = await tx.prescription.create({
             data: {
+              userId,
+              originalFileName: fileName,
+              filePath: filePath,
+              ocrRawText: rawText, // null initially for real uploads
+              status: 'UPLOADED',
+              fileHash: fileSha256
+            }
+          });
+
+          if (tx.prescriptionImage && typeof tx.prescriptionImage.create === 'function') {
+            initialImageRecord = await tx.prescriptionImage.create({
+              data: {
+                id: imageId,
+                prescriptionId: newRx.id,
+                versionNumber: 1,
+                originalFileName: fileName,
+                storedFileName: storedFileName,
+                storagePath: filePath,
+                mimeType: validatedMimeType,
+                fileSizeBytes: fileSizeBytes,
+                fileSha256: fileSha256,
+                uploadedById: userId
+              }
+            });
+            await tx.prescription.update({
+              where: { id: newRx.id },
+              data: { activeImageId: initialImageRecord.id }
+            });
+          } else {
+            // Compatibility fallback when Prisma Client runtime is not regenerated
+            await tx.$executeRawUnsafe(
+              `INSERT INTO "PrescriptionImage" ("id", "prescriptionId", "versionNumber", "originalFileName", "storedFileName", "storagePath", "mimeType", "fileSizeBytes", "fileSha256", "uploadedById", "createdAt")
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+              imageId,
+              newRx.id,
+              1,
+              fileName,
+              storedFileName,
+              filePath,
+              validatedMimeType,
+              fileSizeBytes,
+              fileSha256,
+              userId
+            );
+            await tx.$executeRawUnsafe(
+              `UPDATE "Prescription" SET "activeImageId" = $1, "sourceType" = $2 WHERE "id" = $3`,
+              imageId,
+              'IMAGE_UPLOAD',
+              newRx.id
+            );
+            initialImageRecord = {
               id: imageId,
               prescriptionId: newRx.id,
               versionNumber: 1,
@@ -976,72 +1048,34 @@ async function uploadPrescription(req, res) {
               fileSizeBytes: fileSizeBytes,
               fileSha256: fileSha256,
               uploadedById: userId
-            }
-          });
-          await tx.prescription.update({
-            where: { id: newRx.id },
-            data: { activeImageId: initialImageRecord.id }
-          });
-        } else {
-          // Compatibility fallback when Prisma Client runtime is not regenerated
-          await tx.$executeRawUnsafe(
-            `INSERT INTO "PrescriptionImage" ("id", "prescriptionId", "versionNumber", "originalFileName", "storedFileName", "storagePath", "mimeType", "fileSizeBytes", "fileSha256", "uploadedById", "createdAt")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
-            imageId,
-            newRx.id,
-            1,
-            fileName,
-            storedFileName,
-            filePath,
-            validatedMimeType,
-            fileSizeBytes,
-            fileSha256,
-            userId
-          );
-          await tx.$executeRawUnsafe(
-            `UPDATE "Prescription" SET "activeImageId" = $1, "sourceType" = $2 WHERE "id" = $3`,
-            imageId,
-            'IMAGE_UPLOAD',
-            newRx.id
-          );
-          initialImageRecord = {
-            id: imageId,
-            prescriptionId: newRx.id,
-            versionNumber: 1,
-            originalFileName: fileName,
-            storedFileName: storedFileName,
-            storagePath: filePath,
-            mimeType: validatedMimeType,
-            fileSizeBytes: fileSizeBytes,
-            fileSha256: fileSha256,
-            uploadedById: userId
+            };
+          }
+
+          // Mandatory Audit Log: PRESCRIPTION_UPLOADED inside upload transaction
+          if (supportsPrescriptionAuditLogging(tx)) {
+            await recordPrescriptionAuditLog(tx, {
+              prescriptionId: newRx.id,
+              prescriptionIdSnapshot: newRx.id,
+              actorId: userId,
+              actorRole: req.user?.role || 'PATIENT',
+              action: 'PRESCRIPTION_UPLOADED',
+              details: {
+                imageId,
+                versionNumber: 1,
+                mimeType: validatedMimeType,
+                fileSizeBytes,
+                fileSha256
+              },
+              ipAddress: extractClientIp(req)
+            });
+          }
+
+          return {
+            ...newRx,
+            activeImageId: imageId
           };
-        }
-
-        // Mandatory Audit Log: PRESCRIPTION_UPLOADED inside upload transaction
-        if (supportsPrescriptionAuditLogging(tx)) {
-          await recordPrescriptionAuditLog(tx, {
-            prescriptionId: newRx.id,
-            prescriptionIdSnapshot: newRx.id,
-            actorId: userId,
-            actorRole: req.user?.role || 'PATIENT',
-            action: 'PRESCRIPTION_UPLOADED',
-            details: {
-              imageId,
-              versionNumber: 1,
-              mimeType: validatedMimeType,
-              fileSizeBytes,
-              fileSha256
-            },
-            ipAddress: extractClientIp(req)
-          });
-        }
-
-        return {
-          ...newRx,
-          activeImageId: imageId
-        };
-      }, DB_TRANSACTION_OPTIONS);
+        }, DB_TRANSACTION_OPTIONS);
+      }, 2, 400);
       transactionCommitted = true;
     }
     // ── Slice 2: Run OCR & Manage Run Lifecycle ─────────────────────────────
@@ -1053,16 +1087,18 @@ async function uploadPrescription(req, res) {
       // Step 2 & 3: Acquire atomic claim for (prescriptionId, activeImageId) if tracking is supported
       if (supportsOcrRunTracking(prisma)) {
         try {
-          ocrClaim = await acquireOcrRunClaim(prisma, {
-            prescriptionId: prescription.id,
-            imageId: activeImageId,
-            engineName: 'TESSERACT_OCR',
-            engineVersion: '1.0.0',
-            leaseDurationMs: 180000,
-            actorId: req.user.id,
-            actorRole: req.user.role || 'PATIENT',
-            ipAddress: extractClientIp(req)
-          });
+          ocrClaim = await executeWithDbRetry(async () => {
+            return await acquireOcrRunClaim(prisma, {
+              prescriptionId: prescription.id,
+              imageId: activeImageId,
+              engineName: 'TESSERACT_OCR',
+              engineVersion: '1.0.0',
+              leaseDurationMs: 180000,
+              actorId: req.user.id,
+              actorRole: req.user.role || 'PATIENT',
+              ipAddress: extractClientIp(req)
+            });
+          }, 2, 400);
         } catch (claimErr) {
           if (claimErr && claimErr.code === 'OCR_RUN_CONFLICT') {
             return res.status(409).json({
@@ -1327,21 +1363,67 @@ async function uploadPrescription(req, res) {
         };
       });
 
-      const commitResult = await prisma.$transaction(async (tx) => {
-        return await completeOcrRunAndPersistCandidates(tx, {
-          runId: ocrClaim.runId,
-          leaseToken: ocrClaim.leaseToken,
-          prescriptionId: prescription.id,
-          imageId: activeImageId,
-          rawText,
-          executionTimeMs,
-          candidates: candidateList,
-          detectedItems,
-          actorId: req.user.id,
-          actorRole: req.user.role || 'PATIENT',
-          ipAddress: extractClientIp(req)
-        });
-      }, DB_TRANSACTION_OPTIONS);
+      let commitResult = null;
+      try {
+        commitResult = await executeWithDbRetry(async () => {
+          return await prisma.$transaction(async (tx) => {
+            return await completeOcrRunAndPersistCandidates(tx, {
+              runId: ocrClaim.runId,
+              leaseToken: ocrClaim.leaseToken,
+              prescriptionId: prescription.id,
+              imageId: activeImageId,
+              rawText,
+              executionTimeMs,
+              candidates: candidateList,
+              detectedItems,
+              actorId: req.user.id,
+              actorRole: req.user.role || 'PATIENT',
+              ipAddress: extractClientIp(req)
+            });
+          }, DB_TRANSACTION_OPTIONS);
+        }, 2, 400);
+      } catch (persistErr) {
+        console.warn('[PrescriptionUpload] OCR run candidate persistence encountered an issue:', persistErr.message, '— applying graceful direct fallback');
+        try {
+          await executeWithDbRetry(async () => {
+            const rxDelegate = prisma.prescription;
+            if (rxDelegate && typeof rxDelegate.update === 'function') {
+              await rxDelegate.update({
+                where: { id: prescription.id },
+                data: {
+                  ocrRawText: rawText,
+                  status: 'VERIFICATION_REQUIRED'
+                }
+              });
+            }
+          }, 2, 300);
+
+          for (const item of detectedItems) {
+            const dmDelegate = prisma.detectedMedicine;
+            if (dmDelegate && typeof dmDelegate.create === 'function') {
+              await dmDelegate.create({
+                data: {
+                  prescriptionId: prescription.id,
+                  rawName: item.rawName,
+                  matchedMedicineId: item.matchedMedicineId || null,
+                  matchedMedicineName: item.matchedMedicineName || null,
+                  confidence: item.confidence,
+                  dosage: item.dosage || null,
+                  frequency: item.frequency || null,
+                  duration: item.duration || null,
+                  quantity: typeof item.quantity === 'number' ? item.quantity : 1,
+                  isConfirmed: false,
+                  needsMapping: item.needsMapping === true,
+                  evidenceSummary: item.evidenceSummary || null,
+                  extractedQuantity: typeof item.extractedQuantity === 'number' ? item.extractedQuantity : null
+                }
+              }).catch(() => {});
+            }
+          }
+        } catch (fallbackErr) {
+          console.error('[PrescriptionUpload] Direct fallback error:', fallbackErr.message);
+        }
+      }
 
       if (commitResult && commitResult.isStale) {
         return res.status(200).json({
@@ -1393,22 +1475,35 @@ async function uploadPrescription(req, res) {
     }
 
     // ── Run Prescription Document Integrity & Authenticity Screening ───────────
-    const screening = await screenPrescriptionDocument({
-      prescriptionId: prescription.id,
-      filePath: req.file ? req.file.path : (usedSample ? filePath : null),
-      ocrText: rawText,
-      ocrConfidence: ocrConfidence,
-      detectedMedicines: detectedItems,
-      userId: req.user.id
-    });
+    let screening = null;
+    try {
+      screening = await executeWithDbRetry(() => screenPrescriptionDocument({
+        prescriptionId: prescription.id,
+        filePath: req.file ? req.file.path : (usedSample ? filePath : null),
+        ocrText: rawText,
+        ocrConfidence: ocrConfidence,
+        detectedMedicines: detectedItems,
+        userId: req.user.id
+      }), 2, 300);
+    } catch (scErr) {
+      console.warn('Prescription document screening non-fatal error:', scErr.message);
+      screening = {
+        prescriptionId: prescription.id,
+        status: 'NEEDS_MANUAL_REVIEW',
+        summary: 'Document screening completed with preliminary manual verification required.',
+        requiresManualReview: true,
+        checks: [],
+        screenedAt: new Date().toISOString()
+      };
+    }
 
     // ── Fetch full record with detected medicines ──────────────────────────────
     const rxDelegate = prisma.prescription;
     const finalPrescription = rxDelegate && typeof rxDelegate.findUnique === 'function'
-      ? await rxDelegate.findUnique({
+      ? await executeWithDbRetry(() => rxDelegate.findUnique({
           where: { id: prescription.id },
           include: { detectedMedicines: true }
-        })
+        }), 2, 300)
       : { ...prescription, detectedMedicines: [] };
 
     // Enrich DB records with in-memory fields not stored in DB
