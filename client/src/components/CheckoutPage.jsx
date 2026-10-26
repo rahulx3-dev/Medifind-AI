@@ -541,7 +541,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         console.warn('Could not load Razorpay script directly:', scriptErr);
       }
 
-      if (!window.Razorpay) {
+      if (typeof window === 'undefined' || !window.Razorpay) {
         setError('Could not initialize Razorpay in browser (third-party script blocked by ad-blocker or network). Use Complete Test Payment Instantly below.');
         setStep('payment');
         return;
@@ -554,7 +554,7 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
         amount: Math.round(amount * 100),
         currency: currency || 'INR',
         name: 'MediFind AI',
-        description: `Order #${checkout?.orderNumber}`,
+        description: `Order #${checkout?.orderNumber || 'Prescription Reservation'}`,
         order_id: gatewayOrderId,
         handler: async function(response) { await handlePaymentSuccess(response); },
         modal: {
@@ -564,18 +564,29 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
             setError('Payment was cancelled. You can try again.');
           }
         },
-        prefill: {},
+        prefill: {
+          name: checkout?.user?.name || checkout?.userName || '',
+          email: checkout?.user?.email || checkout?.userEmail || '',
+          contact: checkout?.user?.phone || checkout?.contactPhone || ''
+        },
         theme: { color: '#032f28' }
       };
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', async function(response) {
-        setStep('failed');
-        setError(`Payment failed: ${response.error?.description || 'Unknown error'}. You can retry.`);
-      });
-      rzp.open();
+
+      try {
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', async function(response) {
+          setStep('failed');
+          setError(`Payment failed: ${response.error?.description || 'Unknown error'}. You can retry.`);
+        });
+        rzp.open();
+      } catch (openErr) {
+        console.error('Razorpay rzp.open error:', openErr);
+        setError(`Failed to open payment gateway: ${openErr.message || 'Script blocked'}. Please use Complete Test Payment Instantly.`);
+        setStep('payment');
+      }
     } catch (err) {
       console.error('Failed to open payment gateway:', err);
-      setError('Failed to open payment gateway. Please disable ad-blockers or use Complete Test Payment Instantly.');
+      setError(`Failed to open payment gateway (${err.message || 'Error'}). Please disable ad-blockers or use Complete Test Payment Instantly.`);
       setStep('payment');
     } finally {
       setIsSubmitting(false);
@@ -681,8 +692,11 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
       if (typeof window !== 'undefined' && window.Razorpay) {
         return resolve(true);
       }
-      const existing = document.getElementById('razorpay-script');
+      const existing = document.getElementById('razorpay-script') || document.querySelector('script[src*="checkout.razorpay.com"]');
       if (existing) {
+        if (typeof window !== 'undefined' && window.Razorpay) {
+          return resolve(true);
+        }
         let attempts = 0;
         const interval = setInterval(() => {
           attempts++;
@@ -691,32 +705,39 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
             resolve(true);
           } else if (attempts > 30) {
             clearInterval(interval);
-            resolve(Boolean(typeof window !== 'undefined' && window.Razorpay));
+            // If already timed out, remove and re-inject
+            existing.remove();
+            injectScript();
           }
         }, 100);
         return;
       }
-      const script = document.createElement('script');
-      script.id = 'razorpay-script';
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => {
-        let attempts = 0;
-        const interval = setInterval(() => {
-          attempts++;
-          if (typeof window !== 'undefined' && window.Razorpay) {
-            clearInterval(interval);
-            resolve(true);
-          } else if (attempts > 20) {
-            clearInterval(interval);
-            resolve(Boolean(typeof window !== 'undefined' && window.Razorpay));
-          }
-        }, 50);
-      };
-      script.onerror = () => {
-        reject(new Error('Failed to load Razorpay script from checkout.razorpay.com'));
-      };
-      document.head.appendChild(script);
+
+      injectScript();
+
+      function injectScript() {
+        const script = document.createElement('script');
+        script.id = 'razorpay-script';
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => {
+          let attempts = 0;
+          const interval = setInterval(() => {
+            attempts++;
+            if (typeof window !== 'undefined' && window.Razorpay) {
+              clearInterval(interval);
+              resolve(true);
+            } else if (attempts > 20) {
+              clearInterval(interval);
+              resolve(Boolean(typeof window !== 'undefined' && window.Razorpay));
+            }
+          }, 50);
+        };
+        script.onerror = () => {
+          reject(new Error('Failed to load Razorpay script from checkout.razorpay.com'));
+        };
+        document.head.appendChild(script);
+      }
     });
   }
 
