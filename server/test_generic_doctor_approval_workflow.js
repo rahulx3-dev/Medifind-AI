@@ -61,9 +61,12 @@ async function runTestSuite() {
 
   let patientUser, pharmacistUser, otherPharmacistUser;
   let pharmacyA;
+  let originalHours, originalIs24x7, originalManagerId;
   let brandTaximO, brandZifi, exactBrandAugmentin;
   let patientToken, pharmacistToken;
+  let passedCases = 0;
 
+  try {
   // ── Setup Users, Pharmacy (24x7 to avoid closed hour issues), and Medicines ──
   console.log('Setting up test fixtures...');
   patientUser = await prisma.user.upsert({
@@ -97,6 +100,15 @@ async function runTestSuite() {
   if (!pharmacyA) {
     throw new Error('Karuna Medicals not found in DB');
   }
+
+  // Preserve original operating hours and manager to restore after test completes
+  originalHours = pharmacyA.openingHours;
+  originalIs24x7 = pharmacyA.is24x7;
+  originalManagerId = pharmacyA.managerId;
+  await prisma.pharmacy.update({
+    where: { id: pharmacyA.id },
+    data: { managerId: pharmacistUser.id, openingHours: '00:00–23:59', is24x7: true }
+  });
 
   pharmacistUser.pharmacyId = pharmacyA.id;
 
@@ -161,7 +173,7 @@ async function runTestSuite() {
 
   console.log('✓ Setup complete. Patient & Pharmacist authenticated.\n');
 
-  let passedCases = 0;
+  passedCases = 0;
 
   // ───────────────────────────────────────────────────────────────────────────
   // TEST CASE 1: Generic medicine detected, with no exact catalogue match
@@ -711,6 +723,15 @@ async function runTestSuite() {
   assert.strictEqual(resDeliveryOrder.body.order.orderType, 'RESERVATION');
   console.log('✓ PASS: Standard pickup and delivery order workflows function properly.\n');
   passedCases++;
+
+  } finally {
+    if (pharmacyA && originalHours) {
+      await prisma.pharmacy.update({
+        where: { id: pharmacyA.id },
+        data: { managerId: originalManagerId, openingHours: originalHours, is24x7: originalIs24x7 }
+      });
+    }
+  }
 
   console.log('========================================================================');
   console.log(`🎉 ALL ${passedCases} OF 12 TEST CASES PASSED SUCCESSFULLY!`);

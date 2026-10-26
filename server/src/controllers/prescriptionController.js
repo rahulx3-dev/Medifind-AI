@@ -1727,11 +1727,25 @@ async function verifyDetectedMedicines(req, res) {
         });
       }
 
+      // Check if there are competing alternative brands for this generic compound in the catalogue
+      let hasCompetingBrands = false;
+      if (medRecord.genericName && medRecord.genericName.trim().length >= 3) {
+        try {
+          const competingCount = await prisma.medicine.count({
+            where: {
+              genericName: { equals: medRecord.genericName.trim(), mode: 'insensitive' },
+              id: { not: medRecord.id }
+            }
+          });
+          hasCompetingBrands = competingCount > 0;
+        } catch (_) {}
+      }
+
       // Option B: Doctor approval claim check
       const hasDoctorApprovalClaim = Boolean(
-        item.selectionOption === 'DOCTOR_APPROVAL' ||
+        (item.selectionOption === 'DOCTOR_APPROVAL' && (hasCompetingBrands || Boolean(item.doctorApproval))) ||
         item.hasDoctorApproval ||
-        item.doctorApproval ||
+        (item.doctorApproval && Object.keys(item.doctorApproval).length > 0) ||
         item.isDoctorApprovedClaim
       );
 
@@ -1778,8 +1792,8 @@ async function verifyDetectedMedicines(req, res) {
           contactReference: docApp.contactReference ? String(docApp.contactReference).trim() : null,
           approvalDate: docApp.approvalDate || new Date().toISOString()
         };
-      } else if (isGenericWithoutExactBrand && !isSelectionRequested) {
-        // Direct API Bypass Prevention: Generic medicine cannot be converted directly into a brand without approval or pharmacy review
+      } else if (isGenericWithoutExactBrand && hasCompetingBrands && !isSelectionRequested) {
+        // Direct API Bypass Prevention: Generic medicine cannot be converted directly into a brand without approval or pharmacy review when competing brands exist
         return res.status(400).json({
           success: false,
           code: 'GENERIC_SELECTION_RESTRICTED',

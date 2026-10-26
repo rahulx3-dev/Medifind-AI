@@ -1377,7 +1377,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
         return {
           ...item,
           id: item.id || `item-${idx}`,
-          selectionOption: defaultToPharmacyReview ? 'ASK_PHARMACY' : (item.selectionOption || (autoMatchedId ? 'DOCTOR_APPROVAL' : 'ASK_PHARMACY')),
+          selectionOption: defaultToPharmacyReview ? 'ASK_PHARMACY' : (item.selectionOption || (isGenericWithoutExactMatch ? 'ASK_PHARMACY' : 'DIRECT_MATCH')),
           pharmacistSelectionRequested: defaultToPharmacyReview ? true : Boolean(item.pharmacistSelectionRequested),
           doctorApproval: item.doctorApproval || null,
           matchedMedicineId: defaultToPharmacyReview ? null : (autoMatchedId || null),
@@ -1653,9 +1653,14 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
           const cand = findMatchingCandidates(item, medicinesCatalog);
           const singleDecisiveBrand = (!cand.hasGenericInCatalogue && cand.brandCandidates.length === 1) ? cand.brandCandidates[0] : null;
           const autoMatchedId = item.matchedMedicineId || (cand.genericCandidate ? cand.genericCandidate.id : (singleDecisiveBrand ? singleDecisiveBrand.id : null));
-          const isGenericWithoutExact = isGeneric && !cand.hasGenericInCatalogue && cand.brandCandidates.length > 1;
-
-          const opt = item.selectionOption || (item.pharmacistSelectionRequested ? 'ASK_PHARMACY' : (item.doctorApproval ? 'DOCTOR_APPROVAL' : (isGenericWithoutExact ? 'ASK_PHARMACY' : undefined)));
+          // If there are no competing brands, selectionOption cannot be DOCTOR_APPROVAL
+          let opt = item.selectionOption;
+          if (!isGenericWithoutExact && opt === 'DOCTOR_APPROVAL') {
+            opt = 'DIRECT_MATCH';
+          }
+          if (!opt) {
+            opt = item.pharmacistSelectionRequested ? 'ASK_PHARMACY' : (item.doctorApproval && isGenericWithoutExact ? 'DOCTOR_APPROVAL' : (isGenericWithoutExact ? 'ASK_PHARMACY' : 'DIRECT_MATCH'));
+          }
           const isAskPharm = opt === 'ASK_PHARMACY';
           const isDocApp = opt === 'DOCTOR_APPROVAL';
 
@@ -1676,11 +1681,13 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
           };
         });
 
-      // Client-side validation: Check doctor approval details
-      const missingDocApproval = (detectedItems || []).find(it =>
-        it.selectionOption === 'DOCTOR_APPROVAL' &&
-        (!it.doctorApproval?.doctorName?.trim() || !it.doctorApproval?.clinicOrHospital?.trim())
-      );
+      // Client-side validation: Check doctor approval details ONLY for items with multiple competing brands where doctor approval was chosen
+      const missingDocApproval = (detectedItems || []).find(it => {
+        const cand = findMatchingCandidates(it, medicinesCatalog);
+        const hasMultipleBrands = cand.brandCandidates && cand.brandCandidates.length > 1;
+        const isDocApproval = it.selectionOption === 'DOCTOR_APPROVAL' && hasMultipleBrands;
+        return isDocApproval && (!it.doctorApproval?.doctorName?.trim() || !it.doctorApproval?.clinicOrHospital?.trim());
+      });
       if (missingDocApproval) {
         setIsVerifying(false);
         showToast(`Please enter the prescribing doctor's name and clinic/hospital for "${missingDocApproval.rawName || 'selected brand'}".`, 'error');
