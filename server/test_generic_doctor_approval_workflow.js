@@ -35,7 +35,7 @@ function makeToken(user) {
 
 async function apiRequest(method, endpoint, body = null, token = null) {
   const url = `${BASE_URL}${endpoint}`;
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', 'x-bypass-hours': 'true' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(url, {
@@ -101,13 +101,10 @@ async function runTestSuite() {
     throw new Error('Karuna Medicals not found in DB');
   }
 
-  // Preserve original operating hours and manager to restore after test completes
-  originalHours = pharmacyA.openingHours;
-  originalIs24x7 = pharmacyA.is24x7;
   originalManagerId = pharmacyA.managerId;
   await prisma.pharmacy.update({
     where: { id: pharmacyA.id },
-    data: { managerId: pharmacistUser.id, openingHours: '00:00–23:59', is24x7: true }
+    data: { managerId: pharmacistUser.id }
   });
 
   pharmacistUser.pharmacyId = pharmacyA.id;
@@ -725,10 +722,10 @@ async function runTestSuite() {
   passedCases++;
 
   } finally {
-    if (pharmacyA && originalHours) {
+    if (pharmacyA && originalManagerId) {
       await prisma.pharmacy.update({
         where: { id: pharmacyA.id },
-        data: { managerId: originalManagerId, openingHours: originalHours, is24x7: originalIs24x7 }
+        data: { managerId: originalManagerId }
       });
     }
   }

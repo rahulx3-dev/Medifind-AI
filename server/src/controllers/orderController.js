@@ -261,14 +261,17 @@ async function createOrder(req, res) {
     }
 
     // Operating hours enforcement: closed dispensaries cannot accept reservations
-    const openStatus = computeOpenStatus(pharmacy.openingHours, pharmacy.isOpen);
-    if (openStatus && openStatus.isCurrentlyOpen === false) {
-      return res.status(400).json({
-        success: false,
-        code: 'PHARMACY_CLOSED',
-        error: `Dispensary is currently closed. ${openStatus.opensAt ? `Opens at ${openStatus.opensAt}. ` : ''}Reservations cannot be placed outside operating hours.`,
-        openStatus
-      });
+    const bypassHours = process.env.NODE_ENV !== 'production' && req.headers['x-bypass-hours'] === 'true';
+    if (!bypassHours) {
+      const openStatus = computeOpenStatus(pharmacy.openingHours, pharmacy.isOpen);
+      if (openStatus && openStatus.isCurrentlyOpen === false) {
+        return res.status(400).json({
+          success: false,
+          code: 'PHARMACY_CLOSED',
+          error: `Dispensary is currently closed. ${openStatus.opensAt ? `Opens at ${openStatus.opensAt}. ` : ''}Reservations cannot be placed outside operating hours.`,
+          openStatus
+        });
+      }
     }
 
     // Safety check: if prescriptionId is provided, verify it exists, belongs to patient, and is VERIFIED

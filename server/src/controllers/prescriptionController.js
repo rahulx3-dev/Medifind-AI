@@ -5817,8 +5817,15 @@ async function matchPrescriptionAvailability(req, res) {
       });
     }
 
-    // Filter to clinically verified, unrejected items
-    const verifiedItems = items.filter(item => item.isVerified && !item.isRejected && !item.sourceCandidate?.isRejected);
+    // Filter to clinically verified or pharmacist-selection requested unrejected items
+    const verifiedItems = items.filter(item => {
+      const isPharmacistRequested = Boolean(
+        item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+        item.patientNotes === 'AWAITING_PHARMACY_REVIEW' ||
+        (typeof item.patientNotes === 'string' && item.patientNotes.includes('PHARMACIST_SELECTION_REQUESTED'))
+      );
+      return (item.isVerified || isPharmacistRequested) && !item.isRejected && !item.sourceCandidate?.isRejected;
+    });
     if (verifiedItems.length === 0) {
       return res.status(400).json({
         success: false,
@@ -5846,13 +5853,20 @@ async function matchPrescriptionAvailability(req, res) {
     const seenNames = new Set();
 
     for (const item of verifiedItems) {
+      const isPharmacistRequested = Boolean(
+        item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+        item.patientNotes === 'AWAITING_PHARMACY_REVIEW' ||
+        (typeof item.patientNotes === 'string' && item.patientNotes.includes('PHARMACIST_SELECTION_REQUESTED'))
+      );
       let med = item.medicine;
       if (!med && prisma.medicine && typeof prisma.medicine.findUnique === 'function' && item.medicineId) {
         try {
           med = await prisma.medicine.findUnique({ where: { id: item.medicineId } });
         } catch (_) {}
       }
-      const bName = med?.brandName || item.prescribedName;
+      const bName = isPharmacistRequested
+        ? (item.prescribedName || med?.genericName || med?.brandName || 'Prescribed Medicine')
+        : (med?.brandName || item.prescribedName);
       if (item.medicineId) seenMedIds.add(item.medicineId);
       if (bName) seenNames.add(bName.toLowerCase().trim());
       if (item.prescribedName) seenNames.add(item.prescribedName.toLowerCase().trim());
@@ -5862,13 +5876,14 @@ async function matchPrescriptionAvailability(req, res) {
         medicineId: item.medicineId,
         prescribedName: item.prescribedName,
         brandName: bName,
-        genericName: med?.genericName || '',
+        genericName: med?.genericName || item.prescribedName || '',
         strength: med?.strength || item.dosage || '',
         dosageForm: med?.dosageForm || '',
         category: med?.category || '',
         quantity: item.quantity || 1,
         dosage: item.dosage,
-        instructions: item.instructions
+        instructions: item.instructions,
+        pharmacistSelectionRequested: isPharmacistRequested
       });
     }
 
@@ -5895,7 +5910,8 @@ async function matchPrescriptionAvailability(req, res) {
           strength: med?.strength || clientItem.strength || '',
           dosageForm: med?.dosageForm || clientItem.dosageForm || '',
           category: med?.category || '',
-          quantity: parseInt(clientItem.quantity, 10) || 1
+          quantity: parseInt(clientItem.quantity, 10) || 1,
+          pharmacistSelectionRequested: Boolean(clientItem.pharmacistSelectionRequested)
         });
       }
     }

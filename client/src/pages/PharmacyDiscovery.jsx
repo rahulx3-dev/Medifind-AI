@@ -7,6 +7,7 @@ import ReservationConfirmation from '../components/ReservationConfirmation';
 import ReservationSuccess from '../components/ReservationSuccess';
 import { broadcastUpdate } from '../utils/realtimeUpdates';
 import { referencePricingData } from '../data/medicineReferencePricing';
+import { computeOpenStatus } from '../utils/openHoursParser';
 import RollingNumber from '../components/ui/RollingNumber';
 import FlowButton from '../components/FlowButton';
 
@@ -433,8 +434,9 @@ export default function PharmacyDiscovery({
     }
 
     // STRICT GUARD: If dispensary is closed, strictly prevent initiating a reservation hold
-    if (pharmacy.computedOpenStatus?.isCurrentlyOpen === false || pharmacy.isOpen === false) {
-      alert(`Dispensary is currently closed. ${pharmacy.computedOpenStatus?.opensAt ? `Opens at ${pharmacy.computedOpenStatus.opensAt}. ` : ''}Reservations and purchases cannot be made while the store is closed.`);
+    const liveStatus = pharmacy.computedOpenStatus || computeOpenStatus(pharmacy.openingHours, pharmacy.isOpen, pharmacy.is24x7);
+    if (liveStatus?.isCurrentlyOpen === false || pharmacy.isOpen === false) {
+      alert(`Dispensary is currently closed outside operating hours (${pharmacy.openingHours || '09:30–20:00'}). ${liveStatus?.opensAt ? `Opens at ${liveStatus.opensAt}. ` : ''}Reservations and purchases cannot be made while the store is closed.`);
       return;
     }
 
@@ -446,11 +448,15 @@ export default function PharmacyDiscovery({
 
     // Filter out items that are NOT available at this pharmacy based on real inventory match
     const availableItems = items.filter(i => {
+      // Option A / Pharmacist review items are always preserved for pharmacist review at the dispensary
+      if (i.pharmacistSelectionRequested) return true;
+
       const medId = i.medicineId || i.id;
       const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
       const iGen = (i.genericName || '').toLowerCase().trim();
 
       const matchAvail = (pharmacy.availability || []).find(a => {
+        if (a.pharmacistSelectionRequested && (a.medicineId === medId || (a.genericName && iGen && a.genericName.toLowerCase().trim() === iGen))) return true;
         if (a.medicineId && (a.medicineId === medId)) return true;
         const aBrand = (a.brandName || '').toLowerCase().trim();
         const aGen = (a.genericName || '').toLowerCase().trim();
@@ -488,6 +494,7 @@ export default function PharmacyDiscovery({
     }
 
     const normalizedItems = availableItems.map(i => {
+      const isPharmacist = Boolean(i.pharmacistSelectionRequested);
       const medId = i.medicineId || i.id;
       const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
       const iGen = (i.genericName || '').toLowerCase().trim();
@@ -535,13 +542,16 @@ export default function PharmacyDiscovery({
       if (isStrip && ref && ref.publishedMrp != null) {
         resolvedPrice = ref.publishedMrp;
       } else if (!isStrip && ref && ref.unitsPerPack > 1 && resolvedPrice && Math.abs(resolvedPrice - ref.publishedMrp) < 0.1) {
-        // If price happens to be the full strip MRP while item is a single tablet, convert to per-tablet unit price
         resolvedPrice = ref.unitPrice;
       }
 
+      const finalBrandTitle = isPharmacist
+        ? (i.prescribedName || i.genericName || i.brandName || 'Prescribed Medicine')
+        : (i.brandName || i.medicineName || matchAvail?.brandName || matchInv?.medicine?.brandName || matchInv?.brandName || i.name || 'Prescription Medicine');
+
       return {
         medicineId: medId,
-        brandName: i.brandName || i.medicineName || matchAvail?.brandName || matchInv?.medicine?.brandName || matchInv?.brandName || i.name || 'Prescription Medicine',
+        brandName: finalBrandTitle,
         genericName: i.genericName || matchAvail?.genericName || matchInv?.medicine?.genericName || ref?.genericName || '',
         strength: i.strength || matchAvail?.strength || matchInv?.medicine?.strength || ref?.strength || '',
         quantity: i.quantity || i.requestedQuantity || i.requestedQty || 1,
@@ -551,13 +561,16 @@ export default function PharmacyDiscovery({
         unitsPerPack: i.unitsPerPack || ref?.unitsPerPack || 1,
         packSize: i.packSize || ref?.packSize || null,
         pricingUnit: isStrip ? 'per strip' : (ref?.pricingUnit || matchAvail?.pricingUnit || 'per tablet'),
-        pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
+        pharmacistSelectionRequested: isPharmacist
       };
     });
 
     setReservationFlow({
       stage: 'confirm',
-      pharmacy,
+      pharmacy: {
+        ...pharmacy,
+        computedOpenStatus: liveStatus
+      },
       items: normalizedItems
     });
   };

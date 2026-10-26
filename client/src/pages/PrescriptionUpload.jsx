@@ -1730,14 +1730,24 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
         const inCat = isItemInCatalogue(existingItem);
         const isPharmacist = Boolean(
           existingItem.pharmacistSelectionRequested ||
+          existingItem.selectionOption === 'ASK_PHARMACY' ||
           dbMatch?.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED' ||
-          dbMatch?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED'
+          dbMatch?.evidenceSummary === 'AWAITING_PHARMACY_REVIEW' ||
+          dbMatch?.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+          dbMatch?.patientNotes === 'AWAITING_PHARMACY_REVIEW' ||
+          (typeof dbMatch?.patientNotes === 'string' && dbMatch.patientNotes.includes('PHARMACIST_SELECTION_REQUESTED'))
         );
+        const resolvedMatchedName = isPharmacist
+          ? null
+          : (existingItem.matchedMedicineName || dbMatch?.matchedMedicineName || existingItem.medicineName || existingItem.rawName);
+
         return {
           ...existingItem,
           ...(dbMatch || {}),
+          selectionOption: isPharmacist ? 'ASK_PHARMACY' : existingItem.selectionOption,
           pharmacistSelectionRequested: isPharmacist,
-          matchedMedicineName: existingItem.matchedMedicineName || dbMatch?.matchedMedicineName || existingItem.medicineName || existingItem.rawName,
+          matchedMedicineName: resolvedMatchedName,
+          matchedMedicineId: isPharmacist ? null : (existingItem.matchedMedicineId || dbMatch?.matchedMedicineId),
           medicineName: existingItem.medicineName || existingItem.rawName,
           strength: existingItem.strength || existingItem.dosage || dbMatch?.dosage,
           dosageForm: existingItem.dosageForm || existingItem.dosageForm,
@@ -4579,8 +4589,12 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                   const isPharmacist = Boolean(
                     item.pharmacistSelectionRequested ||
+                    item.selectionOption === 'ASK_PHARMACY' ||
                     item.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED' ||
-                    item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED'
+                    item.evidenceSummary === 'AWAITING_PHARMACY_REVIEW' ||
+                    item.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+                    item.patientNotes === 'AWAITING_PHARMACY_REVIEW' ||
+                    (typeof item.patientNotes === 'string' && item.patientNotes.includes('PHARMACIST_SELECTION_REQUESTED'))
                   );
 
                   // 1. Resolve Title
@@ -4588,9 +4602,9 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                   if (isPharmacist) {
                     title = item.prescribedGenericName ||
                       item.prescribedName ||
+                      item.genericName ||
                       cand?.matchedGeneric?.name ||
                       item.rawName ||
-                      item.genericName ||
                       item.medicineName ||
                       'Prescribed Medicine';
                   } else if (item.selectedBrand?.brandName) {
@@ -4640,12 +4654,19 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
                 const readyItems = (detectedItems || []).filter(i => {
                   const cand = findMatchingCandidates(i, medicinesCatalog, { pharmacyInventory: dispensaryInventory });
+                  const isPharm = Boolean(
+                    i.pharmacistSelectionRequested ||
+                    i.selectionOption === 'ASK_PHARMACY' ||
+                    i.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED' ||
+                    i.evidenceSummary === 'AWAITING_PHARMACY_REVIEW' ||
+                    i.patientNotes === 'PHARMACIST_SELECTION_REQUESTED' ||
+                    i.patientNotes === 'AWAITING_PHARMACY_REVIEW'
+                  );
                   return Boolean(
                     i.matchedMedicineId ||
                     cand.hasGenericInCatalogue ||
                     cand.brandCandidates.length > 0 ||
-                    i.pharmacistSelectionRequested ||
-                    i.evidenceSummary === 'PHARMACIST_SELECTION_REQUESTED'
+                    isPharm
                   ) && !i.isUnavailable;
                 });
 

@@ -273,11 +273,16 @@ function rankPharmaciesForMedicines({
         ? 'per strip'
         : (ref?.pricingUnit || (inventoryItem?.medicine?.dosageForm === 'Tablet' ? 'per tablet' : inventoryItem?.medicine?.dosageForm === 'Capsule' ? 'per capsule' : 'per unit'));
 
+      const isPharmacistReq = Boolean(req.pharmacistSelectionRequested);
+      const displayMedName = isPharmacistReq
+        ? (req.prescribedName || req.brandName || inventoryItem?.medicine?.brandName || 'Prescribed Medicine')
+        : (inventoryItem?.medicine?.brandName || req.brandName || 'Unknown');
+
       itemStockDetails.push({
         prescriptionItemId: req.prescriptionItemId || null,
         medicineId: req.medicineId,
         prescribedName: req.prescribedName || req.brandName || 'Prescription Medicine',
-        medicineName: inventoryItem?.medicine?.brandName || req.brandName || 'Unknown',
+        medicineName: displayMedName,
         genericName: inventoryItem?.medicine?.genericName || req.genericName || null,
         strength: inventoryItem?.medicine?.strength || req.strength || null,
         dosageForm: inventoryItem?.medicine?.dosageForm || req.dosageForm || null,
@@ -296,6 +301,7 @@ function rankPharmaciesForMedicines({
         status: itemStatus,
         matchClassification,
         mismatchReason: isClinicalMismatch ? mismatchReason : null,
+        pharmacistSelectionRequested: isPharmacistReq,
         // Inventory freshness — stockLastUpdated from DB lastUpdated field
         stockLastUpdated: inventoryItem?.lastUpdated ?? null
       });

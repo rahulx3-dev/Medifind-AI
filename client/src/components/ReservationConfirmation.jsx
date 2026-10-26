@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ConfirmationDialog from './ConfirmationDialog';
 import FlowButton from './FlowButton';
 import { referencePricingData } from '../data/medicineReferencePricing';
+import { computeOpenStatus } from '../utils/openHoursParser';
 
 /**
  * ReservationConfirmation — Dispensary Reservation Hold Screen
@@ -127,13 +128,14 @@ export default function ReservationConfirmation({
     return sum + resolveItemPrice(item) * Number(item.quantity || 1);
   }, 0);
 
-  const isPharmacyClosed = pharmacy.computedOpenStatus?.isCurrentlyOpen === false || pharmacy.isOpen === false;
+  const liveOpenStatus = pharmacy.computedOpenStatus || computeOpenStatus(pharmacy.openingHours, pharmacy.isOpen, pharmacy.is24x7);
+  const isPharmacyClosed = liveOpenStatus?.isCurrentlyOpen === false || pharmacy.isOpen === false;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setLocalError('');
     if (isPharmacyClosed) {
-      setLocalError(`Dispensary is currently closed. ${pharmacy.computedOpenStatus?.opensAt ? `Opens at ${pharmacy.computedOpenStatus.opensAt}. ` : ''}Reservations cannot be placed while closed.`);
+      setLocalError(`Dispensary is currently closed outside operating hours (${pharmacy.openingHours || '09:30–20:00'}). ${liveOpenStatus?.opensAt ? `Opens at ${liveOpenStatus.opensAt}. ` : ''}Reservations cannot be placed while closed.`);
       return;
     }
     if (!items || items.length === 0) {
@@ -232,6 +234,24 @@ export default function ReservationConfirmation({
         )}
       </div>
 
+      {/* Prominent Closed Dispensary Warning Banner */}
+      {isPharmacyClosed && (
+        <div className="w-full p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex items-start gap-3 shadow-xs">
+          <span className="material-symbols-outlined text-rose-600 text-2xl shrink-0 mt-0.5 animate-pulse">lock_clock</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm text-rose-900 uppercase tracking-wide">Dispensary Currently Closed</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 text-xs font-bold font-mono">
+                {liveOpenStatus?.badgeText || `Closed • Opens at ${liveOpenStatus?.opensAt || 'scheduled hours'}`}
+              </span>
+            </div>
+            <p className="text-xs text-rose-800 leading-relaxed">
+              <strong>{pharmacy.name}</strong> is currently closed outside operating hours ({pharmacy.openingHours || '09:30–20:00'}). Medicine reservations and counter holds are strictly disabled while the dispensary is closed to prevent unfulfilled requests. Please return during opening hours ({liveOpenStatus?.opensAt || '9:30 AM'}).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main 2-Column Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (7 cols): Detailed Clinical Verification */}
@@ -309,12 +329,12 @@ export default function ReservationConfirmation({
                   <span className={`w-2 h-2 rounded-full ${isPharmacyClosed ? 'bg-error' : 'bg-secondary'}`}></span>
                   <span className={`text-xs font-bold ${isPharmacyClosed ? 'text-error' : 'text-secondary'}`}>
                     {isPharmacyClosed
-                      ? (pharmacy.computedOpenStatus?.badgeText || `Closed • Opens at ${pharmacy.computedOpenStatus?.opensAt || 'scheduled hours'}`)
-                      : (pharmacy.computedOpenStatus?.badgeText || 'Open Now')}
+                      ? (liveOpenStatus?.badgeText || `Closed • Opens at ${liveOpenStatus?.opensAt || 'scheduled hours'}`)
+                      : (liveOpenStatus?.badgeText || 'Open Now')}
                   </span>
                 </div>
-                <span className="text-[11px] text-on-surface-variant">
-                  {pharmacy.openingHours || (pharmacy.is24x7 ? '24 Hours Daily' : '8:00 AM – 9:00 PM')}
+                <span className="text-[11px] text-on-surface-variant font-mono">
+                  {pharmacy.openingHours || (pharmacy.is24x7 ? '24 Hours Daily' : '09:30–20:00')}
                 </span>
               </div>
             </div>
@@ -361,14 +381,19 @@ export default function ReservationConfirmation({
                 {items.map((item, idx) => {
                   const itemPrice = resolveItemPrice(item);
                   const qty = Number(item.quantity) || 1;
+                  const isPharmReq = Boolean(item.pharmacistSelectionRequested);
                   return (
                     <div
                       key={item.medicineId || idx}
                       className="p-3.5 bg-surface-container-low rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-outline-variant/20"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-primary shrink-0 border border-outline-variant/20 shadow-xs">
-                          <span className="material-symbols-outlined text-xl">medication</span>
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${
+                          isPharmReq ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-white text-primary border-outline-variant/20'
+                        }`}>
+                          <span className="material-symbols-outlined text-xl">
+                            {isPharmReq ? 'support_agent' : 'medication'}
+                          </span>
                         </div>
                         <div className="flex flex-col">
                           <div className="flex flex-wrap items-center gap-2">
@@ -376,7 +401,12 @@ export default function ReservationConfirmation({
                             {item.strength && (
                               <span className="text-[11px] text-on-surface-variant">({item.strength})</span>
                             )}
-                            {(item.saleUnit || '').toUpperCase().trim() === 'STRIP' ? (
+                            {isPharmReq ? (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[11px]">support_agent</span>
+                                Pharmacist Selection Pending
+                              </span>
+                            ) : (item.saleUnit || '').toUpperCase().trim() === 'STRIP' ? (
                               <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">
                                 Strip {item.unitsPerPack > 1 ? `(${item.unitsPerPack} tabs)` : ''}
                               </span>
@@ -387,12 +417,21 @@ export default function ReservationConfirmation({
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-[11px] text-on-surface-variant">
-                            <span className="flex items-center gap-1 text-secondary font-medium">
-                              <span className="material-symbols-outlined text-xs">inventory_2</span>
-                              Shelf Bay Stock Verified
-                            </span>
-                            <span>•</span>
-                            <span>Prescription Linked</span>
+                            {isPharmReq ? (
+                              <span className="text-amber-800 text-[11px] font-medium flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">sync</span>
+                                Shelf Bay Stock Verified · Bioequivalent trade brand allocated by pharmacist at pickup
+                              </span>
+                            ) : (
+                              <>
+                                <span className="flex items-center gap-1 text-secondary font-medium">
+                                  <span className="material-symbols-outlined text-xs">inventory_2</span>
+                                  Shelf Bay Stock Verified
+                                </span>
+                                <span>•</span>
+                                <span>Prescription Linked</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -564,10 +603,10 @@ export default function ReservationConfirmation({
               onClick={handleSubmit}
               disabled={submitting || items.length === 0 || isPharmacyClosed}
               loading={submitting}
-              className={`!py-3.5 !text-sm !font-bold ${isPharmacyClosed ? '!opacity-50 !cursor-not-allowed' : ''}`}
+              className={`!py-3.5 !text-sm !font-bold ${isPharmacyClosed ? '!opacity-50 !cursor-not-allowed !bg-slate-300 !text-slate-600' : ''}`}
             >
               {isPharmacyClosed
-                ? `Dispensary Closed • Opens at ${pharmacy.computedOpenStatus?.opensAt || 'scheduled hours'}`
+                ? `Dispensary Closed • Opens at ${liveOpenStatus?.opensAt || 'scheduled hours'}`
                 : items.length === 0
                 ? 'Add Medicines to Enable Hold'
                 : 'Submit Dispensary Reservation Hold'}
