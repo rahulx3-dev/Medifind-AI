@@ -19,7 +19,10 @@ async function main() {
     phone: p.phone,
     managerEmail: p.manager?.email,
     inventoryCount: p._count.inventory,
-    ordersCount: p._count.orders
+    ordersCount: p._count.orders,
+    isOpen: p.isOpen,
+    is24x7: p.is24x7,
+    openingHours: p.openingHours
   })), null, 2));
 }
 

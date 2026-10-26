@@ -72,10 +72,10 @@ async function runAllTests() {
   });
   if (!testPharmacy) throw new Error('No verified participating pharmacy in DB');
 
-  // Ensure pharmacy is open and accepts reservations
+  // Ensure pharmacy is open and active
   await prisma.pharmacy.update({
     where: { id: testPharmacy.id },
-    data: { isOpen: true, openingHours: '24/7' }
+    data: { isOpen: true }
   });
 
   const invItem = testPharmacy.inventory.find(i => (i.stock || 0) > 5) || testPharmacy.inventory[0];

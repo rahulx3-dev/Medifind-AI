@@ -699,7 +699,14 @@ async function createOrder(req, res) {
           verificationPin,
           notes: notes || null,
           items: {
-            create: orderItemsData
+            create: orderItemsData.map(it => ({
+              medicineId: it.medicineId,
+              prescriptionItemId: it.prescriptionItemId || null,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              subtotal: it.subtotal,
+              status: it.status || 'PENDING'
+            }))
           },
           statusHistory: {
             create: [
