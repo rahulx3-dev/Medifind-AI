@@ -198,7 +198,7 @@ export default function ClinicalPrescriptionReviewModal({
         setEditingItemId(null);
         await fetchPrescriptionDetails();
         if (handleVerifiedCallback) handleVerifiedCallback();
-        broadcastUpdate('PRESCRIPTION_VERIFIED', { prescriptionId: rxId, orderId: order.id });
+        broadcastUpdate('PRESCRIPTION_VERIFIED', { prescriptionId: rxId, orderId: order?.id });
       } else {
         setError(data.error || 'Failed to verify prescription item.');
       }
@@ -904,7 +904,7 @@ export default function ClinicalPrescriptionReviewModal({
                                             const m = list.find(cat => cat.id === e.target.value);
                                             if (!m) return;
                                             if (m.isInStock === false) {
-                                              setError(`Cannot select ${m.brandName}: Currently out of stock at this pharmacy dispensary.`);
+                                              setError(`Cannot select ${m.brandName}: Not available.`);
                                               return;
                                             }
                                             setEditFormData(prev => ({
@@ -942,7 +942,7 @@ export default function ClinicalPrescriptionReviewModal({
                                                   fontWeight: inStock ? 600 : 400
                                                 }}
                                               >
-                                                {m.brandName} ({m.strength}) — {m.genericName} {inStock ? `• In Stock (${m.stock || 'Available'})` : '• [OUT OF STOCK - Not Available at this Pharmacy]'}
+                                                {m.brandName} ({m.strength}) — {m.genericName} {inStock ? `• In Stock (${m.stock || 'Available'})` : '• Not Available'}
                                               </option>
                                             );
                                           })}
@@ -957,7 +957,7 @@ export default function ClinicalPrescriptionReviewModal({
                                             {selectedMed.isInStock !== false ? 'check_circle' : 'warning'}
                                           </span>
                                           <span>
-                                            {selectedMed.brandName}: {selectedMed.isInStock !== false ? `In Stock (${selectedMed.stock || 'Verified'} units)` : 'Out of Stock at this dispensary'}
+                                            {selectedMed.brandName}: {selectedMed.isInStock !== false ? `In Stock (${selectedMed.stock || 'Verified'} units)` : 'Not Available'}
                                           </span>
                                         </div>
                                       )}
@@ -990,10 +990,18 @@ export default function ClinicalPrescriptionReviewModal({
                               );
                             })()}
 
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            {error && (
+                              <div style={{ background: '#ffdad6', color: '#ba1a1a', padding: '0.5rem 0.75rem', borderRadius: 10, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>error</span>
+                                <span>{error}</span>
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
                               <button
+                                disabled={isActionSubmitting}
                                 onClick={() => setEditingItemId(null)}
-                                style={{ background: '#ffffff', color: '#414846', border: '1px solid #c0c8c5', padding: '0.35rem 0.85rem', borderRadius: 99, fontSize: 11, cursor: 'pointer' }}
+                                style={{ background: '#ffffff', color: '#414846', border: '1px solid #c0c8c5', padding: '0.4rem 0.85rem', borderRadius: 99, fontSize: 11, cursor: isActionSubmitting ? 'not-allowed' : 'pointer' }}
                               >
                                 Cancel
                               </button>
@@ -1004,15 +1012,31 @@ export default function ClinicalPrescriptionReviewModal({
                                   background: isPendingBrand ? '#d97706' : '#032f28',
                                   color: '#ffffff',
                                   border: 'none',
-                                  padding: '0.35rem 1rem',
+                                  padding: '0.45rem 1.15rem',
                                   borderRadius: 99,
                                   fontSize: 11,
                                   fontWeight: 700,
-                                  cursor: 'pointer',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                  cursor: isActionSubmitting ? 'not-allowed' : 'pointer',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.4rem',
+                                  opacity: isActionSubmitting ? 0.75 : 1
                                 }}
                               >
-                                {isPendingBrand ? 'Confirm Brand Selection & Verify' : 'Save & Verify Item'}
+                                {isActionSubmitting ? (
+                                  <>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 14, animation: 'spin 1s linear infinite' }}>progress_activity</span>
+                                    <span>{isPendingBrand ? 'Confirming...' : 'Verifying...'}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                                      {isPendingBrand ? 'task_alt' : 'check'}
+                                    </span>
+                                    <span>{isPendingBrand ? 'Confirm Brand Selection & Verify' : 'Save & Verify Item'}</span>
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>
