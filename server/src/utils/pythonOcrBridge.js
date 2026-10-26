@@ -11,7 +11,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 // Default configurations
-const DEFAULT_TIMEOUT_MS = 120000;
+const DEFAULT_TIMEOUT_MS = 25000; // 25s ceiling to prevent proxy 502 Bad Gateway timeouts
 const MAX_STDOUT_BYTES = 5 * 1024 * 1024; // 5 MB ceiling
 const WORKER_SCRIPT_PATH = path.join(__dirname, '../../ocr/ocr_worker.py');
 const CATALOG_PATH = path.join(__dirname, '../../ocr/catalog_50.json');
@@ -34,6 +34,25 @@ function getPythonExecutable() {
     return venvPythonPosix;
   }
   return process.platform === 'win32' ? 'python' : 'python3';
+}
+
+/**
+ * Detects whether local PaddleOCR environment is available and operational.
+ * Returns false on cloud hosting (Render, etc.) where .venv is not deployed to prevent 502/OOM errors.
+ */
+function isPaddleAvailable() {
+  if (process.env.RENDER === 'true') {
+    return false;
+  }
+  if (process.env.PYTHON_EXECUTABLE) {
+    return fs.existsSync(process.env.PYTHON_EXECUTABLE);
+  }
+  const venvPythonWin = path.join(__dirname, '../../ocr/.venv/Scripts/python.exe');
+  const venvPythonPosix = path.join(__dirname, '../../ocr/.venv/bin/python');
+  if (process.platform === 'win32') {
+    return fs.existsSync(venvPythonWin);
+  }
+  return fs.existsSync(venvPythonPosix);
 }
 
 /**
@@ -183,5 +202,6 @@ function executePythonOCRWorker(imagePath, options = {}) {
 
 module.exports = {
   executePythonOCRWorker,
-  getPythonExecutable
+  getPythonExecutable,
+  isPaddleAvailable
 };

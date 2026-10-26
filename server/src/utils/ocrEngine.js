@@ -990,7 +990,7 @@ async function preprocessImage(imagePath) {
 
 // ─── 9. Real Multi-Pass OCR Execution ─────────────────────────────────────────
 
-const { executePythonOCRWorker } = require('./pythonOcrBridge');
+const { executePythonOCRWorker, isPaddleAvailable } = require('./pythonOcrBridge');
 
 /**
  * Runs primary prescription OCR and layout pipeline.
@@ -1009,7 +1009,14 @@ const { executePythonOCRWorker } = require('./pythonOcrBridge');
  * - OCR_TIMEOUT_MS: 30000
  */
 async function runOCR(imagePath) {
-  const selectedEngine = (process.env.PRESCRIPTION_OCR_ENGINE || 'paddle').toLowerCase();
+  let selectedEngine = (process.env.PRESCRIPTION_OCR_ENGINE || 'paddle').toLowerCase();
+
+  // If paddle is selected but PaddleOCR environment is unavailable (e.g., Render/cloud hosting without .venv),
+  // auto-route to fast, resilient Tesseract engine to prevent 502 Bad Gateway timeouts and OOM terminations.
+  if (selectedEngine === 'paddle' && typeof isPaddleAvailable === 'function' && !isPaddleAvailable()) {
+    console.info('[OCR] PaddleOCR environment not detected on this host. Routing to resilient Tesseract engine.');
+    selectedEngine = 'tesseract';
+  }
 
   // ── Developer-Only Explicit Tesseract Request ─────
   if (selectedEngine === 'tesseract') {
@@ -1017,7 +1024,7 @@ async function runOCR(imagePath) {
     return _runTesseractLegacy(imagePath);
   }
 
-  // ── Production Path: PaddleOCR / PP-OCRv5 with Resilient Tesseract Fallback ──
+  // ── Production Path: PaddleOCR / PP-OCRv5 via Local Python Worker ─────────
   try {
     const pyResult = await executePythonOCRWorker(imagePath);
 
@@ -1046,46 +1053,24 @@ async function runOCR(imagePath) {
       }
     }
 
-    // PaddleOCR ran but returned zero readable text blocks -> Resilient fallback
-    console.warn('[OCR] PaddleOCR produced no readable text blocks. Attempting resilient Tesseract fallback...');
-    const tessFallback = await _runTesseractLegacy(imagePath);
-    if (tessFallback && tessFallback.success && tessFallback.rawText && tessFallback.rawText.trim().length > 0) {
-      console.log('[OCR] Resilient Tesseract fallback succeeded with extracted text.');
-      return tessFallback;
-    }
-
+    // PaddleOCR ran but returned zero readable text blocks (safe UNREADABLE state)
+    console.warn('[OCR] PaddleOCR produced no readable text blocks from image.');
     return {
       success: false,
       rawText: '',
       confidence: 0,
       engine: pyResult?.engine?.primary || 'PaddleOCR / PP-OCRv5',
-      error: pyResult?.error || 'OCR could not extract readable text. Please upload a clearer image or enter medicines manually.'
+      error: pyResult?.error || 'PaddleOCR processed the image but could not extract readable text. Please upload a clearer image.'
     };
   } catch (pyErr) {
-    console.warn(`[OCR-Bridge] Python OCR worker unavailable or crashed (${pyErr.message}). Falling back to Tesseract.js...`);
-    try {
-      const tessFallback = await _runTesseractLegacy(imagePath);
-      if (tessFallback && tessFallback.success && tessFallback.rawText && tessFallback.rawText.trim().length > 0) {
-        console.log('[OCR] Resilient Tesseract fallback successfully processed image.');
-        return tessFallback;
-      }
-      return {
-        success: false,
-        rawText: '',
-        confidence: 0,
-        engine: 'Tesseract.js',
-        error: tessFallback?.error || 'Could not extract readable text from prescription.'
-      };
-    } catch (tessErr) {
-      console.error(`[OCR-Bridge] Both OCR engines failed: ${tessErr.message}`);
-      return {
-        success: false,
-        rawText: '',
-        confidence: 0,
-        engine: 'None',
-        error: `OCR processing failed: ${pyErr.message}`
-      };
-    }
+    console.error(`[OCR-Bridge] Python OCR worker error: ${pyErr.message}`);
+    return {
+      success: false,
+      rawText: '',
+      confidence: 0,
+      engine: 'PaddleOCR / PP-OCRv5',
+      error: `OCR worker unavailable: ${pyErr.message}`
+    };
   }
 }
 

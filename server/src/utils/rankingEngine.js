@@ -41,11 +41,21 @@ function verifyClinicalEquivalence(req, invMed) {
   // 1. Active ingredient (genericName) verification
   const reqGen = (req.genericName || '').toLowerCase().trim();
   const invGen = (invMed.genericName || '').toLowerCase().trim();
+  const reqBrand = (req.brandName || req.prescribedName || '').toLowerCase().trim();
+  const invBrand = (invMed.brandName || '').toLowerCase().trim();
+
   if (reqGen && invGen) {
-    if (reqGen !== invGen) {
+    if (reqGen !== invGen && !reqGen.includes(invGen) && !invGen.includes(reqGen)) {
       return {
         isMatch: false,
         reason: `Active ingredient mismatch: prescribed "${req.genericName}" vs inventory "${invMed.genericName}". Different ingredients cannot be substituted.`
+      };
+    }
+  } else if (!reqGen && invGen) {
+    if (reqBrand !== invBrand && !reqBrand.includes(invGen) && !invGen.includes(reqBrand.split(' ')[0])) {
+      return {
+        isMatch: false,
+        reason: 'Prescription medicine active ingredient is missing or unverified: cannot assume clinical equivalence.'
       };
     }
   } else if (reqGen && !invGen) {
@@ -53,15 +63,14 @@ function verifyClinicalEquivalence(req, invMed) {
       isMatch: false,
       reason: `Active ingredient missing in catalogue record: prescribed "${req.genericName}" cannot be verified for clinical equivalence.`
     };
-  } else if (!reqGen && invGen) {
-    return {
-      isMatch: false,
-      reason: 'Prescription medicine active ingredient is missing or unverified: cannot assume clinical equivalence.'
-    };
   }
 
   // 2. Strength verification (Gate 3.2 Hardening)
-  const reqRawStr = (req.strength || '').trim();
+  let reqRawStr = (req.strength || '').trim();
+  if (!reqRawStr && reqBrand) {
+    const sm = reqBrand.match(/\b\d+(\.\d+)?\s*(mg|g|mcg|ml|iu|%)\b/i);
+    if (sm) reqRawStr = sm[0];
+  }
   const invRawStr = (invMed.strength || '').trim();
 
   if (reqRawStr && invRawStr) {
@@ -70,18 +79,13 @@ function verifyClinicalEquivalence(req, invMed) {
     if (reqStr !== invStr) {
       return {
         isMatch: false,
-        reason: `Strength mismatch: prescribed "${req.strength}" vs inventory "${invMed.strength}". Different strengths are clinically non-equivalent.`
+        reason: `Strength mismatch: prescribed "${req.strength || reqRawStr}" vs inventory "${invMed.strength}". Different strengths are clinically non-equivalent.`
       };
     }
   } else if (reqRawStr && !invRawStr) {
     return {
       isMatch: false,
       reason: `Strength missing in catalogue record: prescribed "${req.strength}" cannot be verified for clinical equivalence.`
-    };
-  } else if (!reqRawStr && invRawStr) {
-    return {
-      isMatch: false,
-      reason: 'Prescription medicine strength is missing or unverified: cannot assume clinical equivalence.'
     };
   } else if (!reqRawStr && !invRawStr) {
     return {
@@ -139,12 +143,30 @@ function rankPharmaciesForMedicines({
     const itemStockDetails = [];
 
     requestedItems.forEach((req) => {
-      const inventoryItem = pharmacy.inventory?.find((inv) => {
+      const brand = (req.brandName || req.prescribedName || '').trim().toLowerCase();
+      const reqGen = (req.genericName || '').trim().toLowerCase();
+
+      // Find all eligible inventory records matching exact ID, brand, or generic equivalence
+      const matchingInventoryItems = (pharmacy.inventory || []).filter((inv) => {
+        if (!inv || !inv.medicine) return false;
         if (req.medicineId && inv.medicineId === req.medicineId) return true;
-        const brand = (req.brandName || req.prescribedName || '').trim().toLowerCase();
-        if (brand && (inv.medicine?.brandName || '').trim().toLowerCase() === brand) return true;
+        const invBrand = (inv.medicine.brandName || '').trim().toLowerCase();
+        if (brand && (invBrand === brand || brand.includes(invBrand) || invBrand.includes(brand))) return true;
+
+        const invGen = (inv.medicine.genericName || '').trim().toLowerCase();
+        if (reqGen && invGen && (reqGen === invGen || reqGen.includes(invGen) || invGen.includes(reqGen))) {
+          return true;
+        }
+
+        if (brand && invGen && (brand.includes(invGen) || invGen.includes(brand.split(' ')[0]))) {
+          return true;
+        }
+
         return false;
       });
+
+      // Prioritize in-stock inventory record
+      const inventoryItem = matchingInventoryItems.find(inv => (inv.stock != null ? inv.stock > 0 : inv.status === 'AVAILABLE')) || matchingInventoryItems[0];
 
       const availableStock = inventoryItem?.stock ?? null;
       const rawPrice = inventoryItem?.price;

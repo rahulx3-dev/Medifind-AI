@@ -232,9 +232,9 @@ export default function PharmacyDiscovery({
         const payloadItems = selectedMedicines.map(m => ({
           medicineId: m.medicineId || m.id,
           brandName: m.brandName || m.name,
-          genericName: m.genericName,
-          dosageForm: m.dosageForm,
-          strength: m.strength,
+          genericName: m.genericName || '',
+          dosageForm: m.dosageForm || '',
+          strength: m.strength || '',
           quantity: m.quantity || 1,
           saleUnit: m.saleUnit || 'TABLET',
           unitsPerPack: m.unitsPerPack || 1,
@@ -253,7 +253,7 @@ export default function PharmacyDiscovery({
 
         if (prescriptionId && !String(prescriptionId).startsWith('mock-') && token) {
           matchEndpoint = `/api/prescriptions/${prescriptionId}/match-availability`;
-          matchBody = { lat, lon, isEmergency };
+          matchBody = { items: payloadItems, lat, lon, isEmergency };
         }
 
         let matchRes;
@@ -436,17 +436,29 @@ export default function PharmacyDiscovery({
     const availableItems = items.filter(i => {
       const medId = i.medicineId || i.id;
       const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
-      const matchAvail = (pharmacy.availability || []).find(a => 
-        (a.medicineId && (a.medicineId === medId)) || 
-        (nameLower && (a.brandName || '').toLowerCase().includes(nameLower))
-      );
+      const iGen = (i.genericName || '').toLowerCase().trim();
+
+      const matchAvail = (pharmacy.availability || []).find(a => {
+        if (a.medicineId && (a.medicineId === medId)) return true;
+        const aBrand = (a.brandName || '').toLowerCase().trim();
+        const aGen = (a.genericName || '').toLowerCase().trim();
+        if (nameLower && (aBrand.includes(nameLower) || nameLower.includes(aBrand))) return true;
+        if (iGen && aGen && (iGen === aGen || iGen.includes(aGen) || aGen.includes(iGen))) return true;
+        if (nameLower && aGen && (nameLower.includes(aGen) || aGen.includes(nameLower.split(' ')[0]))) return true;
+        if (aBrand && iGen && (aBrand.includes(iGen) || iGen.includes(aBrand.split(' ')[0]))) return true;
+        return false;
+      });
       if (matchAvail) {
         return matchAvail.isAvailable === true;
       }
-      const matchInv = (pharmacy.inventory || []).find(inv => 
-        (inv.medicineId && (inv.medicineId === medId)) || 
-        (nameLower && ((inv.medicine?.brandName || inv.brandName || '').toLowerCase().includes(nameLower)))
-      );
+      const matchInv = (pharmacy.inventory || []).find(inv => {
+        if (inv.medicineId && (inv.medicineId === medId)) return true;
+        const invBrand = ((inv.medicine?.brandName || inv.brandName || '')).toLowerCase().trim();
+        const invGen = ((inv.medicine?.genericName || inv.genericName || '')).toLowerCase().trim();
+        if (nameLower && (invBrand.includes(nameLower) || nameLower.includes(invBrand))) return true;
+        if (iGen && invGen && (iGen === invGen || iGen.includes(invGen) || invGen.includes(iGen))) return true;
+        return false;
+      });
       if (matchInv) {
         return (matchInv.stock != null ? matchInv.stock > 0 : true);
       }
@@ -454,7 +466,7 @@ export default function PharmacyDiscovery({
       if (i.isAvailable !== undefined) {
         return Boolean(i.isAvailable);
       }
-      return false;
+      return true;
     });
 
     // If no requested medicines are available at this dispensary, notify patient
@@ -466,20 +478,32 @@ export default function PharmacyDiscovery({
     const normalizedItems = availableItems.map(i => {
       const medId = i.medicineId || i.id;
       const nameLower = (i.brandName || i.medicineName || i.name || '').toLowerCase().trim();
-      const matchAvail = (pharmacy.availability || []).find(a => 
-        (a.medicineId && (a.medicineId === medId)) || 
-        (nameLower && (a.brandName || '').toLowerCase().includes(nameLower))
-      );
-      const matchInv = (pharmacy.inventory || []).find(inv => 
-        (inv.medicineId && (inv.medicineId === medId)) || 
-        (nameLower && ((inv.medicine?.brandName || inv.brandName || '').toLowerCase().includes(nameLower)))
-      );
+      const iGen = (i.genericName || '').toLowerCase().trim();
+
+      const matchAvail = (pharmacy.availability || []).find(a => {
+        if (a.medicineId && (a.medicineId === medId)) return true;
+        const aBrand = (a.brandName || '').toLowerCase().trim();
+        const aGen = (a.genericName || '').toLowerCase().trim();
+        if (nameLower && (aBrand.includes(nameLower) || nameLower.includes(aBrand))) return true;
+        if (iGen && aGen && (iGen === aGen || iGen.includes(aGen) || aGen.includes(iGen))) return true;
+        if (nameLower && aGen && (nameLower.includes(aGen) || aGen.includes(nameLower.split(' ')[0]))) return true;
+        return false;
+      });
+      const matchInv = (pharmacy.inventory || []).find(inv => {
+        if (inv.medicineId && (inv.medicineId === medId)) return true;
+        const invBrand = ((inv.medicine?.brandName || inv.brandName || '')).toLowerCase().trim();
+        const invGen = ((inv.medicine?.genericName || inv.genericName || '')).toLowerCase().trim();
+        if (nameLower && (invBrand.includes(nameLower) || nameLower.includes(invBrand))) return true;
+        if (iGen && invGen && (iGen === invGen || iGen.includes(invGen) || invGen.includes(iGen))) return true;
+        return false;
+      });
 
       // Check authoritative 50-medicine catalog
       const ref = referencePricingData.find(r => 
         r.brandName.toLowerCase() === nameLower ||
         nameLower.includes(r.brandName.toLowerCase()) ||
-        (r.genericName && nameLower.includes(r.genericName.toLowerCase()))
+        (r.genericName && nameLower.includes(r.genericName.toLowerCase())) ||
+        (iGen && r.genericName && r.genericName.toLowerCase().includes(iGen))
       );
 
       let resolvedPrice = null;

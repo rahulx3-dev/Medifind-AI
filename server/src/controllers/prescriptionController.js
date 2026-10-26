@@ -173,7 +173,7 @@ async function acquireOcrRunClaim(client, options) {
         if (!tx.prescriptionAuditLog && client.prescriptionAuditLog) tx.prescriptionAuditLog = client.prescriptionAuditLog;
       }
       return _acquireOcrRunClaimInternal(tx, options);
-    });
+    }, DB_TRANSACTION_OPTIONS);
   }
   return _acquireOcrRunClaimInternal(client, options);
 }
@@ -1533,12 +1533,44 @@ async function verifyDetectedMedicines(req, res) {
         } catch (_) {}
       }
 
-      if (!medRecord && (item.matchedMedicineName || item.rawName)) {
-        const nameToLook = String(item.matchedMedicineName || item.rawName).trim();
+      if (!medRecord && (item.matchedMedicineName || item.rawName || item.genericName)) {
+        const nameToLook = String(item.matchedMedicineName || item.rawName || item.genericName || '').trim();
         try {
+          // 1. Exact brandName match
           medRecord = await prisma.medicine.findFirst({
             where: { brandName: { equals: nameToLook, mode: 'insensitive' } }
           });
+
+          // 2. Exact genericName match
+          if (!medRecord) {
+            medRecord = await prisma.medicine.findFirst({
+              where: { genericName: { equals: nameToLook, mode: 'insensitive' } }
+            });
+          }
+
+          // 3. Normalized generic stem & strength matching (e.g. "Cefixime 200mg" -> generic "Cefixime", strength "200mg")
+          if (!medRecord) {
+            const genericStem = nameToLook.replace(/\b\d+(\.\d+)?\s*(mg|g|mcg|ml|iu|%)\b/gi, '').replace(/[^a-zA-Z\s]/g, ' ').trim();
+            if (genericStem.length >= 3) {
+              const candidates = await prisma.medicine.findMany({
+                where: {
+                  OR: [
+                    { genericName: { contains: genericStem, mode: 'insensitive' } },
+                    { brandName: { contains: genericStem, mode: 'insensitive' } }
+                  ]
+                }
+              });
+              if (candidates.length > 0) {
+                const strengthMatch = nameToLook.match(/\b\d+(\.\d+)?\s*(mg|g|mcg|ml|iu|%)\b/i);
+                if (strengthMatch) {
+                  const targetStr = strengthMatch[0].replace(/\s+/g, '').toLowerCase();
+                  medRecord = candidates.find(c => (c.strength || '').replace(/\s+/g, '').toLowerCase().includes(targetStr)) || candidates[0];
+                } else {
+                  medRecord = candidates[0];
+                }
+              }
+            }
+          }
         } catch (_) {}
       }
 
@@ -5119,6 +5151,9 @@ async function matchPrescriptionAvailability(req, res) {
 
     // 6. Build authoritative requested items from DB
     const requestedItems = [];
+    const seenMedIds = new Set();
+    const seenNames = new Set();
+
     for (const item of verifiedItems) {
       let med = item.medicine;
       if (!med && prisma.medicine && typeof prisma.medicine.findUnique === 'function' && item.medicineId) {
@@ -5126,11 +5161,16 @@ async function matchPrescriptionAvailability(req, res) {
           med = await prisma.medicine.findUnique({ where: { id: item.medicineId } });
         } catch (_) {}
       }
+      const bName = med?.brandName || item.prescribedName;
+      if (item.medicineId) seenMedIds.add(item.medicineId);
+      if (bName) seenNames.add(bName.toLowerCase().trim());
+      if (item.prescribedName) seenNames.add(item.prescribedName.toLowerCase().trim());
+
       requestedItems.push({
         prescriptionItemId: item.id,
         medicineId: item.medicineId,
         prescribedName: item.prescribedName,
-        brandName: med?.brandName || item.prescribedName,
+        brandName: bName,
         genericName: med?.genericName || '',
         strength: med?.strength || item.dosage || '',
         dosageForm: med?.dosageForm || '',
@@ -5139,6 +5179,34 @@ async function matchPrescriptionAvailability(req, res) {
         dosage: item.dosage,
         instructions: item.instructions
       });
+    }
+
+    // Merge any verified client request items not already present in DB
+    if (req.body?.items && Array.isArray(req.body.items)) {
+      for (const clientItem of req.body.items) {
+        const clientMedId = clientItem.medicineId || clientItem.id;
+        const clientName = (clientItem.brandName || clientItem.name || '').toLowerCase().trim();
+        if ((clientMedId && seenMedIds.has(clientMedId)) || (clientName && seenNames.has(clientName))) {
+          continue;
+        }
+        let med = null;
+        if (clientMedId && prisma.medicine && typeof prisma.medicine.findUnique === 'function') {
+          try {
+            med = await prisma.medicine.findUnique({ where: { id: String(clientMedId) } });
+          } catch (_) {}
+        }
+        requestedItems.push({
+          prescriptionItemId: null,
+          medicineId: clientMedId,
+          prescribedName: clientItem.brandName || clientItem.name || 'Prescription Medicine',
+          brandName: med?.brandName || clientItem.brandName || clientItem.name || 'Prescription Medicine',
+          genericName: med?.genericName || clientItem.genericName || '',
+          strength: med?.strength || clientItem.strength || '',
+          dosageForm: med?.dosageForm || clientItem.dosageForm || '',
+          category: med?.category || '',
+          quantity: parseInt(clientItem.quantity, 10) || 1
+        });
+      }
     }
 
     // 7. Parse location parameters for Haversine distance scoring only (never stored or logged)

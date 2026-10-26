@@ -311,12 +311,39 @@ async function createOrder(req, res) {
           medRecord = await prisma.medicine.findUnique({ where: { id: String(item.medicineId) } });
         } catch (_) {}
       }
-      if (!medRecord && (item.brandName || item.name)) {
-        const searchName = String(item.brandName || item.name).trim();
+      if (!medRecord && (item.brandName || item.name || item.genericName)) {
+        const searchName = String(item.brandName || item.name || item.genericName || '').trim();
         try {
           medRecord = await prisma.medicine.findFirst({
             where: { brandName: { equals: searchName, mode: 'insensitive' } }
           });
+          if (!medRecord) {
+            medRecord = await prisma.medicine.findFirst({
+              where: { genericName: { equals: searchName, mode: 'insensitive' } }
+            });
+          }
+          if (!medRecord) {
+            const genericStem = searchName.replace(/\b\d+(\.\d+)?\s*(mg|g|mcg|ml|iu|%)\b/gi, '').replace(/[^a-zA-Z\s]/g, ' ').trim();
+            if (genericStem.length >= 3) {
+              const candidates = await prisma.medicine.findMany({
+                where: {
+                  OR: [
+                    { genericName: { contains: genericStem, mode: 'insensitive' } },
+                    { brandName: { contains: genericStem, mode: 'insensitive' } }
+                  ]
+                }
+              });
+              if (candidates.length > 0) {
+                const strengthMatch = searchName.match(/\b\d+(\.\d+)?\s*(mg|g|mcg|ml|iu|%)\b/i);
+                if (strengthMatch) {
+                  const targetStr = strengthMatch[0].replace(/\s+/g, '').toLowerCase();
+                  medRecord = candidates.find(c => (c.strength || '').replace(/\s+/g, '').toLowerCase().includes(targetStr)) || candidates[0];
+                } else {
+                  medRecord = candidates[0];
+                }
+              }
+            }
+          }
         } catch (_) {}
       }
       if (!medRecord) {
@@ -326,10 +353,18 @@ async function createOrder(req, res) {
       const validMedicineId = medRecord?.id || item.medicineId;
 
       // 2. Resolve price: Look up authoritative reference pricing & pharmacy inventory
-      const inventoryItem = pharmacy.inventory.find(inv =>
-        inv.medicineId === validMedicineId ||
-        (item.brandName && inv.medicine?.brandName && inv.medicine.brandName.toLowerCase() === item.brandName.toLowerCase())
-      );
+      const nameLower = (item.brandName || item.name || medRecord?.brandName || '').toLowerCase().trim();
+      const genLower = (item.genericName || medRecord?.genericName || '').toLowerCase().trim();
+
+      const matchingInvItems = (pharmacy.inventory || []).filter(inv => {
+        if (inv.medicineId === validMedicineId) return true;
+        const invBrand = (inv.medicine?.brandName || '').toLowerCase().trim();
+        const invGen = (inv.medicine?.genericName || '').toLowerCase().trim();
+        if (nameLower && (invBrand === nameLower || invBrand.includes(nameLower) || nameLower.includes(invBrand))) return true;
+        if (genLower && invGen && (genLower === invGen || genLower.includes(invGen) || invGen.includes(genLower))) return true;
+        return false;
+      });
+      const inventoryItem = matchingInvItems.find(inv => (inv.stock != null ? inv.stock > 0 : true)) || matchingInvItems[0];
 
       const ref = getReferencePricing(item.brandName || medRecord?.brandName, medRecord?.genericName);
       const unitsPerPack = item.unitsPerPack || ref?.unitsPerPack || (

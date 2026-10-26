@@ -632,6 +632,11 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       .then(d => {
         if (d.success && d.prescription) {
           const rx = d.prescription;
+          if (rx.status === 'COMPLETED' || rx.status === 'ARCHIVED' || (rx.activeOrdersCount > 0)) {
+            clearPrescriptionSession();
+            setStep(1);
+            return;
+          }
           setPrescription(rx);
           // Prioritize detectedMedicines or items if present
           const candidateItems = (rx.detectedMedicines && rx.detectedMedicines.length > 0)
@@ -643,10 +648,10 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
           setScreening({ status: rx.status || 'VERIFIED' });
 
           let nextStep = 3;
-          if (rx.status === 'VERIFIED' || rx.status === 'COMPLETED' || rx.recoverySummary?.recommendedNextStep === 'ALLOCATE_OR_ORDER') {
+          if (rx.status === 'VERIFIED' || rx.recoverySummary?.recommendedNextStep === 'ALLOCATE_OR_ORDER') {
             nextStep = 4;
           } else if (candidateItems.length === 0 && rx.status === 'UPLOADED') {
-            nextStep = 2;
+            nextStep = 3; // Never trap at Step 2 (OCR progress) without active OCR job
           }
           setStep(nextStep);
 
@@ -1079,6 +1084,9 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
   // ── Initial data load + session restore ─────────────────────────────────────
   useEffect(() => {
+    // Pre-warm the backend immediately on mount (combats Render free-tier cold starts)
+    fetch(`${API}/health`).catch(() => {});
+
     const token = localStorage.getItem('medifind_token');
     fetch(`${API}/medicines/search`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -1110,6 +1118,16 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
     if (targetRxId) {
       loadPrescriptionById(targetRxId);
+    } else {
+      // Validate saved prescription session for user isolation
+      const session = loadPrescriptionSession();
+      if (session) {
+        if (session.userId && user?.id && session.userId !== user.id) {
+          clearPrescriptionSession();
+        } else if (session.prescriptionId) {
+          loadPrescriptionById(session.prescriptionId);
+        }
+      }
     }
   }, [user?.id, fetchPreviousPrescriptions, loadPrescriptionById]);
 
@@ -1240,18 +1258,18 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
     let currentProgress = 0;
     const progressTimer = setInterval(() => {
       if (currentProgress < 25) {
-        currentProgress += 1.2; // Image calibration & resolution normalization
+        currentProgress += 1.0; // Image calibration & resolution normalization
       } else if (currentProgress < 50) {
-        currentProgress += 0.9; // Header & UHID detection
+        currentProgress += 0.75; // Header & UHID detection
       } else if (currentProgress < 75) {
-        currentProgress += 0.65; // Isolating Rx rows & recognizing medicine tokens
+        currentProgress += 0.5; // Isolating Rx rows & recognizing medicine tokens
+      } else if (currentProgress < 88) {
+        currentProgress += 0.25; // Querying 50-medicine catalog & dosage parsing
       } else if (currentProgress < 92) {
-        currentProgress += 0.45; // Querying 50-medicine catalog & dosage parsing
-      } else if (currentProgress < 99) {
-        // Smooth asymptotic progression towards completion
-        currentProgress += 0.05 * ((99.2 - currentProgress) / 2);
+        // Slow asymptotic progression capped at 92% to prevent freezing at 99%
+        currentProgress += 0.03 * ((92.5 - currentProgress) / 2);
       }
-      setOcrProgress(Math.min(99.0, Math.round(currentProgress * 10) / 10));
+      setOcrProgress(Math.min(92.0, Math.round(currentProgress * 10) / 10));
     }, 100);
 
     const token = localStorage.getItem('medifind_token');
@@ -1260,36 +1278,60 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       formData.append('prescriptionImage', file);
     }
 
-    const abortController = new AbortController();
-    const abortTimeout = setTimeout(() => {
-      abortController.abort();
-    }, 120000);
-
     try {
-      const res = await fetch(`${API}/prescriptions/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-        signal: abortController.signal
-      });
-
-      clearTimeout(abortTimeout);
-      clearInterval(progressTimer);
-
+      // Automatic retry loop for Render cold starts / 502 Bad Gateway / 504 Gateway Timeout
+      let res = null;
       let data = null;
-      const text = await res.text();
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch (parseErr) {
-        console.error('[Upload] Non-JSON response received:', res.status, text);
-        if (res.status === 504 || res.status === 502) {
-          throw new Error('Prescription analysis timed out. Please retry.');
+      const maxAttempts = 2;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const attemptController = new AbortController();
+          const attemptTimeout = setTimeout(() => attemptController.abort(), 45000);
+
+          if (attempt > 1) {
+            showToast('Clinical server is waking up from standby mode. Re-establishing connection...', 'info');
+            await new Promise(r => setTimeout(r, 3000));
+          }
+
+          res = await fetch(`${API}/prescriptions/upload`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+            signal: attemptController.signal
+          });
+          clearTimeout(attemptTimeout);
+
+          const text = await res.text();
+          try {
+            data = text ? JSON.parse(text) : null;
+          } catch (_) {
+            data = null;
+          }
+
+          if ((res.status === 502 || res.status === 504) && attempt < maxAttempts) {
+            console.warn(`[PrescriptionUpload] HTTP ${res.status} on attempt ${attempt}. Waiting for server wake-up...`);
+            continue;
+          }
+
+          break;
+        } catch (networkErr) {
+          if (attempt < maxAttempts) {
+            console.warn(`[PrescriptionUpload] Network error on attempt ${attempt}. Retrying...`, networkErr);
+            await new Promise(r => setTimeout(r, 2500));
+            continue;
+          }
+          throw networkErr;
         }
-        throw new Error(text || `Server returned status ${res.status}.`);
       }
 
-      if (!res.ok || !data || !data.success) {
-        throw new Error(data?.error || `Failed to process prescription (HTTP ${res.status}).`);
+      clearInterval(progressTimer);
+
+      if (!res || !res.ok || !data || !data.success) {
+        if (res?.status === 502 || res?.status === 504) {
+          throw new Error('Clinical server is starting up from idle mode. Please click retry in a few seconds.');
+        }
+        throw new Error(data?.error || `Failed to process prescription (HTTP ${res?.status || '502'}).`);
       }
 
       // Smooth completion glide: gracefully transition from current progress to 100%
@@ -1340,7 +1382,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       setDetectedItems(items);
 
       savePrescriptionSession({
-        userId: user?.id || null,
+        userId: user?.id,
         prescriptionId: rxPrescription?.id,
         prescription: rxPrescription,
         step: 3,
@@ -1360,8 +1402,8 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
         showToast(`Prescription analyzed! ${items.length} candidate medication(s) identified.`, 'success');
       }
     } catch (err) {
-      clearTimeout(abortTimeout);
       clearInterval(progressTimer);
+      setOcrProgress(0); // Reset progress so UI is never stuck at 99%
       const isAbort = err.name === 'AbortError';
       const errMsg = isAbort
         ? 'OCR processing took longer than expected. You can retry or verify medications manually.'
@@ -1572,18 +1614,34 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
 
       const itemsToVerify = (detectedItems || [])
         .filter(isItemInCatalogue)
-        .map(item => ({
-          id: item.id,
-          matchedMedicineId: item.matchedMedicineId || null,
-          matchedMedicineName: item.matchedMedicineName || item.rawName || null,
-          rawName: item.rawName,
-          quantity: parseInt(item.quantity, 10) || 1,
-          dosage: item.dosage,
-          frequency: item.frequency,
-          duration: item.duration,
-          isConfirmed: !item.pharmacistSelectionRequested,
-          pharmacistSelectionRequested: Boolean(item.pharmacistSelectionRequested)
-        }));
+        .map(item => {
+          let medId = item.matchedMedicineId;
+          if (!medId && item.allMatches && item.allMatches.length > 0) {
+            medId = item.allMatches[0].medicineId;
+          }
+          if (!medId && Array.isArray(medicinesCatalog) && medicinesCatalog.length > 0) {
+            const rawLower = (item.medicineName || item.rawName || '').toLowerCase().trim();
+            const match = medicinesCatalog.find(m =>
+              m.brandName.toLowerCase() === rawLower ||
+              (m.genericName && rawLower.includes(m.genericName.toLowerCase())) ||
+              (rawLower && m.brandName.toLowerCase().includes(rawLower.split(' ')[0]))
+            );
+            if (match) medId = match.id;
+          }
+          return {
+            id: item.id,
+            matchedMedicineId: medId || null,
+            matchedMedicineName: item.matchedMedicineName || item.medicineName || item.rawName || null,
+            rawName: item.rawName || item.medicineName,
+            genericName: item.genericName || item.rawName,
+            quantity: parseInt(item.quantity, 10) || 1,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            duration: item.duration,
+            isConfirmed: !item.pharmacistSelectionRequested,
+            pharmacistSelectionRequested: Boolean(item.pharmacistSelectionRequested)
+          };
+        });
 
       if (itemsToVerify.length === 0 && detectedItems.length > 0) {
         showToast('All detected medicines are uncatalogued in our network. You can add medicines manually or remap them.', 'warning');
@@ -4449,6 +4507,15 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
                                   pharmacistSelectionRequested: Boolean(details.isPharmacist)
                                 };
                               });
+                              // Session is strictly preserved until reservation hold succeeds
+                              if (prescription?.id) {
+                                savePrescriptionSession({
+                                  userId: user?.id,
+                                  prescriptionId: prescription.id,
+                                  step: 4,
+                                  detectedItems: readyItems
+                                });
+                              }
                               if (onAddVerifiedToRequest && verifiedToPass.length > 0) {
                                 onAddVerifiedToRequest(verifiedToPass);
                               }
