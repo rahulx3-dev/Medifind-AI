@@ -149,19 +149,31 @@ function rankPharmaciesForMedicines({
       const availableStock = inventoryItem?.stock ?? null;
       const rawPrice = inventoryItem?.price;
 
-      // Authoritative per-tablet/per-unit pricing
       const medBrand = inventoryItem?.medicine?.brandName || req.brandName || req.prescribedName;
       const medGen = inventoryItem?.medicine?.genericName || req.genericName;
       const ref = getReferencePricing(medBrand, medGen);
 
+      const isStrip = (req.saleUnit || '').toUpperCase().trim() === 'STRIP' || Boolean(req.isStrip);
+      const unitsPerPack = req.unitsPerPack || ref?.unitsPerPack || 1;
+
       let unitPrice = null;
-      if (ref && ref.unitPrice != null) {
-        unitPrice = ref.unitPrice;
-      } else if (rawPrice != null && rawPrice > 0) {
-        if (ref?.unitsPerPack && ref.unitsPerPack > 1 && Math.abs(rawPrice - (ref.publishedMrp || 0)) < 0.1) {
-          unitPrice = calculateUnitPrice(rawPrice, ref.unitsPerPack);
-        } else {
-          unitPrice = rawPrice;
+      if (isStrip) {
+        if (ref && ref.publishedMrp != null) {
+          unitPrice = ref.publishedMrp;
+        } else if (rawPrice != null && rawPrice > 0) {
+          unitPrice = Number((rawPrice * unitsPerPack).toFixed(2));
+        } else if (ref && ref.unitPrice != null) {
+          unitPrice = Number((ref.unitPrice * unitsPerPack).toFixed(2));
+        }
+      } else {
+        if (ref && ref.unitPrice != null) {
+          unitPrice = ref.unitPrice;
+        } else if (rawPrice != null && rawPrice > 0) {
+          if (ref?.unitsPerPack && ref.unitsPerPack > 1 && Math.abs(rawPrice - (ref.publishedMrp || 0)) < 0.1) {
+            unitPrice = calculateUnitPrice(rawPrice, ref.unitsPerPack);
+          } else {
+            unitPrice = rawPrice;
+          }
         }
       }
       const neededQty = req.quantity || 1;
@@ -235,6 +247,10 @@ function rankPharmaciesForMedicines({
         }
       }
 
+      const pricingUnit = isStrip
+        ? 'per strip'
+        : (ref?.pricingUnit || (inventoryItem?.medicine?.dosageForm === 'Tablet' ? 'per tablet' : inventoryItem?.medicine?.dosageForm === 'Capsule' ? 'per capsule' : 'per unit'));
+
       itemStockDetails.push({
         prescriptionItemId: req.prescriptionItemId || null,
         medicineId: req.medicineId,
@@ -247,10 +263,11 @@ function rankPharmaciesForMedicines({
         availableStock,
         unitPrice,
         itemSubtotal,
-        pricingUnit: ref?.pricingUnit || (inventoryItem?.medicine?.dosageForm === 'Tablet' ? 'per tablet' : inventoryItem?.medicine?.dosageForm === 'Capsule' ? 'per capsule' : 'per unit'),
-        packSize: ref?.packSize || null,
+        pricingUnit,
+        saleUnit: isStrip ? 'STRIP' : (req.saleUnit || 'TABLET'),
+        packSize: ref?.packSize || req.packSize || (unitsPerPack > 1 ? `Strip of ${unitsPerPack}` : null),
         publishedMrp: ref?.publishedMrp || null,
-        unitsPerPack: ref?.unitsPerPack || 1,
+        unitsPerPack,
         hasVerifiedPrice: unitPrice != null,
         inStock: isAvailable,
         fullStock: hasFullQty,

@@ -231,8 +231,14 @@ export default function PharmacyDiscovery({
       if (selectedMedicines && selectedMedicines.length > 0) {
         const payloadItems = selectedMedicines.map(m => ({
           medicineId: m.medicineId || m.id,
-          brandName: m.brandName,
-          quantity: m.quantity || 1
+          brandName: m.brandName || m.name,
+          genericName: m.genericName,
+          dosageForm: m.dosageForm,
+          strength: m.strength,
+          quantity: m.quantity || 1,
+          saleUnit: m.saleUnit || 'TABLET',
+          unitsPerPack: m.unitsPerPack || 1,
+          packSize: m.packSize
         }));
 
         const isEmergency = filterMode === 'emergency';
@@ -250,61 +256,83 @@ export default function PharmacyDiscovery({
           matchBody = { lat, lon, isEmergency };
         }
 
-        let matchRes = await fetch(matchEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify(matchBody)
-        });
-
-        // If prescription-specific matching failed and we have staged payload items, fallback to item matching
-        if (!matchRes.ok && matchEndpoint.includes('/api/prescriptions/') && payloadItems.length > 0) {
-          console.warn('Prescription-specific availability matching returned', matchRes.status, '— falling back to direct item matching');
-          matchRes = await fetch('/api/pharmacies/match-availability', {
+        let matchRes;
+        try {
+          matchRes = await fetch(matchEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {})
             },
-            body: JSON.stringify({
-              items: payloadItems,
-              lat,
-              lon,
-              isEmergency
-            })
+            body: JSON.stringify(matchBody)
           });
+        } catch (fetchErr) {
+          console.warn('Initial matching request failed:', fetchErr.message);
         }
 
-        const matchData = await matchRes.json().catch(() => ({}));
-        if (!matchRes.ok) {
-          const errMsg = matchData.error || matchData.message || `Status ${matchRes.status}`;
-          throw new Error(`Unable to evaluate dispensary stock: ${errMsg}`);
+        // If prescription-specific matching failed and we have staged payload items, fallback to item matching
+        if ((!matchRes || !matchRes.ok) && matchEndpoint.includes('/api/prescriptions/') && payloadItems.length > 0) {
+          console.warn('Prescription-specific availability matching returned', matchRes?.status, '— falling back to direct item matching');
+          try {
+            matchRes = await fetch('/api/pharmacies/match-availability', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
+              body: JSON.stringify({
+                items: payloadItems,
+                lat,
+                lon,
+                isEmergency
+              })
+            });
+          } catch (itemErr) {
+            console.warn('Direct item matching fetch error:', itemErr.message);
+          }
         }
-        if (matchData.success && matchData.results) {
+
+        const matchData = matchRes ? await matchRes.json().catch(() => ({})) : {};
+        if (matchRes && matchRes.ok && matchData.success && matchData.results) {
           setAvailabilityResults(matchData.results);
           // Extract pharmacy objects
           const pharms = matchData.results.map(r => {
             const rawAvail = r.itemStockDetails || r.availability || [];
-            const availability = rawAvail.map(item => ({
-              medicineId: item.medicineId,
-              brandName: item.medicineName || item.brandName || 'Prescription Medicine',
-              genericName: item.genericName,
-              strength: item.strength,
-              dosageForm: item.dosageForm,
-              requestedQuantity: item.requestedQty || item.requestedQuantity || 1,
-              stock: item.availableStock != null ? item.availableStock : (item.stock != null ? item.stock : 0),
-              isAvailable: item.inStock ?? (item.availableStock > 0 || item.stock > 0),
-              isLowStock: (item.availableStock > 0 && item.availableStock <= 10) || (item.stock > 0 && item.stock <= 10),
-              unitPrice: item.unitPrice != null ? item.unitPrice : (item.price != null ? item.price : null),
-              itemSubtotal: item.itemSubtotal != null ? item.itemSubtotal : null,
-              hasVerifiedPrice: item.hasVerifiedPrice ?? (item.unitPrice != null),
-              status: item.status || (item.inStock ? 'AVAILABLE' : 'OUT_OF_STOCK'),
-              matchClassification: item.matchClassification || null,
-              mismatchReason: item.mismatchReason || null,
-              stockLastUpdated: item.stockLastUpdated
-            }));
+            const availability = rawAvail.map(item => {
+              const matchedReq = selectedMedicines.find(m => 
+                (m.medicineId && m.medicineId === item.medicineId) ||
+                (m.id && m.id === item.medicineId) ||
+                ((m.brandName || m.name || '').toLowerCase().trim() === (item.medicineName || item.brandName || '').toLowerCase().trim())
+              );
+              const saleUnit = item.saleUnit || matchedReq?.saleUnit || 'TABLET';
+              const isStrip = (saleUnit || '').toUpperCase().trim() === 'STRIP';
+              const unitsPerPack = item.unitsPerPack || matchedReq?.unitsPerPack || 1;
+              const pricingUnit = item.pricingUnit || (isStrip ? 'per strip' : 'per tablet');
+
+              return {
+                medicineId: item.medicineId,
+                brandName: item.medicineName || item.brandName || 'Prescription Medicine',
+                genericName: item.genericName,
+                strength: item.strength,
+                dosageForm: item.dosageForm,
+                requestedQuantity: item.requestedQty || item.requestedQuantity || 1,
+                stock: item.availableStock != null ? item.availableStock : (item.stock != null ? item.stock : 0),
+                isAvailable: item.inStock ?? (item.availableStock > 0 || item.stock > 0),
+                isLowStock: (item.availableStock > 0 && item.availableStock <= 10) || (item.stock > 0 && item.stock <= 10),
+                unitPrice: item.unitPrice != null ? item.unitPrice : (item.price != null ? item.price : null),
+                itemSubtotal: item.itemSubtotal != null ? item.itemSubtotal : null,
+                hasVerifiedPrice: item.hasVerifiedPrice ?? (item.unitPrice != null),
+                status: item.status || (item.inStock ? 'AVAILABLE' : 'OUT_OF_STOCK'),
+                matchClassification: item.matchClassification || null,
+                mismatchReason: item.mismatchReason || null,
+                stockLastUpdated: item.stockLastUpdated,
+                saleUnit,
+                isStrip,
+                unitsPerPack,
+                pricingUnit,
+                packSize: item.packSize || matchedReq?.packSize || null
+              };
+            });
 
             const matchedCount = r.matchedItemsCount ?? r.matchedCount ?? availability.filter(a => a.isAvailable).length;
             const totalRequested = r.totalRequested || availability.length || 1;
@@ -335,6 +363,8 @@ export default function PharmacyDiscovery({
           }
           setLoading(false);
           return;
+        } else {
+          console.warn('Match availability failed or returned no results, falling back to general search:', matchData?.error || matchRes?.status);
         }
       }
 
@@ -1453,7 +1483,7 @@ export default function PharmacyDiscovery({
                                     {av.brandName}
                                   </span>
                                   <span className="text-[11px] text-on-surface-variant/80">
-                                    {av.strength ? `${av.strength} • ` : ''}{av.dosageForm ? `${av.dosageForm} • ` : ''}{av.requestedQuantity || 1} unit(s) requested
+                                    {av.strength ? `${av.strength} • ` : ''}{av.dosageForm ? `${av.dosageForm} • ` : ''}{av.requestedQuantity || 1} {av.isStrip || av.saleUnit === 'STRIP' ? 'strip(s)' : 'unit(s)'} requested
                                   </span>
                                 </div>
                               </div>
@@ -1472,7 +1502,7 @@ export default function PharmacyDiscovery({
                                   </span>
                                   {av.unitPrice != null ? (
                                     <span className="text-[10px] text-on-surface-variant font-mono">
-                                      ₹{Number(av.unitPrice).toFixed(2)}/{av.pricingUnit ? av.pricingUnit.replace('per ', '') : 'tab'} {av.itemSubtotal ? `(subtotal ₹${Number(av.itemSubtotal).toFixed(2)})` : ''}
+                                      ₹{Number(av.unitPrice).toFixed(2)}/{av.isStrip || av.saleUnit === 'STRIP' ? 'strip' : (av.pricingUnit ? av.pricingUnit.replace('per ', '') : 'tab')} {av.itemSubtotal ? `(subtotal ₹${Number(av.itemSubtotal).toFixed(2)})` : ''}
                                     </span>
                                   ) : (
                                     <span className="text-[10px] text-outline italic">Price unlisted</span>
