@@ -2777,7 +2777,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
 
                             return (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                {hasPendingBrandSelection ? (
+                                {hasPendingBrandSelection && (
                                   <button
                                     type="button"
                                     onClick={() => setClinicalReviewOrder(order)}
@@ -2798,34 +2798,40 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                                     }}
                                     onMouseEnter={e => { e.currentTarget.style.background = '#b45309'; }}
                                     onMouseLeave={e => { e.currentTarget.style.background = '#d97706'; }}
+                                    title="Open clinical review modal to confirm genuine formulation brand for this prescription"
                                   >
                                     <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>
-                                    <span>Select Brand Formulation &amp; Accept</span>
+                                    <span>Select Brand Formulation</span>
                                   </button>
-                                ) : (
-                                  <FlowButton
-                                    size="sm"
-                                    variant="primary"
-                                    loading={updatingStatusId === order.id}
-                                    disabled={updatingStatusId === order.id}
-                                    onClick={() => {
-                                      setConfirmDialog({
-                                        isOpen: true,
-                                        title: 'Accept & Stage Reservation?',
-                                        message: `Confirm acceptance of prescription reservation #${order.id.slice(0, 8)}? Inventory stock will be earmarked for staging.`,
-                                        confirmLabel: 'Accept & Stage',
-                                        variant: 'primary',
-                                        impactPoints: [
-                                          'Prescription items will be earmarked in dispensary stock.',
-                                          'Patient will receive notification to proceed with pickup schedule.'
-                                        ],
-                                        onConfirm: () => handleUpdateStatus(order.id, 'CONFIRMED')
-                                      });
-                                    }}
-                                  >
-                                    Accept &amp; Stage
-                                  </FlowButton>
                                 )}
+
+                                <FlowButton
+                                  size="sm"
+                                  variant="primary"
+                                  loading={updatingStatusId === order.id}
+                                  disabled={updatingStatusId === order.id}
+                                  onClick={() => {
+                                    if (hasPendingBrandSelection) {
+                                      // If pharmacist clicks Accept directly on an unassigned item, launch the modal so they can confirm brand first
+                                      setClinicalReviewOrder(order);
+                                      return;
+                                    }
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: 'Accept & Stage Reservation?',
+                                      message: `Confirm acceptance of prescription reservation #${order.id.slice(0, 8)}? Inventory stock will be earmarked for staging.`,
+                                      confirmLabel: 'Accept & Stage',
+                                      variant: 'primary',
+                                      impactPoints: [
+                                        'Prescription items will be earmarked in dispensary stock.',
+                                        'Patient will receive notification to proceed with pickup schedule.'
+                                      ],
+                                      onConfirm: () => handleUpdateStatus(order.id, 'CONFIRMED')
+                                    });
+                                  }}
+                                >
+                                  Accept &amp; Stage
+                                </FlowButton>
 
                                 <button
                                   disabled={updatingStatusId === order.id}

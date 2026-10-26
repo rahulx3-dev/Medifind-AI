@@ -144,11 +144,14 @@ export default function ReservationConfirmation({
         pharmacyId: pharmacy.id,
         items: items.map(i => ({
           medicineId: i.medicineId || i.id,
+          prescriptionItemId: i.prescriptionItemId || i.prescriptionItem?.id || undefined,
+          prescribedName: i.prescribedName || i.genericName || i.medicineName || i.rawName || i.brandName || undefined,
           quantity: i.quantity || 1,
           price: resolveItemPrice(i),
           unitPrice: resolveItemPrice(i),
           saleUnit: i.saleUnit || 'TABLET',
-          unitsPerPack: i.unitsPerPack || 1
+          unitsPerPack: i.unitsPerPack || 1,
+          pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
         })),
         orderType: 'RESERVATION',
         fulfillmentType: 'PICKUP',

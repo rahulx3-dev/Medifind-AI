@@ -538,7 +538,8 @@ export default function PharmacyDiscovery({
         saleUnit: i.saleUnit || (isStrip ? 'STRIP' : 'TABLET'),
         unitsPerPack: i.unitsPerPack || ref?.unitsPerPack || 1,
         packSize: i.packSize || ref?.packSize || null,
-        pricingUnit: isStrip ? 'per strip' : (ref?.pricingUnit || matchAvail?.pricingUnit || 'per tablet')
+        pricingUnit: isStrip ? 'per strip' : (ref?.pricingUnit || matchAvail?.pricingUnit || 'per tablet'),
+        pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested)
       };
     });
 
