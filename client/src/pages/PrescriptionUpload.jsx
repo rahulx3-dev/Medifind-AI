@@ -1257,19 +1257,21 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
     // Calibrated progress simulation across realistic clinical OCR pipeline phases
     let currentProgress = 0;
     const progressTimer = setInterval(() => {
-      if (currentProgress < 25) {
-        currentProgress += 1.0; // Image calibration & resolution normalization
-      } else if (currentProgress < 50) {
-        currentProgress += 0.75; // Header & UHID detection
-      } else if (currentProgress < 75) {
-        currentProgress += 0.5; // Isolating Rx rows & recognizing medicine tokens
-      } else if (currentProgress < 88) {
-        currentProgress += 0.25; // Querying 50-medicine catalog & dosage parsing
-      } else if (currentProgress < 92) {
-        // Slow asymptotic progression capped at 92% to prevent freezing at 99%
-        currentProgress += 0.03 * ((92.5 - currentProgress) / 2);
+      if (currentProgress < 20) {
+        currentProgress += 0.6; // Image calibration & resolution normalization (~3.3s)
+      } else if (currentProgress < 45) {
+        currentProgress += 0.35; // Header, UHID, and prescriber detection (~7.1s)
+      } else if (currentProgress < 70) {
+        currentProgress += 0.25; // PaddleOCR deep learning recognition on Rx rows (~10s)
+      } else if (currentProgress < 85) {
+        currentProgress += 0.15; // Querying 50-medicine catalog & dosage parsing (~10s)
+      } else if (currentProgress < 94) {
+        currentProgress += 0.08; // Brand candidate matching & integrity screening (~11s)
+      } else if (currentProgress < 98.5) {
+        // Continuous organic micro-progression so progress never halts or looks frozen
+        currentProgress += 0.015 * ((99.0 - currentProgress) / 2);
       }
-      setOcrProgress(Math.min(92.0, Math.round(currentProgress * 10) / 10));
+      setOcrProgress(Math.min(98.5, Math.round(currentProgress * 10) / 10));
     }, 100);
 
     const token = localStorage.getItem('medifind_token');
@@ -1287,7 +1289,7 @@ export default function PrescriptionUpload({ onOrderCreated, onAddVerifiedToRequ
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           const attemptController = new AbortController();
-          const attemptTimeout = setTimeout(() => attemptController.abort(), 45000);
+          const attemptTimeout = setTimeout(() => attemptController.abort(), 90000); // 90s safe margin for deep learning OCR
 
           if (attempt > 1) {
             showToast('Clinical server is waking up from standby mode. Re-establishing connection...', 'info');

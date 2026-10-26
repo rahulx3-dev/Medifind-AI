@@ -38,6 +38,25 @@ const DB_TRANSACTION_OPTIONS = {
   timeout: 60000
 };
 
+// In-memory medicine catalog cache with 5-minute TTL to eliminate 4+ second cloud DB roundtrips on every OCR upload
+let cachedMedicineCatalog = null;
+let cachedMedicineCatalogExpiresAt = 0;
+const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function getCachedMedicineCatalog(prismaClient) {
+  const now = Date.now();
+  if (cachedMedicineCatalog && Array.isArray(cachedMedicineCatalog) && cachedMedicineCatalog.length > 0 && now < cachedMedicineCatalogExpiresAt) {
+    return cachedMedicineCatalog;
+  }
+  const client = prismaClient || prisma;
+  const list = await client.medicine.findMany();
+  if (Array.isArray(list) && list.length > 0) {
+    cachedMedicineCatalog = list;
+    cachedMedicineCatalogExpiresAt = now + CATALOG_CACHE_TTL_MS;
+  }
+  return list;
+}
+
 // ─── Upload directory ─────────────────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/prescriptions');
 
@@ -857,6 +876,7 @@ async function uploadPrescription(req, res) {
   const uploadedFilePath = req.file ? req.file.path : null;
   let transactionCommitted = false;
   let ocrClaim = null;
+  let catalogPromise = null;
 
   try {
     const userId = req.user.id; // Always from authenticated token, never from body
@@ -1065,7 +1085,8 @@ async function uploadPrescription(req, res) {
         }
       }
 
-      // Execute OCR engine
+      // Execute OCR engine concurrently with catalog prefetch to eliminate cloud DB latency
+      catalogPromise = getCachedMedicineCatalog(prisma);
       const ocrStartTime = Date.now();
       ocrResult = await (ocrEngine.runOCR || runOCR)(req.file.path);
       executionTimeMs = Date.now() - ocrStartTime;
@@ -1121,7 +1142,7 @@ async function uploadPrescription(req, res) {
     }
 
     // ── Extract Medicine Candidates ───────────────────────────────────────────
-    const catalog = await prisma.medicine.findMany();
+    const catalog = await (catalogPromise || getCachedMedicineCatalog(prisma));
     let detectedItems = [];
 
     // If python OCR worker produced structured medicineLines with candidate matches:
@@ -2186,7 +2207,7 @@ async function getPrescriptionById(req, res) {
     let enrichedMedicines = prescription.detectedMedicines || [];
     if (prescription.ocrRawText && enrichedMedicines.length > 0) {
       try {
-        const catalog = await prisma.medicine.findMany();
+        const catalog = await getCachedMedicineCatalog(prisma);
         const freshItems = processPrescriptionText(prescription.ocrRawText, catalog);
         // Match by rawName (primary) or by position (fallback) to re-apply enrichment
         enrichedMedicines = enrichedMedicines.map((dbItem) => {
@@ -3399,7 +3420,7 @@ async function retryPrescriptionOcr(req, res) {
     const ocrConfidence = ocrResult.confidence || 0;
 
     // Extract candidates
-    const catalog = await prisma.medicine.findMany();
+    const catalog = await getCachedMedicineCatalog(prisma);
     let detectedItems = [];
 
     if (Array.isArray(ocrResult.medicineLines) && ocrResult.medicineLines.length > 0) {

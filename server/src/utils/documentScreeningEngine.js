@@ -48,7 +48,7 @@ function computeFileHash(filePath) {
 /**
  * 1. Image Quality & Clarity Analysis
  */
-async function assessImageQuality(filePath) {
+async function assessImageQuality(filePath, preloadedImage = null) {
   if (!filePath || filePath.startsWith('samples/')) {
     return {
       name: 'IMAGE_QUALITY',
@@ -72,7 +72,7 @@ async function assessImageQuality(filePath) {
   }
 
   try {
-    const image = await Jimp.read(filePath);
+    const image = preloadedImage || await Jimp.read(filePath);
     const width = image.width;
     const height = image.height;
 
@@ -377,7 +377,7 @@ function assessDocumentStructure(ocrText, detectedMedicines = []) {
  * - A WARNING result is an informational processing flag for pharmacist review,
  *   never proof of fraud.
  */
-async function assessVisualIntegrity(filePath) {
+async function assessVisualIntegrity(filePath, preloadedImage = null) {
   if (!filePath || filePath.startsWith('samples/')) {
     return {
       name: 'VISUAL_INTEGRITY',
@@ -430,7 +430,7 @@ async function assessVisualIntegrity(filePath) {
     }
 
     // Coarse regional luminance consistency check (Jimp pixel sampling)
-    const image = await Jimp.read(filePath);
+    const image = preloadedImage || await Jimp.read(filePath);
     const width = image.width;
     const height = image.height;
     const bandsCount = 4;
@@ -562,14 +562,20 @@ async function screenPrescriptionDocument({
   detectedMedicines = [],
   userId
 }) {
-  // 1. Compute file hash
+  // 1. Compute file hash and optionally preload image once for quality & visual integrity checks
   const fileHash = computeFileHash(filePath);
+  let preloadedImage = null;
+  if (filePath && !filePath.startsWith('samples/') && fs.existsSync(filePath)) {
+    try {
+      preloadedImage = await Jimp.read(filePath);
+    } catch (_) {}
+  }
 
   // 2. Run all individual assessment checks
   const [imageQuality, ocrReadability, visualIntegrity, submissionHistory] = await Promise.all([
-    assessImageQuality(filePath),
+    assessImageQuality(filePath, preloadedImage),
     Promise.resolve(assessOCRReadability(ocrText, ocrConfidence)),
-    assessVisualIntegrity(filePath),
+    assessVisualIntegrity(filePath, preloadedImage),
     assessSubmissionHistory(fileHash, prescriptionId, userId)
   ]);
 
