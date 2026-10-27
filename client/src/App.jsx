@@ -244,7 +244,9 @@ function MainApp() {
           price: updatedPricing.effectiveUnitPrice,
           unitPrice: updatedPricing.unitPrice,
           publishedMrp: updatedPricing.publishedMrp,
-          subtotal: updatedPricing.lineTotal
+          subtotal: updatedPricing.lineTotal,
+          pharmacistSelectionRequested: Boolean(medicine.pharmacistSelectionRequested || updated[idx].pharmacistSelectionRequested),
+          prescribedName: medicine.prescribedName || updated[idx].prescribedName || updated[idx].brandName
         };
         return updated;
       }
@@ -253,6 +255,7 @@ function MainApp() {
         {
           medicineId: medicine.id,
           brandName: medicine.brandName || medicine.name || 'Prescription Medicine',
+          prescribedName: medicine.prescribedName || medicine.brandName || medicine.name || 'Prescription Medicine',
           genericName: medicine.genericName || '',
           category: medicine.category || '',
           dosageForm: medicine.dosageForm || '',
@@ -265,7 +268,8 @@ function MainApp() {
           unitPrice: pricing.unitPrice,
           effectiveUnitPrice: pricing.effectiveUnitPrice,
           price: pricing.effectiveUnitPrice,
-          subtotal: pricing.lineTotal
+          subtotal: pricing.lineTotal,
+          pharmacistSelectionRequested: Boolean(medicine.pharmacistSelectionRequested)
         }
       ];
     });
@@ -1052,9 +1056,11 @@ function MainApp() {
                         addToMedicineRequest({
                           id: i.medicineId,
                           brandName: i.brandName,
+                          prescribedName: i.prescribedName || i.brandName,
                           genericName: i.genericName,
                           dosageForm: i.dosageForm,
                           strength: i.strength,
+                          pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested),
                           price: i.price != null ? i.price : (i.unitPrice != null ? i.unitPrice : null)
                         }, i.quantity, true);
                       });
@@ -1065,9 +1071,11 @@ function MainApp() {
                           addToMedicineRequest({
                             id: i.medicineId,
                             brandName: i.brandName,
+                            prescribedName: i.prescribedName || i.brandName,
                             genericName: i.genericName,
                             dosageForm: i.dosageForm,
                             strength: i.strength,
+                            pharmacistSelectionRequested: Boolean(i.pharmacistSelectionRequested),
                             price: i.price != null ? i.price : (i.unitPrice != null ? i.unitPrice : null)
                           }, i.quantity, true);
                         });

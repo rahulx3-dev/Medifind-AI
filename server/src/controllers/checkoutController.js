@@ -217,15 +217,33 @@ async function getCheckoutSummary(req, res) {
       };
     }
 
-    // Build safe item list
-    const items = order.items.map(item => ({
-      medicineId: item.medicineId,
-      brandName: item.medicine?.brandName,
-      genericName: item.medicine?.genericName,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      subtotal: item.subtotal
-    }));
+    // Build safe item list with preserved prescribed/generic name for pharmacist review
+    const items = order.items.map(item => {
+      let displayName = item.medicine?.brandName;
+      // If item was placed as pharmacist review or pending selection, extract the prescribed generic name from order.notes
+      if (item.status === 'PENDING_SELECTION' || item.unfulfilledReason === 'AWAITING_PHARMACY_REVIEW' || (order.notes && order.notes.includes(item.medicineId))) {
+        const tagRegex = new RegExp(`\\[PENDING_SELECTION:(?:${item.prescriptionItemId || item.medicineId}|${item.medicineId}):([^\\]]+)\\]`, 'i');
+        const match = order.notes ? order.notes.match(tagRegex) : null;
+        if (match && match[1]) {
+          displayName = match[1].trim();
+        } else if (item.medicine?.genericName) {
+          displayName = item.medicine.genericName;
+        }
+      }
+
+      return {
+        medicineId: item.medicineId,
+        brandName: displayName,
+        prescribedName: displayName,
+        genericName: item.medicine?.genericName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+        status: item.status,
+        unfulfilledReason: item.unfulfilledReason,
+        pharmacistSelectionRequested: item.status === 'PENDING_SELECTION' || item.unfulfilledReason === 'AWAITING_PHARMACY_REVIEW'
+      };
+    });
 
     // If there is an existing PENDING online payment with gatewayOrderId, check if Razorpay captured it
     if (order.payment && order.payment.status === 'PENDING' && order.payment.gatewayOrderId) {

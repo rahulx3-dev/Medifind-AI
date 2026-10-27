@@ -1103,11 +1103,16 @@ export default function CheckoutPage({ orderId, onClose, onPaymentSuccess }) {
                           </span>
                         </div>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 14, fontWeight: 600, color: '#0f1e1b' }}>{bName}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: isStrip ? '#ccefe7' : '#dcfce7', color: '#032f28' }}>
                               {isStrip ? `STRIP${unitsPerPack > 1 ? ` OF ${unitsPerPack}` : ''}` : 'UNIT'}
                             </span>
+                            {Boolean(item.pharmacistSelectionRequested) && (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 99, background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}>
+                                Awaiting Pharmacist Review
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: 12, color: '#414846' }}>
                             Qty: {qty} {unitName}{packSizeNote} • {uPrice != null ? `₹${uPrice.toFixed(2)} per ${isStrip ? 'strip' : (dosageForm.includes('capsule') ? 'capsule' : 'tablet')}` : 'MRP / counter pricing at pharmacy'}
