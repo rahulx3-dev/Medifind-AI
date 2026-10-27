@@ -132,6 +132,56 @@ export default function ClinicalPrescriptionReviewModal({
 
   const rxId = order?.prescriptionId || order?.prescription?.id;
 
+  // Reconcile items: if prescription.items is empty, synthesize from order.items or prescription.detectedMedicines
+  const items = React.useMemo(() => {
+    if (prescription?.items && prescription.items.length > 0) {
+      return prescription.items;
+    }
+    // Fallback 1: Derive from order.items
+    if (order?.items && order.items.length > 0) {
+      return order.items.map((oi, idx) => {
+        const isPending = oi.status === 'PENDING_SELECTION' ||
+          (order.notes && order.notes.includes('PENDING_SELECTION') && (oi.medicine?.genericName?.toLowerCase() === 'cefixime' || oi.medicine?.brandName?.toLowerCase() === 'cefixime'));
+        return {
+          id: oi.prescriptionItemId || oi.id || `order-item-${idx}`,
+          prescriptionId: rxId,
+          prescribedName: oi.prescribedName || oi.medicine?.genericName || oi.medicine?.brandName || 'Prescribed Medicine',
+          medicineId: oi.medicineId,
+          medicine: oi.medicine,
+          quantity: oi.quantity || 1,
+          dosage: oi.medicine?.strength || '',
+          strength: oi.medicine?.strength || '',
+          dosageForm: oi.medicine?.dosageForm || '',
+          instructions: oi.instructions || '',
+          patientNotes: isPending ? 'PHARMACIST_SELECTION_REQUESTED' : oi.patientNotes,
+          pharmacistSelectionRequested: isPending,
+          isVerified: !isPending,
+          status: isPending ? 'PENDING_SELECTION' : (oi.status || 'CONFIRMED'),
+          sourceType: 'ORDER_LINEAGE'
+        };
+      });
+    }
+    // Fallback 2: Derive from prescription.detectedMedicines
+    if (prescription?.detectedMedicines && prescription.detectedMedicines.length > 0) {
+      return prescription.detectedMedicines.map((dm, idx) => ({
+        id: dm.id || `detected-${idx}`,
+        prescriptionId: rxId,
+        prescribedName: dm.medicineName || dm.matchedMedicineName || dm.rawName,
+        medicineId: dm.matchedMedicineId,
+        medicine: dm.matchedMedicine,
+        quantity: dm.extractedQuantity || 1,
+        dosage: dm.extractedDosage || '',
+        strength: dm.extractedDosage || '',
+        patientNotes: dm.evidenceSummary || (dm.pharmacistSelectionRequested ? 'PHARMACIST_SELECTION_REQUESTED' : null),
+        pharmacistSelectionRequested: Boolean(dm.pharmacistSelectionRequested || dm.needsMapping),
+        isVerified: Boolean(dm.isConfirmed && !dm.needsMapping),
+        status: dm.status || (dm.needsMapping ? 'PENDING_SELECTION' : 'AUTO_MATCHED'),
+        sourceType: 'OCR_DERIVED'
+      }));
+    }
+    return [];
+  }, [prescription?.items, prescription?.detectedMedicines, order?.items, order?.notes, rxId]);
+
   useEffect(() => {
     if (isOpen && rxId) {
       fetchPrescriptionDetails();
@@ -402,56 +452,8 @@ export default function ClinicalPrescriptionReviewModal({
 
   if (!isOpen) return null;
 
-  // Reconcile items: if prescription.items is empty, synthesize from order.items or prescription.detectedMedicines
-  const items = React.useMemo(() => {
-    if (prescription?.items && prescription.items.length > 0) {
-      return prescription.items;
-    }
-    // Fallback 1: Derive from order.items
-    if (order?.items && order.items.length > 0) {
-      return order.items.map((oi, idx) => {
-        const isPending = oi.status === 'PENDING_SELECTION' ||
-          (order.notes && order.notes.includes('PENDING_SELECTION') && (oi.medicine?.genericName?.toLowerCase() === 'cefixime' || oi.medicine?.brandName?.toLowerCase() === 'cefixime'));
-        return {
-          id: oi.prescriptionItemId || oi.id || `order-item-${idx}`,
-          prescriptionId: rxId,
-          prescribedName: oi.prescribedName || oi.medicine?.genericName || oi.medicine?.brandName || 'Prescribed Medicine',
-          medicineId: oi.medicineId,
-          medicine: oi.medicine,
-          quantity: oi.quantity || 1,
-          dosage: oi.medicine?.strength || '',
-          strength: oi.medicine?.strength || '',
-          dosageForm: oi.medicine?.dosageForm || '',
-          instructions: oi.instructions || '',
-          patientNotes: isPending ? 'PHARMACIST_SELECTION_REQUESTED' : oi.patientNotes,
-          pharmacistSelectionRequested: isPending,
-          isVerified: !isPending,
-          status: isPending ? 'PENDING_SELECTION' : (oi.status || 'CONFIRMED'),
-          sourceType: 'ORDER_LINEAGE'
-        };
-      });
-    }
-    // Fallback 2: Derive from prescription.detectedMedicines
-    if (prescription?.detectedMedicines && prescription.detectedMedicines.length > 0) {
-      return prescription.detectedMedicines.map((dm, idx) => ({
-        id: dm.id || `detected-${idx}`,
-        prescriptionId: rxId,
-        prescribedName: dm.medicineName || dm.matchedMedicineName || dm.rawName,
-        medicineId: dm.matchedMedicineId,
-        medicine: dm.matchedMedicine,
-        quantity: dm.extractedQuantity || 1,
-        dosage: dm.extractedDosage || '',
-        strength: dm.extractedDosage || '',
-        patientNotes: dm.evidenceSummary || (dm.pharmacistSelectionRequested ? 'PHARMACIST_SELECTION_REQUESTED' : null),
-        pharmacistSelectionRequested: Boolean(dm.pharmacistSelectionRequested || dm.needsMapping),
-        isVerified: Boolean(dm.isConfirmed && !dm.needsMapping),
-        status: dm.status || (dm.needsMapping ? 'PENDING_SELECTION' : 'AUTO_MATCHED'),
-        sourceType: 'OCR_DERIVED'
-      }));
-    }
-    return [];
-  }, [prescription?.items, prescription?.detectedMedicines, order?.items, order?.notes, rxId]);
-
+  const images = prescription?.images || [];
+  const currentImage = images.find(img => img.id === selectedImageId) || images[0];
   const ocrRuns = prescription?.ocrRuns || [];
   const latestOcrRun = ocrRuns[0];
 
