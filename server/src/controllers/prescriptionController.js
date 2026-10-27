@@ -4429,6 +4429,74 @@ async function pharmacistVerifyItem(req, res) {
       }
     }
 
+    // Fallback 1: Match against OrderItem if targetId is an OrderItem id or request came with order context
+    let matchedOrderItem = null;
+    if (!item && !candidate) {
+      const orderItemIdToCheck = req.body?.orderItemId || targetId;
+      if (orderItemIdToCheck && prisma.orderItem && typeof prisma.orderItem.findUnique === 'function') {
+        try {
+          matchedOrderItem = await prisma.orderItem.findUnique({
+            where: { id: String(orderItemIdToCheck) },
+            include: { order: true, medicine: true }
+          });
+          if (matchedOrderItem && matchedOrderItem.order?.prescriptionId && matchedOrderItem.order.prescriptionId !== id) {
+            matchedOrderItem = null;
+          }
+        } catch (_) {}
+      }
+      if (!matchedOrderItem && prisma.orderItem && typeof prisma.orderItem.findFirst === 'function') {
+        try {
+          matchedOrderItem = await prisma.orderItem.findFirst({
+            where: {
+              order: { prescriptionId: id },
+              OR: [
+                { id: targetId },
+                { status: 'PENDING_SELECTION' },
+                { medicineId: targetId }
+              ]
+            },
+            include: { order: true, medicine: true }
+          });
+        } catch (_) {}
+      }
+    }
+
+    // Fallback 2: Match against DetectedMedicine for this prescription
+    let matchedDetectedMedicine = null;
+    if (!item && !candidate) {
+      if (prisma.detectedMedicine && typeof prisma.detectedMedicine.findFirst === 'function') {
+        try {
+          matchedDetectedMedicine = await prisma.detectedMedicine.findFirst({
+            where: {
+              prescriptionId: id,
+              OR: [
+                { id: targetId },
+                { rawName: prescribedName || '' },
+                { matchedMedicineId: targetId },
+                { matchedMedicineId: matchedOrderItem?.medicineId || '' }
+              ]
+            }
+          });
+        } catch (_) {}
+      }
+    }
+
+    // If an OrderItem or DetectedMedicine was matched, construct a synthetic item/candidate context
+    if (!item && !candidate && (matchedOrderItem || matchedDetectedMedicine)) {
+      candidate = {
+        id: matchedDetectedMedicine?.id || `synth-${targetId}`,
+        rawText: matchedDetectedMedicine?.rawName || matchedOrderItem?.medicine?.genericName || matchedOrderItem?.medicine?.brandName || prescribedName,
+        normalizedName: matchedOrderItem?.medicine?.brandName || matchedDetectedMedicine?.matchedMedicineName || prescribedName,
+        matchedMedicineId: matchedOrderItem?.medicineId || matchedDetectedMedicine?.matchedMedicineId,
+        dosage: matchedOrderItem?.medicine?.strength || matchedDetectedMedicine?.dosage || dosage || 'As prescribed',
+        frequency: matchedDetectedMedicine?.frequency || frequency || null,
+        duration: matchedDetectedMedicine?.duration || duration || null,
+        extractedQuantity: matchedOrderItem?.quantity || matchedDetectedMedicine?.quantity || quantity || 1,
+        prescriptionId: id,
+        ocrRun: { prescriptionId: id }
+      };
+    }
+
     if (!item && !candidate) {
       return res.status(404).json({ success: false, error: 'Prescription item or candidate not found.' });
     }
@@ -4537,10 +4605,12 @@ async function pharmacistVerifyItem(req, res) {
     const finalInstructions = instructions !== undefined ? String(instructions).trim() : (item ? item.instructions : null);
     const now = new Date();
 
+    const isUuid = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
     const verifyWork = async (tx) => {
       const txItemDelegate = tx.prescriptionItem || (prisma && prisma.prescriptionItem);
       let updated = null;
-      const itemIdToUse = item ? item.id : (targetId && !targetId.startsWith('cand-') ? targetId : crypto.randomUUID());
+      const itemIdToUse = item ? item.id : (targetId && isUuid(targetId) && !targetId.startsWith('cand-') && !targetId.startsWith('order-') ? targetId : crypto.randomUUID());
       const updateData = {
         medicineId: medRecord.id,
         prescribedName: medRecord.brandName,
@@ -4575,10 +4645,11 @@ async function pharmacistVerifyItem(req, res) {
           updated = { ...item, ...updateData };
         }
       } else {
+        const isRealCandidate = candidate && candidate.ocrRunId && isUuid(candidate.id);
         const createData = {
           id: itemIdToUse,
           prescriptionId: id,
-          sourceCandidateId: targetId,
+          sourceCandidateId: isRealCandidate ? candidate.id : null,
           sourceType: 'OCR_DERIVED',
           ...updateData
         };
@@ -4626,19 +4697,27 @@ async function pharmacistVerifyItem(req, res) {
       // Sync linked OrderItems if an order was placed for this prescription
       const txOrderDelegate = tx.order || (prisma && prisma.order);
       const txOrderItemDelegate = tx.orderItem || (prisma && prisma.orderItem);
+      const targetOrderItemId = req.body?.orderItemId || (matchedOrderItem ? matchedOrderItem.id : (isUuid(targetId) ? targetId : null));
+
       if (txOrderItemDelegate && typeof txOrderItemDelegate.updateMany === 'function') {
         try {
+          const conditions = [
+            { prescriptionItemId: updated?.id || itemIdToUse },
+            { status: 'PENDING_SELECTION' },
+            { status: 'AWAITING_VERIFICATION' }
+          ];
+          if (targetOrderItemId) {
+            conditions.push({ id: targetOrderItemId });
+          }
+
           await txOrderItemDelegate.updateMany({
             where: {
               order: { prescriptionId: id },
-              OR: [
-                { prescriptionItemId: updated?.id || itemIdToUse },
-                { status: 'PENDING_SELECTION' },
-                { status: 'AWAITING_VERIFICATION' }
-              ]
+              OR: conditions
             },
             data: {
               medicineId: medRecord.id,
+              prescriptionItemId: updated?.id || itemIdToUse,
               status: 'PENDING',
               unfulfilledReason: null
             }
@@ -4655,7 +4734,8 @@ async function pharmacistVerifyItem(req, res) {
           for (const ord of linkedOrders) {
             if (ord.notes && (ord.notes.includes('PENDING_SELECTION') || ord.notes.includes('AWAITING_VERIFICATION'))) {
               const cleanedNotes = ord.notes
-                .replace(new RegExp(`\\[(?:PENDING_SELECTION|AWAITING_VERIFICATION):(?:${targetId}|${updated?.id}|${item?.id}|[^\\]]+)\\]`, 'g'), '')
+                .replace(/\[(?:PENDING_SELECTION|AWAITING_VERIFICATION):[^\]]+\]/g, '')
+                .replace(/\s+/g, ' ')
                 .trim();
               await txOrderDelegate.update({
                 where: { id: ord.id },
