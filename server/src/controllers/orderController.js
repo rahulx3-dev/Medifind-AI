@@ -1690,13 +1690,6 @@ async function verifyCollection(req, res) {
       });
     }
 
-    if (order.status !== 'READY_FOR_DISPATCH') {
-      return res.status(400).json({
-        success: false,
-        error: `Order must be in READY_FOR_DISPATCH status to verify assistant collection (current: ${order.status}).`
-      });
-    }
-
     const task = order.assistantTask;
     if (!task) {
       return res.status(400).json({ success: false, error: 'No delivery assistant task found for this order.' });
@@ -1704,6 +1697,23 @@ async function verifyCollection(req, res) {
 
     if (!task.assistantId) {
       return res.status(400).json({ success: false, error: 'No assistant is currently assigned to this task.' });
+    }
+
+    // Idempotent: If the order or task is already IN_TRANSIT with collectedAt recorded, return success immediately
+    if ((order.status === 'IN_TRANSIT' || task.status === 'IN_TRANSIT') && task.collectedAt) {
+      return res.json({
+        success: true,
+        message: 'Collection verified successfully! Order is now IN_TRANSIT.',
+        order,
+        task
+      });
+    }
+
+    if (order.status !== 'READY_FOR_DISPATCH' && order.status !== 'CONFIRMED') {
+      return res.status(400).json({
+        success: false,
+        error: `Order must be in READY_FOR_DISPATCH or CONFIRMED status to verify assistant collection (current: ${order.status}).`
+      });
     }
 
     const meta = parseVerificationMeta(task.serviceNote);
@@ -2035,7 +2045,13 @@ async function getOrders(req, res) {
         pharmacy: true,
         user: { select: { id: true, name: true, phone: true } },
         items: { include: { medicine: true, prescriptionItem: true } },
-        assistantTask: true,
+        assistantTask: {
+          include: {
+            assistant: {
+              select: { id: true, name: true, phone: true }
+            }
+          }
+        },
         // Phase 5.5: Safe payment status for list views
         payment: {
           select: {

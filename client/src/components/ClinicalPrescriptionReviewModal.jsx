@@ -240,6 +240,8 @@ export default function ClinicalPrescriptionReviewModal({
     const token = localStorage.getItem('medifind_token');
 
     const payload = {
+      orderId: order?.id,
+      orderItemId: item.orderItemId || item.id,
       medicineId: overrideData?.medicineId || item.medicineId || item.matchedMedicineId,
       prescribedName: overrideData?.prescribedName || item.prescribedName || item.matchedMedicineName || item.rawName,
       dosage: overrideData?.dosage !== undefined ? overrideData.dosage : (item.dosage || ''),
@@ -247,6 +249,7 @@ export default function ClinicalPrescriptionReviewModal({
       duration: overrideData?.duration || item.duration || '',
       quantity: Number(overrideData?.quantity || item.quantity || 1),
       instructions: overrideData?.instructions || item.instructions || '',
+      brandSubstitutionAuthorized: true,
       clinicalNotes: overrideData?.clinicalNotes || 'Verified by attending pharmacist against physical prescription slip.'
     };
 
@@ -259,18 +262,18 @@ export default function ClinicalPrescriptionReviewModal({
         },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({ success: res.ok, error: res.statusText }));
+      if (data && data.success) {
         setSuccessMsg(`✓ Item "${payload.prescribedName}" clinically verified.`);
         setEditingItemId(null);
         await fetchPrescriptionDetails();
         if (handleVerifiedCallback) handleVerifiedCallback();
         broadcastUpdate('PRESCRIPTION_VERIFIED', { prescriptionId: rxId, orderId: order?.id });
       } else {
-        setError(data.error || 'Failed to verify prescription item.');
+        setError(data?.error || `Failed to verify prescription item (Status ${res.status}).`);
       }
     } catch (err) {
-      setError('Network error verifying prescription item.');
+      setError(err?.message || 'Network error verifying prescription item.');
     } finally {
       setIsActionSubmitting(false);
     }
@@ -886,7 +889,8 @@ export default function ClinicalPrescriptionReviewModal({
                     const cleanPrescribed = String(it.prescribedName || rawOcrText).toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
                     const cleanSelectedBrand = String(it.medicine?.brandName || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
                     const isGenericProduct = Boolean(it.medicine?.isGenericProduct || it.medicine?.isGeneric);
-                    const hasBrandDiscrepancy = Boolean(cleanPrescribed && cleanSelectedBrand && !isGenericProduct && !cleanPrescribed.includes(cleanSelectedBrand) && !cleanSelectedBrand.includes(cleanPrescribed));
+                    // Do not show redundant brand discrepancy alert if the user explicitly requested pharmacist brand selection
+                    const hasBrandDiscrepancy = Boolean(cleanPrescribed && cleanSelectedBrand && !isGenericProduct && !cleanPrescribed.includes(cleanSelectedBrand) && !cleanSelectedBrand.includes(cleanPrescribed) && !isPendingBrand);
 
                     return (
                       <div

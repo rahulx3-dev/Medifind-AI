@@ -1,5 +1,5 @@
 const prisma = require('../prisma');
-const { parseVerificationMeta } = require('../utils/fulfillmentVerification');
+const { parseVerificationMeta, serializeVerificationMeta, generateSeparateDeliveryCodes } = require('../utils/fulfillmentVerification');
 
 // Canonical 8 non-clinical assistant service types
 const VALID_ASSISTANT_SERVICE_TYPES = [
@@ -872,6 +872,32 @@ async function getMyTasks(req, res) {
       },
       orderBy: { updatedAt: 'desc' }
     });
+
+    // Auto-repair/ensure collection code exists for delivery tasks in ACCEPTED or COLLECTING state
+    for (const t of tasks) {
+      const isDeliveryType = t.serviceType === 'MEDICINE_DELIVERY' || t.order?.fulfillmentType === 'ASSISTANT_DELIVERY';
+      if (isDeliveryType && (t.status === 'ACCEPTED' || t.status === 'COLLECTING')) {
+        const meta = parseVerificationMeta(t.serviceNote);
+        if (!meta || !meta.collectionCode) {
+          try {
+            const codes = generateSeparateDeliveryCodes();
+            const updatedMetaNote = serializeVerificationMeta(t.serviceNote, {
+              collectionCode: codes.collectionCode,
+              generatedAt: new Date().toISOString()
+            });
+            await prisma.assistantTask.update({
+              where: { id: t.id },
+              data: {
+                serviceNote: updatedMetaNote,
+                handoverPin: t.handoverPin || codes.deliveryOtp
+              }
+            });
+            t.serviceNote = updatedMetaNote;
+            t.handoverPin = t.handoverPin || codes.deliveryOtp;
+          } catch (_) {}
+        }
+      }
+    }
 
     // Strip handoverPin from all task responses — PIN is verified at handover, not returned in lists
     // Authorized: assigned assistant receives destination address details to fulfill service

@@ -731,6 +731,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   // Assistant Collection Code Verification Terminal
   const [collectionModalOrder, setCollectionModalOrder] = useState(null);
   const [collectionCodeDigits, setCollectionCodeDigits] = useState(['', '', '', '']);
+  const [collectionModalError, setCollectionModalError] = useState('');
   const [verifyingCollection, setVerifyingCollection] = useState(false);
   const [verifyingPin, setVerifyingPin] = useState(false);
 
@@ -891,6 +892,13 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
           }
           return o;
         }));
+      } else if ((event?.type === 'ORDER_STATUS_UPDATED' || event?.type === 'ORDER_COMPLETED' || event?.type === 'ASSISTANT_TASK_UPDATED') && event?.payload?.orderId) {
+        const { orderId, newStatus } = event.payload;
+        if (newStatus) {
+          setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+          setCollectionModalOrder(curr => (curr && curr.id === orderId && newStatus === 'IN_TRANSIT' ? null : curr));
+        }
+        fetchPharmacyAndOrders(true);
       }
     });
     return () => unsubscribe();
@@ -1396,11 +1404,13 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   const handleVerifyCollection = async (orderId, explicitCode = null) => {
     const code = explicitCode || collectionCodeDigits.join('');
     if (!code || code.trim().length < 4) {
+      setCollectionModalError('Please enter the 4-digit Collection Code presented by the delivery assistant.');
       showToast('Please enter the 4-digit Collection Code presented by the delivery assistant', 'warning');
       return;
     }
     const token = localStorage.getItem('medifind_token');
     setVerifyingCollection(true);
+    setCollectionModalError('');
     try {
       const res = await fetch(`/api/orders/${orderId}/verify-collection`, {
         method: 'POST',
@@ -1413,15 +1423,43 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
       const data = await res.json();
       if (data.success) {
         showToast('Collection verified! Package handed over to delivery assistant for transit.', 'success');
+        const targetOrder = collectionModalOrder || orders.find(o => o.id === orderId);
         setCollectionModalOrder(null);
         setCollectionCodeDigits(['', '', '', '']);
+        setCollectionModalError('');
+
+        // Provide unmistakable visual confirmation of physical handover
+        const assistant = targetOrder?.assistantTasks?.[0]?.assistant || targetOrder?.assistantTask?.assistant || data.task?.assistant;
+        setActionFeedbackModal({
+          type: 'COLLECTION_VERIFIED',
+          title: 'Collection Code Verified — Custody Transferred!',
+          badgeText: 'Dispatched to Assistant',
+          badgeBg: '#b0ecdd',
+          badgeColor: '#032f28',
+          icon: 'local_shipping',
+          orderId,
+          patientName: targetOrder?.user?.name || 'Verified Patient',
+          patientPhone: targetOrder?.user?.phone,
+          message: `Delivery assistant ${assistant?.name ? assistant.name : 'assigned to this task'} authenticated collection code (${code}). Medication package custody has been transferred and order is now In Transit.`,
+          workflowStage: 'Package Dispatched • In Transit',
+          nextSteps: [
+            'Medication package custody handover is logged in dispensary audit ledger.',
+            'Patient has been sent their 4-digit Delivery OTP for doorstep authentication.',
+            'Real-time transit tracking and cold-chain assurance are active.'
+          ],
+          items: targetOrder?.items || [],
+          totalAmount: targetOrder?.totalAmount || 0
+        });
+
         fetchPharmacyAndOrders(true);
         broadcastUpdate('ORDER_STATUS_UPDATED', { orderId, newStatus: 'IN_TRANSIT' });
       } else {
+        setCollectionModalError(data.error || 'Invalid collection code. Please verify code with the delivery assistant.');
         showToast(data.error || 'Invalid collection code.', 'error');
       }
     } catch (err) {
       console.error('Error verifying collection:', err);
+      setCollectionModalError('Error connecting to dispensary server. Please try again.');
       showToast('Error verifying collection code.', 'error');
     } finally {
       setVerifyingCollection(false);
@@ -1503,8 +1541,9 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   // Metrics
   const pendingCount = orders.filter(o => o.status === 'PENDING').length;
   const confirmedCount = orders.filter(o => o.status === 'CONFIRMED').length;
-  const readyCount = orders.filter(o => o.status === 'READY_FOR_PICKUP').length;
-  const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
+  const readyCount = orders.filter(o => o.status === 'READY_FOR_PICKUP' || o.status === 'READY_FOR_DISPATCH').length;
+  const inTransitCount = orders.filter(o => o.status === 'IN_TRANSIT').length;
+  const completedCount = orders.filter(o => o.status === 'COMPLETED' || o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter(o => o.status === 'CANCELLED').length;
   const rejectedCount = orders.filter(o => o.status === 'REJECTED').length;
   const lowStockCount = inventory.filter(i => (i.stock || 0) <= 5).length;
@@ -1512,7 +1551,13 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
 
   // Filtered orders
   const filteredOrders = orders.filter(o => {
-    if (orderFilterTab !== 'ALL' && o.status !== orderFilterTab) return false;
+    if (orderFilterTab === 'READY_FOR_PICKUP') {
+      if (o.status !== 'READY_FOR_PICKUP' && o.status !== 'READY_FOR_DISPATCH') return false;
+    } else if (orderFilterTab === 'COMPLETED') {
+      if (o.status !== 'COMPLETED' && o.status !== 'DELIVERED') return false;
+    } else if (orderFilterTab !== 'ALL' && o.status !== orderFilterTab) {
+      return false;
+    }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const matchesRef = (o.id || '').toLowerCase().includes(q);
@@ -1792,7 +1837,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
             position: 'fixed',
             top: '5.5rem',
             right: '1.5rem',
-            zIndex: 9999,
+            zIndex: 100001,
             background: feedback.type === 'error' ? '#ffdad6' : feedback.type === 'warning' ? '#ffdad4' : '#e0f2eb',
             color: feedback.type === 'error' ? '#ba1a1a' : feedback.type === 'warning' ? '#5a0100' : '#032f28',
             border: `1px solid ${feedback.type === 'error' ? '#ba1a1a' : '#2e685d'}`,
@@ -1988,7 +2033,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
           position: 'fixed',
           top: '5.5rem',
           right: '1.5rem',
-          zIndex: 9999,
+          zIndex: 100001,
           background: feedback.type === 'error' ? '#ffdad6' : feedback.type === 'warning' ? '#ffdad4' : '#e0f2eb',
           color: feedback.type === 'error' ? '#ba1a1a' : feedback.type === 'warning' ? '#5a0100' : '#032f28',
           border: `1px solid ${feedback.type === 'error' ? '#ba1a1a' : '#2e685d'}`,
@@ -2376,7 +2421,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                   { id: 'ALL', label: 'All', count: orders.length },
                   { id: 'PENDING', label: 'Pending', count: pendingCount },
                   { id: 'CONFIRMED', label: 'Confirmed', count: confirmedCount },
-                  { id: 'READY_FOR_PICKUP', label: 'Ready for Pickup', count: readyCount },
+                  { id: 'READY_FOR_PICKUP', label: 'Ready for Pickup / Dispatch', count: readyCount },
+                  { id: 'IN_TRANSIT', label: 'In Transit', count: inTransitCount },
                   { id: 'COMPLETED', label: 'Completed', count: completedCount },
                   { id: 'CANCELLED', label: 'Cancelled', count: cancelledCount },
                   { id: 'REJECTED', label: 'Rejected', count: rejectedCount }
@@ -3130,6 +3176,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                               onClick={() => {
                                 setCollectionModalOrder(order);
                                 setCollectionCodeDigits(['', '', '', '']);
+                                setCollectionModalError('');
                               }}
                             >
                               Verify Assistant Collection Code
@@ -4270,7 +4317,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                 return (
                   <div style={{ background: '#f5faf8', border: '1px solid #e0f2eb', borderRadius: 14, padding: '0.75rem 1rem', marginBottom: '1.25rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#b0ecdd', color: '#032f28', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 20 }}>person</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 20 }}>sports_motorsports</span>
                     </div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#032f28' }}>{assistant.name || 'Delivery Assistant'}</div>
@@ -4281,6 +4328,27 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
               }
               return null;
             })()}
+
+            {/* In-Modal Error Alert */}
+            {collectionModalError && (
+              <div style={{
+                background: '#fee2e2',
+                border: '1px solid #ef4444',
+                color: '#991b1b',
+                borderRadius: 14,
+                padding: '0.65rem 1rem',
+                fontSize: 12,
+                fontWeight: 700,
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                textAlign: 'left'
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#dc2626' }}>error</span>
+                <span>{collectionModalError}</span>
+              </div>
+            )}
 
             {/* 4 Digit Code Inputs */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
@@ -4296,6 +4364,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                     const newDigits = [...collectionCodeDigits];
                     newDigits[idx] = val;
                     setCollectionCodeDigits(newDigits);
+                    setCollectionModalError('');
                     if (val && idx < 3) {
                       document.getElementById(`collection-digit-${idx + 1}`)?.focus();
                     }
@@ -4309,8 +4378,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                     width: 54,
                     height: 64,
                     borderRadius: 14,
-                    border: '2px solid #2e685d',
-                    background: '#e6f8f1',
+                    border: collectionModalError ? '2px solid #ef4444' : '2px solid #2e685d',
+                    background: collectionModalError ? '#fef2f2' : '#e6f8f1',
                     fontSize: 28,
                     fontWeight: 800,
                     textAlign: 'center',
@@ -4327,6 +4396,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
                 onClick={() => {
                   setCollectionModalOrder(null);
                   setCollectionCodeDigits(['', '', '', '']);
+                  setCollectionModalError('');
                 }}
                 style={{ background: '#e0f2eb', color: '#414846', border: 'none', borderRadius: 99, padding: '0.65rem 1.5rem', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
               >
