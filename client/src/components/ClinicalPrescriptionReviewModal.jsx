@@ -144,7 +144,6 @@ export default function ClinicalPrescriptionReviewModal({
           (order.notes && order.notes.includes('PENDING_SELECTION') && (oi.medicine?.genericName?.toLowerCase() === 'cefixime' || oi.medicine?.brandName?.toLowerCase() === 'cefixime'));
         return {
           id: oi.prescriptionItemId || oi.id || `order-item-${idx}`,
-          orderItemId: oi.id,
           prescriptionId: rxId,
           prescribedName: oi.prescribedName || oi.medicine?.genericName || oi.medicine?.brandName || 'Prescribed Medicine',
           medicineId: oi.medicineId,
@@ -248,10 +247,7 @@ export default function ClinicalPrescriptionReviewModal({
       duration: overrideData?.duration || item.duration || '',
       quantity: Number(overrideData?.quantity || item.quantity || 1),
       instructions: overrideData?.instructions || item.instructions || '',
-      clinicalNotes: overrideData?.clinicalNotes || 'Verified by attending pharmacist against physical prescription slip.',
-      brandSubstitutionAuthorized: true,
-      orderId: order?.id,
-      orderItemId: item.orderItemId || item.id
+      clinicalNotes: overrideData?.clinicalNotes || 'Verified by attending pharmacist against physical prescription slip.'
     };
 
     try {
@@ -263,18 +259,18 @@ export default function ClinicalPrescriptionReviewModal({
         },
         body: JSON.stringify(payload)
       });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.success) {
+      const data = await res.json();
+      if (data.success) {
         setSuccessMsg(`✓ Item "${payload.prescribedName}" clinically verified.`);
         setEditingItemId(null);
         await fetchPrescriptionDetails();
         if (handleVerifiedCallback) handleVerifiedCallback();
         broadcastUpdate('PRESCRIPTION_VERIFIED', { prescriptionId: rxId, orderId: order?.id });
       } else {
-        setError(data?.error || `Failed to verify prescription item (Status ${res.status}).`);
+        setError(data.error || 'Failed to verify prescription item.');
       }
     } catch (err) {
-      setError(err?.message || 'Network error verifying prescription item.');
+      setError('Network error verifying prescription item.');
     } finally {
       setIsActionSubmitting(false);
     }
