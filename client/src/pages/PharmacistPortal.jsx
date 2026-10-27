@@ -19,6 +19,7 @@ function CounterPinVerificationView({
   pharmacy,
   counterPinDigits,
   setCounterPinDigits,
+  verifyingPin = false,
   onBack,
   onVerifyPin,
   onOpenDocModal,
@@ -635,32 +636,34 @@ function CounterPinVerificationView({
               </button>
             </div>
 
-            {/* Dispensary Main Action Button with Tactile Feedback */}
+            {/* Dispensary Main Action Button with Tactile Feedback & Sync Pulse Animation */}
             <button
               onClick={() => {
+                if (verifyingPin) return;
                 playKeypadClickSound('press');
                 onVerifyPin(order.id, combinedPin);
               }}
-              disabled={combinedPin.length < 4}
+              disabled={combinedPin.length < 4 || verifyingPin}
               style={{
                 width: '100%',
                 padding: '0.85rem 1.5rem',
                 borderRadius: 99,
-                background: combinedPin.length >= 4 ? '#032f28' : '#c0c8c5',
+                background: combinedPin.length >= 4 && !verifyingPin ? '#032f28' : '#c0c8c5',
                 color: '#ffffff',
                 border: 'none',
                 fontSize: 13,
                 fontWeight: 700,
-                cursor: combinedPin.length >= 4 ? 'pointer' : 'not-allowed',
+                cursor: combinedPin.length >= 4 && !verifyingPin ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
-                boxShadow: combinedPin.length >= 4 ? '0 4px 14px rgba(3,47,40,0.2)' : 'none',
-                transition: 'all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                boxShadow: combinedPin.length >= 4 && !verifyingPin ? '0 4px 14px rgba(3,47,40,0.2)' : 'none',
+                transition: 'all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                opacity: verifyingPin ? 0.85 : 1
               }}
               onMouseDown={e => {
-                if (combinedPin.length >= 4) e.currentTarget.style.transform = 'scale(0.97)';
+                if (combinedPin.length >= 4 && !verifyingPin) e.currentTarget.style.transform = 'scale(0.97)';
               }}
               onMouseUp={e => {
                 e.currentTarget.style.transform = 'scale(1)';
@@ -669,9 +672,18 @@ function CounterPinVerificationView({
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>inventory_2</span>
-              <span>Verify PIN &amp; Complete Dispensation</span>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+              {verifyingPin ? (
+                <>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, animation: 'spin 1s linear infinite' }}>sync</span>
+                  <span>Verifying PIN &amp; Synchronizing Catalog...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>inventory_2</span>
+                  <span>Verify PIN &amp; Complete Dispensation</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+                </>
+              )}
             </button>
 
             {/* Attestation Microcopy */}
@@ -720,6 +732,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
   const [collectionModalOrder, setCollectionModalOrder] = useState(null);
   const [collectionCodeDigits, setCollectionCodeDigits] = useState(['', '', '', '']);
   const [verifyingCollection, setVerifyingCollection] = useState(false);
+  const [verifyingPin, setVerifyingPin] = useState(false);
 
   // Gate 8: Clinical Assistance Requests Assigned to this Pharmacy
   const [clinicalQueue, setClinicalQueue] = useState([]);
@@ -1321,6 +1334,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
     }
     const token = localStorage.getItem('medifind_token');
     const targetOrder = orders.find(o => o.id === orderId) || counterPinOrder;
+    setVerifyingPin(true);
 
     try {
       const res = await fetch(`/api/orders/${orderId}/verify-pin`, {
@@ -1374,6 +1388,8 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
     } catch (err) {
       console.error('Error verifying PIN:', err);
       showToast('Error validating PIN.', 'error');
+    } finally {
+      setVerifyingPin(false);
     }
   };
 
@@ -1801,6 +1817,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
           pharmacy={pharmacy}
           counterPinDigits={counterPinDigits}
           setCounterPinDigits={setCounterPinDigits}
+          verifyingPin={verifyingPin}
           onBack={() => {
             setCounterPinOrder(null);
             setCounterPinDigits(['', '', '', '']);

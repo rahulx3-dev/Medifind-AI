@@ -2368,9 +2368,32 @@ async function getPrescriptionById(req, res) {
       isAuthorized = true;
     } else if (req.user.role === 'PHARMACIST') {
       // A pharmacist can only view a prescription if an order at their pharmacy references it
-      const managedPharmacy = await prisma.pharmacy.findUnique({
-        where: { managerId: req.user.id }
-      });
+      let managedPharmacy = null;
+      if (prisma.pharmacy && typeof prisma.pharmacy.findUnique === 'function') {
+        try {
+          managedPharmacy = await prisma.pharmacy.findUnique({
+            where: { managerId: req.user.id }
+          });
+        } catch (_) {}
+      }
+      if (!managedPharmacy && prisma.pharmacy && typeof prisma.pharmacy.findFirst === 'function') {
+        try {
+          managedPharmacy = await prisma.pharmacy.findFirst({
+            where: {
+              OR: [
+                { managerId: req.user.id },
+                { pharmacistId: req.user.id }
+              ]
+            }
+          });
+        } catch (_) {}
+      } else if (!managedPharmacy && typeof prisma.$queryRawUnsafe === 'function') {
+        try {
+          const rows = await prisma.$queryRawUnsafe(`SELECT * FROM "Pharmacy" WHERE "managerId" = $1 OR "pharmacistId" = $1 LIMIT 1`, req.user.id);
+          if (rows && rows.length > 0) managedPharmacy = rows[0];
+        } catch (_) {}
+      }
+
       if (managedPharmacy) {
         const orderWithRx = await prisma.order.findFirst({
           where: { prescriptionId: id, pharmacyId: managedPharmacy.id }
