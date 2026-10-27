@@ -1140,11 +1140,17 @@ async function _runTesseractLegacy(imagePath) {
     tmpPath = prep.tmpPath;
     usedPreprocessed = prep.usedPreprocessed;
 
-    worker = await createWorker('eng', 1, {
-      langPath: LANG_PATH,
+    const hasLocalTrainedData = fs.existsSync(path.join(LANG_PATH, 'eng.traineddata'));
+    const workerOptions = {
       logger: () => {},
       errorHandler: () => {}
-    });
+    };
+    if (hasLocalTrainedData) {
+      workerOptions.langPath = LANG_PATH;
+      workerOptions.gzip = false;
+    }
+
+    worker = await createWorker('eng', 1, workerOptions);
 
     // Pass 1: PSM 6 (Uniform block of text / lines)
     await worker.setParameters({ tessedit_pageseg_mode: '6' });

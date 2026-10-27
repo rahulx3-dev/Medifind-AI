@@ -11,7 +11,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 // Default configurations
-const DEFAULT_TIMEOUT_MS = 25000; // 25s ceiling to prevent proxy 502 Bad Gateway timeouts
+const DEFAULT_TIMEOUT_MS = process.env.RENDER === 'true' ? 12000 : 25000; // 12s on Render to fail fast and fallback safely before proxy gateway timeout
 const MAX_STDOUT_BYTES = 5 * 1024 * 1024; // 5 MB ceiling
 const WORKER_SCRIPT_PATH = path.join(__dirname, '../../ocr/ocr_worker.py');
 const CATALOG_PATH = path.join(__dirname, '../../ocr/catalog_50.json');
