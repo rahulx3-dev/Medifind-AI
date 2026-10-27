@@ -1084,17 +1084,31 @@ async function runOCR(imagePath) {
       }
     }
 
-    // PaddleOCR ran but returned zero readable text blocks (safe UNREADABLE state)
-    console.warn('[OCR] PaddleOCR produced no readable text blocks from image.');
+    // PaddleOCR ran but returned zero readable text blocks on this image
+    console.warn('[OCR] PaddleOCR produced no readable text blocks from image. Attempting resilient fallback pass...');
+    try {
+      const fallbackResult = await _runTesseractLegacy(imagePath);
+      if (fallbackResult && fallbackResult.success && fallbackResult.rawText && fallbackResult.rawText.trim().length > 0) {
+        return fallbackResult;
+      }
+    } catch (_) {}
+
     return {
       success: false,
       rawText: '',
       confidence: 0,
       engine: pyResult?.engine?.primary || 'PaddleOCR / PP-OCRv5',
-      error: pyResult?.error || 'PaddleOCR processed the image but could not extract readable text. Please upload a clearer image.'
+      error: pyResult?.error || 'OCR processed the image but could not extract readable text. Please upload a clearer image.'
     };
   } catch (pyErr) {
-    console.error(`[OCR-Bridge] Python OCR worker error: ${pyErr.message}`);
+    console.error(`[OCR-Bridge] Python OCR worker error: ${pyErr.message}. Attempting resilient fallback pass...`);
+    try {
+      const fallbackResult = await _runTesseractLegacy(imagePath);
+      if (fallbackResult && fallbackResult.success && fallbackResult.rawText && fallbackResult.rawText.trim().length > 0) {
+        return fallbackResult;
+      }
+    } catch (_) {}
+
     return {
       success: false,
       rawText: '',
