@@ -41,18 +41,31 @@ function getPythonExecutable() {
  * Returns false on cloud hosting (Render, etc.) where .venv is not deployed to prevent 502/OOM errors.
  */
 function isPaddleAvailable() {
-  if (process.env.RENDER === 'true') {
-    return false;
-  }
   if (process.env.PYTHON_EXECUTABLE) {
     return fs.existsSync(process.env.PYTHON_EXECUTABLE);
   }
   const venvPythonWin = path.join(__dirname, '../../ocr/.venv/Scripts/python.exe');
   const venvPythonPosix = path.join(__dirname, '../../ocr/.venv/bin/python');
-  if (process.platform === 'win32') {
-    return fs.existsSync(venvPythonWin);
+
+  // If a dedicated virtual environment exists on the filesystem, use it
+  if (process.platform === 'win32' && fs.existsSync(venvPythonWin)) {
+    return true;
   }
-  return fs.existsSync(venvPythonPosix);
+  if (process.platform !== 'win32' && fs.existsSync(venvPythonPosix)) {
+    return true;
+  }
+
+  // If explicitly enabled via cloud environment variable
+  if (process.env.ENABLE_CLOUD_PADDLE === 'true') {
+    return true;
+  }
+
+  // Default fallback: disable on Render free tier if no venv was built
+  if (process.env.RENDER === 'true') {
+    return false;
+  }
+
+  return false;
 }
 
 /**
