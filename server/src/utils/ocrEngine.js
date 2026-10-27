@@ -306,6 +306,10 @@ function normalizeHandwrittenTokens(text) {
   // Slashes or backslashes within drug name tokens (e.g. "Ce\ixime" -> "Cefixime", "Por \oprazele" -> "Por oprazele")
   s = s.replace(/([A-Za-z])[\/\\]([A-Za-z])/g, '$1$2');
 
+  // Common optical character confusion on Indian health centre slips where "Domperidone"
+  // or "Dmp 10" with tight cursive is misread by Tesseract as "Silty", "Skit", "Slity", or "Silt"
+  s = s.replace(/\b(?:Silty|Skit|Slity|Silt|Sily|Siti)\b(?=\s*(?:Tab|Cap|Ip|\/|\d|Nos))/gi, 'Domperidone');
+
   // Strip trailing noise punctuation
   s = s.replace(/[\s,;.~_=\-:|\\/]+$/, '').trim();
 

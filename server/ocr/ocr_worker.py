@@ -901,6 +901,9 @@ COMMON_PHARMA_CORRECTIONS = {
     'poroprazele': 'pantoprazole',
     'pantoprazol': 'pantoprazole',
     'domperidon': 'domperidone',
+    'silty': 'domperidone',
+    'skit': 'domperidone',
+    'slity': 'domperidone',
 }
 PHARMACOPOEIA_TOKENS = {'ip', 'lp', '1p', 'bp', 'usp', 'nf', 'nos', 'packet', 'packets', 'sachet', 'sachets', 'powder', 'mg', 'mcg', 'gm', 'ml', 'g'}
 
