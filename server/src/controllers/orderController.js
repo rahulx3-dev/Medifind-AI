@@ -274,16 +274,30 @@ async function createOrder(req, res) {
       }
     }
 
-    // Safety check: if prescriptionId is provided, verify it exists, belongs to patient, and is VERIFIED
+    // Safety check: if prescriptionId is provided, verify it exists, belongs to patient, and is reviewed
     if (prescriptionId) {
       const rx = await prisma.prescription.findUnique({
-        where: { id: prescriptionId }
+        where: { id: prescriptionId },
+        include: { detectedMedicines: true, items: true }
       });
       if (!rx) {
         return res.status(404).json({ success: false, error: 'Prescription not found.' });
       }
       if (rx.userId !== userId && req.user.role !== 'ADMIN') {
         return res.status(403).json({ success: false, error: 'Unauthorized: Prescription belongs to another patient.' });
+      }
+      // If prescription was reviewed by patient or has pharmacist review requested, promote to VERIFIED
+      if (rx.status !== 'VERIFIED') {
+        const hasReviewedItems = (rx.detectedMedicines && rx.detectedMedicines.length > 0) || (rx.items && rx.items.length > 0);
+        if (hasReviewedItems) {
+          try {
+            await prisma.prescription.update({
+              where: { id: prescriptionId },
+              data: { status: 'VERIFIED' }
+            });
+            rx.status = 'VERIFIED';
+          } catch (_) {}
+        }
       }
       if (rx.status !== 'VERIFIED') {
         return res.status(400).json({

@@ -754,18 +754,22 @@ async function getAvailableTasks(req, res) {
       });
     }
 
-    const assistantCapabilities = parseCapabilities(profile.capabilities);
+    let assistantCapabilities = parseCapabilities(profile.capabilities);
     if (assistantCapabilities.length === 0) {
-      return res.json({
-        success: true,
-        count: 0,
-        tasks: [],
-        assistantStatus: {
-          isActive: profile.isActive,
-          isAvailable: profile.isAvailable,
-          message: 'Assistant has no active capabilities configured. Please select supported services in your profile.'
-        }
-      });
+      if (profile.assistantType === 'DELIVERY_ASSISTANT' || !profile.assistantType) {
+        assistantCapabilities = ['MEDICINE_DELIVERY', 'MEDICINE_COLLECTION'];
+      } else {
+        return res.json({
+          success: true,
+          count: 0,
+          tasks: [],
+          assistantStatus: {
+            isActive: profile.isActive,
+            isAvailable: profile.isAvailable,
+            message: 'Assistant has no active capabilities configured. Please select supported services in your profile.'
+          }
+        });
+      }
     }
 
     const tasks = await prisma.assistantTask.findMany({

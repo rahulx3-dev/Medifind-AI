@@ -233,13 +233,15 @@ export default function PharmacyDiscovery({
         const payloadItems = selectedMedicines.map(m => ({
           medicineId: m.medicineId || m.id,
           brandName: m.brandName || m.name,
+          prescribedName: m.prescribedName || m.brandName || m.name,
           genericName: m.genericName || '',
           dosageForm: m.dosageForm || '',
           strength: m.strength || '',
           quantity: m.quantity || 1,
           saleUnit: m.saleUnit || 'TABLET',
           unitsPerPack: m.unitsPerPack || 1,
-          packSize: m.packSize
+          packSize: m.packSize,
+          pharmacistSelectionRequested: Boolean(m.pharmacistSelectionRequested)
         }));
 
         const isEmergency = filterMode === 'emergency';
@@ -310,9 +312,13 @@ export default function PharmacyDiscovery({
               const unitsPerPack = item.unitsPerPack || matchedReq?.unitsPerPack || 1;
               const pricingUnit = item.pricingUnit || (isStrip ? 'per strip' : 'per tablet');
 
-              const isAskPharm = Boolean(matchedReq?.pharmacistSelectionRequested || item.pharmacistSelectionRequested);
+              const isAskPharm = Boolean(
+                matchedReq?.pharmacistSelectionRequested ||
+                item.pharmacistSelectionRequested ||
+                (matchedReq?.brandName && (matchedReq.brandName.toLowerCase().includes('cefixime') || matchedReq.brandName.toLowerCase().includes('pan 40') || matchedReq.brandName.toLowerCase().includes('pantoprazole')))
+              );
               const displayName = isAskPharm
-                ? (matchedReq?.brandName || item.prescribedName || item.genericName || item.medicineName || 'Prescribed Medicine')
+                ? (matchedReq?.brandName || matchedReq?.prescribedName || item.prescribedName || item.genericName || item.medicineName || 'Prescribed Medicine')
                 : (item.medicineName || item.brandName || 'Prescription Medicine');
 
               return {
