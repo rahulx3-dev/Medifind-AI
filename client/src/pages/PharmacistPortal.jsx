@@ -1249,7 +1249,7 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
     }
   };
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
+  const handleUpdateStatus = async (orderId, newStatus, options = {}) => {
     if (updatingStatusId === orderId) return;
     const token = localStorage.getItem('medifind_token');
     const targetOrder = orders.find(o => o.id === orderId);
@@ -1265,7 +1265,11 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({
+          status: newStatus,
+          autoVerify: newStatus === 'CONFIRMED' || Boolean(options.autoVerify),
+          ...options
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -1317,7 +1321,12 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
         if (previousStatus) {
           setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: previousStatus } : o));
         }
-        showToast(data.error || 'Failed to update order status.', 'error');
+        if (data.code === 'ITEM_VERIFICATION_REQUIRED' && targetOrder) {
+          showToast('Clinical item verification required before staging. Opening review modal...', 'warning');
+          setClinicalReviewOrder(targetOrder);
+        } else {
+          showToast(data.error || 'Failed to update order status.', 'error');
+        }
         // Re-sync orders with server so UI does not remain desynchronized
         fetchPharmacyAndOrders(true);
       }
@@ -4109,9 +4118,14 @@ export default function PharmacistPortal({ currentTab, onTabChange }) {
         variant={confirmDialog.variant}
         loading={updatingStatusId !== null}
         disabled={updatingStatusId !== null}
-        onConfirm={() => {
-          confirmDialog.onConfirm();
-          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        onConfirm={async () => {
+          try {
+            if (typeof confirmDialog.onConfirm === 'function') {
+              await confirmDialog.onConfirm();
+            }
+          } finally {
+            setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+          }
         }}
         onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
       />

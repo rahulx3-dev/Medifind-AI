@@ -837,7 +837,7 @@ async function createOrder(req, res) {
 async function updateOrderStatus(req, res) {
   try {
     const { id } = req.params;
-    const { status, comment } = req.body;
+    const { status, comment, autoVerify } = req.body;
 
     const validStatuses = ['PENDING', 'CONFIRMED', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'REJECTED'];
     if (!validStatuses.includes(status)) {
@@ -998,8 +998,31 @@ async function updateOrderStatus(req, res) {
     // ─────────────────────────────────────────────────────────────────────────
     // CLINICAL VERIFICATION GUARDS (Phase 6.1E.2 / Doctor Approval & Pharmacy Review)
     // ─────────────────────────────────────────────────────────────────────────
+    // If pharmacist or admin is accepting/staging the order with autoVerify, mark items verified
+    const shouldAutoVerify = Boolean(autoVerify || req.body?.verifyPrescriptionItems) && ['CONFIRMED', 'READY_FOR_PICKUP'].includes(status) && (req.user.role === 'PHARMACIST' || req.user.role === 'ADMIN');
+    if (shouldAutoVerify) {
+      if (order.prescriptionId) {
+        await prisma.prescriptionItem.updateMany({
+          where: { prescriptionId: order.prescriptionId, isVerified: false },
+          data: {
+            isVerified: true,
+            clinicalNotes: 'Clinically verified and accepted by dispensary pharmacist upon staging.'
+          }
+        });
+      }
+      await prisma.orderItem.updateMany({
+        where: {
+          orderId: order.id,
+          status: { in: ['AWAITING_VERIFICATION', 'PENDING_SELECTION'] }
+        },
+        data: {
+          status: 'VERIFIED'
+        }
+      });
+    }
+
     // Items requiring pharmacy review or doctor approval verification cannot proceed to fulfillment!
-    if (['CONFIRMED', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'COMPLETED'].includes(status)) {
+    if (['CONFIRMED', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH', 'COMPLETED'].includes(status) && !shouldAutoVerify) {
       const unverifiedItem = (order.items || []).find(it => {
         if (it.status === 'PENDING_SELECTION' || it.status === 'AWAITING_VERIFICATION') return true;
         if (it.unfulfilledReason && (

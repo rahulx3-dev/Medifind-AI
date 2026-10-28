@@ -23,13 +23,14 @@ export default function ConfirmationDialog({
   cancelLabel,
   isDestructive,
   variant,
+  loading: propLoading = false,
   isLoading = false,
   isProcessing = false,
   disabled = false,
   onConfirm,
   onCancel
 }) {
-  const loading = isLoading || isProcessing;
+  const loading = propLoading || isLoading || isProcessing;
   const isDisabled = disabled || loading;
   const finalConfirmText = confirmText || confirmLabel || 'Yes, Confirm';
   const finalCancelText = cancelText || cancelLabel || 'Cancel';
@@ -51,11 +52,34 @@ export default function ConfirmationDialog({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-on-surface/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(3, 47, 40, 0.65)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem'
+      }}
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-[0_20px_40px_-8px_rgba(22,54,48,0.22)] border border-outline-variant/40 flex flex-col gap-4 sm:gap-5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        className="relative w-full max-w-lg rounded-2xl sm:rounded-3xl p-4 sm:p-8 flex flex-col gap-4 sm:gap-5 overflow-hidden"
+        style={{
+          background: '#ffffff',
+          borderRadius: 24,
+          boxShadow: '0 24px 64px rgba(3, 47, 40, 0.28)',
+          border: '1px solid #c0c8c5',
+          width: '100%',
+          maxWidth: 520,
+          position: 'relative'
+        }}
+      >
         {/* Subtle ambient wash */}
         <div
           className={`absolute -top-12 -right-12 w-44 h-44 rounded-full opacity-30 blur-2xl pointer-events-none ${
@@ -144,6 +168,7 @@ export default function ConfirmationDialog({
             disabled={isDisabled}
             loading={loading}
             className="!py-2.5 !px-6 !text-sm !font-bold"
+            style={!finalIsDestructive ? { background: '#032f28', color: '#ffffff', borderColor: '#032f28' } : undefined}
           >
             {finalConfirmText}
           </FlowButton>
