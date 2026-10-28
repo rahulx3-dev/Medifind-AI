@@ -1006,7 +1006,8 @@ async function updateOrderStatus(req, res) {
           where: { prescriptionId: order.prescriptionId, isVerified: false },
           data: {
             isVerified: true,
-            clinicalNotes: 'Clinically verified and accepted by dispensary pharmacist upon staging.'
+            verifiedAt: new Date(),
+            verifiedById: req.user?.id || null
           }
         });
       }
@@ -1016,7 +1017,8 @@ async function updateOrderStatus(req, res) {
           status: { in: ['AWAITING_VERIFICATION', 'PENDING_SELECTION'] }
         },
         data: {
-          status: 'VERIFIED'
+          status: 'PENDING',
+          unfulfilledReason: null
         }
       });
     }
